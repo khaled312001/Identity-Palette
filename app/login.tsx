@@ -100,17 +100,6 @@ export default function LoginScreen() {
     }
   };
 
-  const handleSkip = async () => {
-    try {
-      const res = await apiRequest("POST", "/api/employees/login", { pin: "1234" });
-      const emp = await res.json();
-      login(emp);
-      router.replace("/(tabs)");
-    } catch {
-      router.replace("/(tabs)");
-    }
-  };
-
   const renderEmployeeCard = ({ item }: { item: Employee }) => {
     const badgeColor = getRoleBadgeColor(item.role);
     return (
@@ -216,10 +205,6 @@ export default function LoginScreen() {
               )}
             </View>
           )}
-
-          <Pressable style={styles.skipBtn} onPress={handleSkip}>
-            <Text style={styles.skipText}>Quick Start (Admin)</Text>
-          </Pressable>
         </View>
       </LinearGradient>
     </View>
@@ -405,16 +390,6 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 28,
     fontWeight: "600" as const,
-  },
-  skipBtn: {
-    marginTop: 12,
-    marginBottom: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-  },
-  skipText: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 14,
   },
   emptyText: {
     color: "rgba(255,255,255,0.5)",

@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors } from "@/constants/colors";
 import { apiRequest, getQueryFn } from "@/lib/query-client";
+import BarcodeScanner from "@/components/BarcodeScanner";
 
 export default function ProductsScreen() {
   const insets = useSafeAreaInsets();
@@ -17,6 +18,7 @@ export default function ProductsScreen() {
   const [showForm, setShowForm] = useState(false);
   const [editProduct, setEditProduct] = useState<any>(null);
   const [form, setForm] = useState({ name: "", price: "", sku: "", barcode: "", categoryId: "", costPrice: "", unit: "piece", expiryDate: "" });
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
 
   const { data: products = [] } = useQuery<any[]>({
     queryKey: ["/api/products", search ? `?search=${search}` : ""],
@@ -144,7 +146,12 @@ export default function ProductsScreen() {
                 </View>
                 <View style={styles.half}>
                   <Text style={styles.label}>Barcode</Text>
-                  <TextInput style={styles.input} value={form.barcode} onChangeText={(t) => setForm({ ...form, barcode: t })} placeholderTextColor={Colors.textMuted} placeholder="123456789" />
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <TextInput style={[styles.input, { flex: 1 }]} value={form.barcode} onChangeText={(t) => setForm({ ...form, barcode: t })} placeholderTextColor={Colors.textMuted} placeholder="123456789" />
+                    <Pressable style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: Colors.accent, justifyContent: "center", alignItems: "center" }} onPress={() => setShowBarcodeScanner(true)}>
+                      <Ionicons name="barcode-outline" size={22} color={Colors.textDark} />
+                    </Pressable>
+                  </View>
                 </View>
               </View>
               <Text style={styles.label}>Expiry Date</Text>
@@ -166,6 +173,12 @@ export default function ProductsScreen() {
           </View>
         </View>
       </Modal>
+
+      <BarcodeScanner
+        visible={showBarcodeScanner}
+        onScanned={(barcode) => { setForm({ ...form, barcode }); setShowBarcodeScanner(false); }}
+        onClose={() => setShowBarcodeScanner(false)}
+      />
 
       <View style={{ height: Platform.OS === "web" ? 84 : 60 }} />
     </View>

@@ -12,6 +12,7 @@ import { useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
 import { apiRequest, getQueryFn } from "@/lib/query-client";
 import * as Haptics from "expo-haptics";
+import BarcodeScanner from "@/components/BarcodeScanner";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const isTablet = SCREEN_WIDTH > 700;
@@ -33,6 +34,7 @@ export default function POSScreen() {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [discountInput, setDiscountInput] = useState("");
   const [discountType, setDiscountType] = useState<"fixed" | "percent">("fixed");
+  const [showScanner, setShowScanner] = useState(false);
 
   const { data: categories = [] } = useQuery<any[]>({
     queryKey: ["/api/categories"],
@@ -136,6 +138,21 @@ export default function POSScreen() {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [cart]);
 
+  const handleBarcodeScan = useCallback(async (barcode: string) => {
+    try {
+      const res = await apiRequest("GET", `/api/products/barcode/${encodeURIComponent(barcode)}`);
+      const product = await res.json();
+      if (product && product.id) {
+        cart.addItem({ id: product.id, name: product.name, price: Number(product.price) });
+        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setShowScanner(false);
+        Alert.alert("Added", `${product.name} added to cart`);
+      }
+    } catch {
+      Alert.alert("Not Found", "No product found with this barcode. Please try again.");
+    }
+  }, [cart]);
+
   const applyDiscount = () => {
     const val = Number(discountInput);
     if (isNaN(val) || val <= 0) return;
@@ -165,8 +182,8 @@ export default function POSScreen() {
 
       <View style={styles.mainContent}>
         <View style={[styles.productsSection, isTablet && styles.productsSectionTablet]}>
-          <View style={styles.searchRow}>
-            <View style={styles.searchBox}>
+          <View style={[styles.searchRow, { flexDirection: "row", gap: 8, alignItems: "center" }]}>
+            <View style={[styles.searchBox, { flex: 1 }]}>
               <Ionicons name="search" size={18} color={Colors.textMuted} />
               <TextInput
                 style={styles.searchInput}
@@ -181,6 +198,9 @@ export default function POSScreen() {
                 </Pressable>
               ) : null}
             </View>
+            <Pressable style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: Colors.accent, justifyContent: "center", alignItems: "center" }} onPress={() => setShowScanner(true)}>
+              <Ionicons name="barcode-outline" size={22} color={Colors.textDark} />
+            </Pressable>
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesRow} contentContainerStyle={styles.categoriesContent}>
@@ -592,6 +612,12 @@ export default function POSScreen() {
           </View>
         </View>
       </Modal>
+
+      <BarcodeScanner
+        visible={showScanner}
+        onScanned={handleBarcodeScan}
+        onClose={() => setShowScanner(false)}
+      />
 
       <View style={{ height: Platform.OS === "web" ? 84 : 60 }} />
     </View>

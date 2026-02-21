@@ -9,6 +9,7 @@ import {
   FlatList,
   Dimensions,
   TextInput,
+  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -113,6 +114,21 @@ export default function ReportsScreen() {
     queryFn: getQueryFn({ on401: "throw" }),
   });
 
+  const { data: predictions } = useQuery<any>({
+    queryKey: ["/api/analytics/predictions"],
+    queryFn: getQueryFn({ on401: "throw" }),
+  });
+
+  const apiBaseUrl = "";
+
+  const handleExport = (endpoint: string) => {
+    if (Platform.OS === "web") {
+      window.open(endpoint, "_blank");
+    } else {
+      Linking.openURL(endpoint);
+    }
+  };
+
   const topPad = Platform.OS === "web" ? 67 : 0;
   const bottomPad = Platform.OS === "web" ? 84 : 60;
 
@@ -136,6 +152,24 @@ export default function ReportsScreen() {
 
   const renderOverview = () => (
     <>
+      <GlassCard style={{ flexDirection: "row", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+        <Pressable onPress={() => handleExport("/api/reports/sales-export")} style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.success + "20", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
+          <Ionicons name="download" size={14} color={Colors.success} />
+          <Text style={{ color: Colors.success, fontSize: 12, fontWeight: "600" }}>Sales CSV</Text>
+        </Pressable>
+        <Pressable onPress={() => handleExport("/api/reports/inventory-export")} style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.info + "20", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
+          <Ionicons name="download" size={14} color={Colors.info} />
+          <Text style={{ color: Colors.info, fontSize: 12, fontWeight: "600" }}>Inventory CSV</Text>
+        </Pressable>
+        <Pressable onPress={() => handleExport("/api/reports/profit-export")} style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.accent + "20", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
+          <Ionicons name="download" size={14} color={Colors.accent} />
+          <Text style={{ color: Colors.accent, fontSize: 12, fontWeight: "600" }}>Profit CSV</Text>
+        </Pressable>
+        <Pressable onPress={() => handleExport("/api/reports/employee-performance-export")} style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.secondary + "20", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
+          <Ionicons name="download" size={14} color={Colors.secondary} />
+          <Text style={{ color: Colors.secondary, fontSize: 12, fontWeight: "600" }}>Performance CSV</Text>
+        </Pressable>
+      </GlassCard>
       <View style={styles.statGrid}>
         <GlassCard style={styles.statCardHalf}>
           <View style={[styles.statIconWrap, { backgroundColor: Colors.accent + "20" }]}>
@@ -297,6 +331,60 @@ export default function ReportsScreen() {
           <Text style={styles.quickStatLabel}>Low Stock</Text>
         </GlassCard>
       </View>
+
+      <Text style={styles.sectionTitle}>Smart Insights & Predictions</Text>
+      {predictions ? (
+        <GlassCard>
+          <View style={{ gap: 12 }}>
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <View style={{ flex: 1, backgroundColor: Colors.accent + "10", borderRadius: 12, padding: 12 }}>
+                <Text style={{ color: Colors.textMuted, fontSize: 11 }}>Projected Monthly</Text>
+                <Text style={{ color: Colors.accent, fontSize: 18, fontWeight: "700" }}>${Number(predictions.projectedMonthlyRevenue || 0).toFixed(0)}</Text>
+              </View>
+              <View style={{ flex: 1, backgroundColor: Colors.success + "10", borderRadius: 12, padding: 12 }}>
+                <Text style={{ color: Colors.textMuted, fontSize: 11 }}>Projected Yearly</Text>
+                <Text style={{ color: Colors.success, fontSize: 18, fontWeight: "700" }}>${Number(predictions.projectedYearlyRevenue || 0).toFixed(0)}</Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <View style={{ flex: 1, backgroundColor: Colors.info + "10", borderRadius: 12, padding: 12 }}>
+                <Text style={{ color: Colors.textMuted, fontSize: 11 }}>Daily Average</Text>
+                <Text style={{ color: Colors.info, fontSize: 18, fontWeight: "700" }}>${Number(predictions.avgDailyRevenue || 0).toFixed(2)}</Text>
+              </View>
+              <View style={{ flex: 1, backgroundColor: Colors.warning + "10", borderRadius: 12, padding: 12 }}>
+                <Text style={{ color: Colors.textMuted, fontSize: 11 }}>Slow Moving</Text>
+                <Text style={{ color: Colors.warning, fontSize: 18, fontWeight: "700" }}>{predictions.slowMovingCount || 0}</Text>
+              </View>
+            </View>
+            {(predictions.insights || []).map((insight: string, i: number) => (
+              <View key={i} style={{ flexDirection: "row", gap: 8, alignItems: "flex-start" }}>
+                <Ionicons name="bulb" size={16} color={Colors.warning} style={{ marginTop: 2 }} />
+                <Text style={{ color: Colors.textSecondary, fontSize: 13, flex: 1 }}>{insight}</Text>
+              </View>
+            ))}
+            {(predictions.stockAlerts || []).length > 0 && (
+              <View style={{ marginTop: 4 }}>
+                <Text style={{ color: Colors.danger, fontSize: 13, fontWeight: "700", marginBottom: 6 }}>Stock Alerts</Text>
+                {(predictions.stockAlerts || []).slice(0, 5).map((alert: any, i: number) => (
+                  <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 4 }}>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: alert.urgency === "critical" ? Colors.danger : Colors.warning }} />
+                    <Text style={{ color: Colors.text, fontSize: 12, flex: 1 }}>{alert.productName}</Text>
+                    <Text style={{ color: Colors.textMuted, fontSize: 11 }}>Stock: {alert.currentStock}</Text>
+                    <Text style={{ color: Colors.accent, fontSize: 11, fontWeight: "600" }}>{alert.recommendation}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        </GlassCard>
+      ) : (
+        <GlassCard>
+          <View style={styles.empty}>
+            <Ionicons name="bulb-outline" size={32} color={Colors.textMuted} />
+            <Text style={styles.emptyText}>Loading predictions...</Text>
+          </View>
+        </GlassCard>
+      )}
     </>
   );
 

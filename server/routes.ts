@@ -564,6 +564,159 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try { res.json(await storage.getReturnsReport()); } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  // Report Exports
+  app.get("/api/reports/sales-export", async (req, res) => {
+    try {
+      const startDate = req.query.startDate as string || "2000-01-01";
+      const endDate = req.query.endDate as string || "2099-12-31";
+      const salesData = await storage.getSalesByDateRange(new Date(startDate), new Date(endDate));
+      
+      const headers = ["Receipt #", "Date", "Total", "Payment Method", "Status", "Employee ID", "Customer ID"];
+      const rows = salesData.map((s: any) => [
+        s.receiptNumber || `#${s.id}`,
+        new Date(s.createdAt).toLocaleString(),
+        Number(s.totalAmount).toFixed(2),
+        s.paymentMethod,
+        s.status,
+        s.employeeId,
+        s.customerId || "Walk-in",
+      ]);
+      
+      const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename=sales-report-${startDate}-to-${endDate}.csv`);
+      res.send(csv);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // CSV Export for Inventory
+  app.get("/api/reports/inventory-export", async (_req, res) => {
+    try {
+      const allProducts = await storage.getProducts();
+      const headers = ["ID", "Name", "Category", "Barcode", "Price", "Cost Price", "Stock Qty", "Low Stock Threshold", "Status"];
+      const rows = allProducts.map((p: any) => [
+        p.id,
+        `"${p.name}"`,
+        p.categoryId,
+        p.barcode || "N/A",
+        Number(p.price).toFixed(2),
+        Number(p.costPrice || 0).toFixed(2),
+        p.stockQuantity || 0,
+        p.lowStockThreshold || 10,
+        p.isActive ? "Active" : "Inactive",
+      ]);
+      
+      const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", "attachment; filename=inventory-report.csv");
+      res.send(csv);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // CSV Export for Profit Report
+  app.get("/api/reports/profit-export", async (_req, res) => {
+    try {
+      const profitData = await storage.getProfitByProduct();
+      const headers = ["Product", "Total Sold", "Revenue", "Total Cost", "Profit", "Cost Price"];
+      const rows = profitData.map((p: any) => [
+        `"${p.productName}"`,
+        p.totalSold,
+        Number(p.totalRevenue).toFixed(2),
+        Number(p.totalCost).toFixed(2),
+        Number(p.profit).toFixed(2),
+        Number(p.costPrice).toFixed(2),
+      ]);
+      
+      const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", "attachment; filename=profit-report.csv");
+      res.send(csv);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // CSV Export for Employee Performance
+  app.get("/api/reports/employee-performance-export", async (_req, res) => {
+    try {
+      const perfData = await storage.getCashierPerformance();
+      const headers = ["Employee", "Role", "Sales Count", "Total Revenue", "Avg Sale Value"];
+      const rows = perfData.map((p: any) => [
+        `"${p.employeeName}"`,
+        p.role,
+        p.salesCount,
+        Number(p.totalRevenue).toFixed(2),
+        Number(p.avgSaleValue).toFixed(2),
+      ]);
+      
+      const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", "attachment; filename=employee-performance-report.csv");
+      res.send(csv);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Smart Predictions / Analytics
+  app.get("/api/analytics/predictions", async (_req, res) => {
+    try {
+      const stats = await storage.getDashboardStats();
+      const topProducts = await storage.getTopProducts(10);
+      const slowMoving = await storage.getSlowMovingProducts(30);
+      const allProds = await storage.getProducts();
+      const lowStockData = await storage.getLowStockItems();
+      
+      // Simple predictions based on trends
+      const avgDailyRevenue = Number(stats.monthRevenue || 0) / 30;
+      const projectedMonthly = avgDailyRevenue * 30;
+      const projectedYearly = avgDailyRevenue * 365;
+      
+      // Stock predictions
+      const stockAlerts = lowStockData.map((item: any) => {
+        const prod = allProds.find((p: any) => p.id === item.productId);
+        return {
+          productId: item.productId,
+          productName: prod?.name || `Product #${item.productId}`,
+          currentStock: item.quantity || 0,
+          threshold: item.lowStockThreshold || 10,
+          urgency: (item.quantity || 0) <= 5 ? "critical" : "warning",
+          recommendation: `Reorder ${Math.max(50 - (item.quantity || 0), 20)} units`,
+        };
+      });
+      
+      // Best performing categories
+      const categoryPerf = topProducts.reduce((acc: any, p: any) => {
+        const prod = allProds.find((pr: any) => pr.id === p.productId);
+        const catId = prod?.categoryId || 0;
+        if (!acc[catId]) acc[catId] = { revenue: 0, count: 0 };
+        acc[catId].revenue += Number(p.revenue || 0);
+        acc[catId].count += Number(p.totalSold || 0);
+        return acc;
+      }, {});
+      
+      res.json({
+        projectedMonthlyRevenue: projectedMonthly,
+        projectedYearlyRevenue: projectedYearly,
+        avgDailyRevenue,
+        totalActiveProducts: allProds.filter((p: any) => p.isActive).length,
+        slowMovingCount: slowMoving.length,
+        topSellingProducts: topProducts.slice(0, 5).map((p: any) => ({
+          name: p.name,
+          revenue: Number(p.revenue || 0),
+          soldCount: Number(p.totalSold || 0),
+        })),
+        stockAlerts,
+        categoryPerformance: Object.entries(categoryPerf).map(([catId, data]: any) => ({
+          categoryId: Number(catId),
+          revenue: data.revenue,
+          itemsSold: data.count,
+        })),
+        insights: [
+          avgDailyRevenue > 0 ? `Average daily revenue: $${avgDailyRevenue.toFixed(2)}` : "No sales data yet for predictions",
+          slowMoving.length > 0 ? `${slowMoving.length} products with low sales in the last 30 days - consider promotions` : "All products are selling well",
+          stockAlerts.filter((a: any) => a.urgency === "critical").length > 0 ? `${stockAlerts.filter((a: any) => a.urgency === "critical").length} products critically low on stock - reorder immediately` : "Stock levels are healthy",
+        ],
+      });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   const httpServer = createServer(app);
 
   storage.seedInitialData().then(seeded => {

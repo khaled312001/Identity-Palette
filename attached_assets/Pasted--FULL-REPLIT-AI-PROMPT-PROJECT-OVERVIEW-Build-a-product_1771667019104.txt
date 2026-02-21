@@ -1,0 +1,435 @@
+✅ FULL REPLIT AI PROMPT
+🧠 PROJECT OVERVIEW
+
+Build a production-ready Tablet POS (Point of Sale) application branded as Barmagly Smart POS, designed for retail stores, cafes, and small businesses.
+
+The system must include:
+
+Tablet-friendly POS interface
+
+Node.js backend API
+
+Database (PostgreSQL preferred)
+
+Offline-first capability
+
+NFC & digital payment support
+
+Subscription billing system
+
+Multi-language (Arabic & English)
+
+Multi-branch support
+
+Role-based access
+
+Cloud-ready deployment
+
+🎨 BRANDING & IDENTITY (IMPORTANT)
+
+Use the Barmagly brand identity:
+
+Company: Barmagly
+Website: www.barmagly.tech
+
+Email: info@barmagly.tech
+
+Phone: +201010254819
+Country: Egypt
+
+Barmagly is a technology and digital transformation company providing software development and marketing solutions. 
+
+ملف تعريفي - شركة برمجلي Barmag…
+
+Visual Style:
+
+Primary Gradient: Blue → Purple → Teal
+
+Accent Color: #2FD3C6
+
+Dark mode friendly
+
+Rounded modern UI
+
+Clean tech-style icons
+
+App Name:
+👉 Barmagly Smart POS
+
+🌍 LANGUAGE SUPPORT
+
+Must support:
+
+Arabic (RTL layout)
+
+English (LTR layout)
+
+Toggle language instantly
+
+Save user language preference
+
+🧾 CORE FEATURES
+POS SALES SCREEN
+Features:
+
+Product grid with images
+
+Barcode scanner support
+
+Quick search
+
+Add/remove quantity
+
+Discounts (percentage & fixed)
+
+Notes per item
+
+Customer selection
+
+Multiple payment methods
+
+Print receipt (Bluetooth thermal)
+
+Send receipt via WhatsApp
+
+📦 PRODUCT & INVENTORY MANAGEMENT
+Features:
+
+Add/edit products with image
+
+Barcode & QR support
+
+Cost & selling price
+
+Variants (size/color)
+
+Categories
+
+Low stock alerts
+
+Bulk import CSV
+
+💳 PAYMENT INTEGRATION
+MUST SUPPORT:
+NFC & Contactless Payments
+
+Tap-to-pay (NFC)
+
+Visa / Mastercard contactless
+
+Apple Pay & Google Pay ready (if available)
+
+Digital Wallets (Egypt)
+
+Vodafone Cash
+
+Orange Money
+
+Etisalat Cash
+
+QR wallet payments
+
+Payment Gateway Integration
+
+Implement modular gateway support:
+
+Paymob
+
+Fawry
+
+Stripe (for international)
+
+Accept (Banque Misr)
+
+Offline fallback:
+
+Allow marking payment as pending sync.
+
+💰 SUBSCRIPTION & BILLING SYSTEM
+
+Create SaaS subscription system:
+
+Plans:
+
+Basic
+
+Pro
+
+Multi-branch
+
+Features:
+
+Free trial (14 days)
+
+Monthly & yearly billing
+
+Feature-based access control
+
+Auto-disable expired accounts
+
+Stripe & Paymob subscription support
+
+👥 USER ROLES & PERMISSIONS
+Roles:
+
+Owner
+
+Manager
+
+Cashier
+
+Permissions control access to:
+
+Reports
+
+Refunds
+
+Inventory
+
+Settings
+
+📊 REPORTING & ANALYTICS
+Dashboard:
+
+Daily revenue
+
+Net profit
+
+Best-selling products
+
+Inventory value
+
+Expenses tracking
+
+Cash drawer balance
+
+Sales trends
+
+Include charts & export to PDF/Excel.
+
+🌐 MULTI-BRANCH SUPPORT
+
+Central dashboard
+
+Branch-specific reports
+
+Inventory per branch
+
+Staff per branch
+
+🔔 SMART ALERTS
+
+Low stock
+
+Suspicious refund activity
+
+Sales drop alerts
+
+Offline sync pending alerts
+
+📶 OFFLINE MODE (CRITICAL)
+
+Use local storage database:
+
+SQLite / IndexedDB
+
+Sync engine when online
+
+Conflict resolution strategy
+
+🖥️ ADMIN WEB DASHBOARD
+
+Provide web admin panel to:
+
+Monitor all branches
+
+Manage subscriptions
+
+Manage businesses
+
+View system analytics
+
+⚙️ TECHNICAL STACK
+Frontend (Tablet App)
+
+Use:
+
+Flutter OR React Native (tablet optimized)
+
+Responsive grid layout
+
+RTL support
+
+Offline local database
+
+Backend
+
+Use:
+
+Node.js (Express.js or NestJS)
+
+REST API architecture
+
+JWT authentication
+
+Role-based access middleware
+
+Database
+
+Primary:
+
+PostgreSQL (cloud)
+
+Offline sync:
+
+SQLite local storage
+
+Realtime Sync
+
+WebSockets or Firebase sync
+
+Payment SDK
+
+Design gateway abstraction layer.
+
+Security
+
+HTTPS required
+
+JWT auth
+
+Encryped payment tokens
+
+Role permission middleware
+
+🔌 HARDWARE SUPPORT
+
+Support:
+
+Bluetooth thermal printers (ESC/POS)
+
+Barcode scanners
+
+NFC readers
+
+Cash drawers
+
+🚀 DEPLOYMENT & DEVOPS
+
+Prepare for deployment:
+
+Docker container support
+
+Environment config (.env)
+
+Cloud ready (AWS / GCP / DigitalOcean)
+
+CI/CD ready
+
+🧩 DATABASE SCHEMA (REQUIRED)
+
+Include:
+
+Tables:
+
+users
+
+businesses
+
+branches
+
+products
+
+categories
+
+inventory
+
+sales
+
+sale_items
+
+payments
+
+expenses
+
+subscriptions
+
+subscription_plans
+
+devices
+
+sync_logs
+
+🔐 AUTHENTICATION
+
+Email & password login
+
+Device registration
+
+Owner can manage devices
+
+🎯 UI REQUIREMENTS
+
+Tablet optimized interface
+
+Dark & light modes
+
+Arabic-friendly typography
+
+Fast touch interactions
+
+Large buttons for cashier speed
+
+🧪 TEST DATA & DEMO
+
+Include:
+
+Demo products
+
+Demo dashboard data
+
+Sandbox payment mode
+
+📦 FINAL OUTPUT REQUIRED
+
+Generate:
+
+✔ Fully working app
+✔ Backend API
+✔ Database schema
+✔ Deployment instructions
+✔ Payment integration modules
+✔ Offline sync engine
+✔ Admin dashboard
+✔ Multi-language support
+✔ Ready for production
+
+💡 OPTIONAL ADVANCED FEATURES
+
+If possible, include:
+
+Loyalty points system
+
+AI sales insights
+
+WhatsApp order integration
+
+E-invoice readiness (Egypt)
+
+🛑 IMPORTANT
+
+Code must be:
+
+modular
+
+scalable
+
+production-ready
+
+documented
+
+easy to customize for white-label use
+
+🎯 APP NAME
+
+Barmagly Smart POS

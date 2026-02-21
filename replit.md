@@ -33,9 +33,10 @@ Preferred communication style: Simple, everyday language.
 
 ### Backend (Express / Node.js)
 - **Server**: Express v5 application in `server/index.ts`, with CORS configured for Replit development/deployment domains and localhost.
-- **Routes**: Defined in `server/routes.ts`. RESTful API endpoints covering all entities: branches, employees, categories, products, inventory, customers, sales, sale items, suppliers, purchase orders, shifts, expenses, tables, kitchen orders, subscriptions, and a seed endpoint.
-- **Storage Layer**: `server/storage.ts` provides a data access object using Drizzle ORM queries directly (no repository pattern abstraction beyond the storage object). All database operations go through this module.
+- **Routes**: Defined in `server/routes.ts`. RESTful API endpoints covering all entities: branches, employees, categories, products, inventory, customers, sales, sale items, suppliers, purchase orders, shifts, expenses, tables, kitchen orders, subscriptions, analytics, and a seed endpoint. Includes analytics routes: `/api/analytics/top-products`, `/api/analytics/sales-by-payment`, `/api/analytics/sales-range`.
+- **Storage Layer**: `server/storage.ts` provides a data access object using Drizzle ORM queries directly. Includes enhanced methods: `getDashboardStats()` (returns comprehensive analytics with revenue, profit, top products, payment breakdown), `seedInitialData()` (auto-seeds on first run), `getExpensesByDateRange()`, `receivePurchaseOrder()`, `getEmployeeAttendance()`, `getSalesByDateRange()`, `getTopProducts()`, `getSalesByPaymentMethod()`.
 - **Authentication**: Simple PIN-based login via `POST /api/employees/login`. No session/token middleware — the employee object is returned directly and stored client-side.
+- **Auto-Seed**: Server automatically seeds initial data (branch, employees, categories, products, customers, suppliers, tables) on first run if no branches exist. Default admin PIN: 1234, cashier PIN: 0000.
 - **Build**: Server can be bundled with esbuild for production (`server:build` script). Development uses `tsx` for TypeScript execution.
 
 ### Database (PostgreSQL + Drizzle ORM)

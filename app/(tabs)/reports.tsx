@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -17,9 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { Colors } from "@/constants/colors";
 import { getQueryFn } from "@/lib/query-client";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const isTablet = SCREEN_WIDTH > 700;
+import { useLanguage } from "@/lib/language-context";
 
 type TabType = "overview" | "sales" | "inventory" | "returns" | "finance" | "activity";
 
@@ -50,6 +48,13 @@ function PercentBar({ percent, color, height = 8 }: { percent: number; color: st
 
 export default function ReportsScreen() {
   const insets = useSafeAreaInsets();
+  const { t, isRTL } = useLanguage();
+  const [screenDims, setScreenDims] = useState(Dimensions.get("window"));
+  useEffect(() => {
+    const sub = Dimensions.addEventListener("change", ({ window }) => setScreenDims(window));
+    return () => sub?.remove();
+  }, []);
+  const isTablet = screenDims.width > 600;
   const [tab, setTab] = useState<TabType>("overview");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -155,19 +160,19 @@ export default function ReportsScreen() {
       <GlassCard style={{ flexDirection: "row", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
         <Pressable onPress={() => handleExport("/api/reports/sales-export")} style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.success + "20", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
           <Ionicons name="download" size={14} color={Colors.success} />
-          <Text style={{ color: Colors.success, fontSize: 12, fontWeight: "600" }}>Sales CSV</Text>
+          <Text style={{ color: Colors.success, fontSize: 12, fontWeight: "600" }}>{t("exportSalesCSV")}</Text>
         </Pressable>
         <Pressable onPress={() => handleExport("/api/reports/inventory-export")} style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.info + "20", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
           <Ionicons name="download" size={14} color={Colors.info} />
-          <Text style={{ color: Colors.info, fontSize: 12, fontWeight: "600" }}>Inventory CSV</Text>
+          <Text style={{ color: Colors.info, fontSize: 12, fontWeight: "600" }}>{t("exportInventoryCSV")}</Text>
         </Pressable>
         <Pressable onPress={() => handleExport("/api/reports/profit-export")} style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.accent + "20", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
           <Ionicons name="download" size={14} color={Colors.accent} />
-          <Text style={{ color: Colors.accent, fontSize: 12, fontWeight: "600" }}>Profit CSV</Text>
+          <Text style={{ color: Colors.accent, fontSize: 12, fontWeight: "600" }}>{t("exportProfitCSV")}</Text>
         </Pressable>
         <Pressable onPress={() => handleExport("/api/reports/employee-performance-export")} style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.secondary + "20", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
           <Ionicons name="download" size={14} color={Colors.secondary} />
-          <Text style={{ color: Colors.secondary, fontSize: 12, fontWeight: "600" }}>Performance CSV</Text>
+          <Text style={{ color: Colors.secondary, fontSize: 12, fontWeight: "600" }}>{t("exportPerformanceCSV")}</Text>
         </Pressable>
       </GlassCard>
       <View style={styles.statGrid}>
@@ -175,7 +180,7 @@ export default function ReportsScreen() {
           <View style={[styles.statIconWrap, { backgroundColor: Colors.accent + "20" }]}>
             <Ionicons name="today" size={20} color={Colors.accent} />
           </View>
-          <Text style={styles.statLabel}>Today's Revenue</Text>
+          <Text style={styles.statLabel}>{t("todayRevenue")}</Text>
           <Text style={styles.statValue}>${Number(todayRevenue).toFixed(2)}</Text>
           <Text style={styles.statSub}>{todaySalesCount} transactions</Text>
         </GlassCard>
@@ -183,7 +188,7 @@ export default function ReportsScreen() {
           <View style={[styles.statIconWrap, { backgroundColor: Colors.info + "20" }]}>
             <Ionicons name="calendar" size={20} color={Colors.info} />
           </View>
-          <Text style={styles.statLabel}>Week Revenue</Text>
+          <Text style={styles.statLabel}>{t("monthRevenue")}</Text>
           <Text style={styles.statValue}>${Number(weekRevenue).toFixed(2)}</Text>
         </GlassCard>
       </View>
@@ -192,7 +197,7 @@ export default function ReportsScreen() {
           <View style={[styles.statIconWrap, { backgroundColor: Colors.secondary + "20" }]}>
             <Ionicons name="trending-up" size={20} color={Colors.secondary} />
           </View>
-          <Text style={styles.statLabel}>Month Revenue</Text>
+          <Text style={styles.statLabel}>{t("monthRevenue")}</Text>
           <Text style={styles.statValue}>${Number(monthRevenue).toFixed(2)}</Text>
         </GlassCard>
         <GlassCard style={styles.statCardHalf}>
@@ -237,7 +242,7 @@ export default function ReportsScreen() {
         </View>
       </GlassCard>
 
-      <Text style={styles.sectionTitle}>Top Products</Text>
+      <Text style={styles.sectionTitle}>{t("topProducts")}</Text>
       {topProducts.length > 0 ? (
         <GlassCard>
           {topProducts.slice(0, 5).map((product: any, index: number) => (
@@ -332,27 +337,27 @@ export default function ReportsScreen() {
         </GlassCard>
       </View>
 
-      <Text style={styles.sectionTitle}>Smart Insights & Predictions</Text>
+      <Text style={styles.sectionTitle}>{t("smartInsights")}</Text>
       {predictions ? (
         <GlassCard>
           <View style={{ gap: 12 }}>
             <View style={{ flexDirection: "row", gap: 12 }}>
               <View style={{ flex: 1, backgroundColor: Colors.accent + "10", borderRadius: 12, padding: 12 }}>
-                <Text style={{ color: Colors.textMuted, fontSize: 11 }}>Projected Monthly</Text>
+                <Text style={{ color: Colors.textMuted, fontSize: 11 }}>{t("projectedMonthly")}</Text>
                 <Text style={{ color: Colors.accent, fontSize: 18, fontWeight: "700" }}>${Number(predictions.projectedMonthlyRevenue || 0).toFixed(0)}</Text>
               </View>
               <View style={{ flex: 1, backgroundColor: Colors.success + "10", borderRadius: 12, padding: 12 }}>
-                <Text style={{ color: Colors.textMuted, fontSize: 11 }}>Projected Yearly</Text>
+                <Text style={{ color: Colors.textMuted, fontSize: 11 }}>{t("projectedYearly")}</Text>
                 <Text style={{ color: Colors.success, fontSize: 18, fontWeight: "700" }}>${Number(predictions.projectedYearlyRevenue || 0).toFixed(0)}</Text>
               </View>
             </View>
             <View style={{ flexDirection: "row", gap: 12 }}>
               <View style={{ flex: 1, backgroundColor: Colors.info + "10", borderRadius: 12, padding: 12 }}>
-                <Text style={{ color: Colors.textMuted, fontSize: 11 }}>Daily Average</Text>
+                <Text style={{ color: Colors.textMuted, fontSize: 11 }}>{t("dailyAverage")}</Text>
                 <Text style={{ color: Colors.info, fontSize: 18, fontWeight: "700" }}>${Number(predictions.avgDailyRevenue || 0).toFixed(2)}</Text>
               </View>
               <View style={{ flex: 1, backgroundColor: Colors.warning + "10", borderRadius: 12, padding: 12 }}>
-                <Text style={{ color: Colors.textMuted, fontSize: 11 }}>Slow Moving</Text>
+                <Text style={{ color: Colors.textMuted, fontSize: 11 }}>{t("slowMoving")}</Text>
                 <Text style={{ color: Colors.warning, fontSize: 18, fontWeight: "700" }}>{predictions.slowMovingCount || 0}</Text>
               </View>
             </View>
@@ -364,7 +369,7 @@ export default function ReportsScreen() {
             ))}
             {(predictions.stockAlerts || []).length > 0 && (
               <View style={{ marginTop: 4 }}>
-                <Text style={{ color: Colors.danger, fontSize: 13, fontWeight: "700", marginBottom: 6 }}>Stock Alerts</Text>
+                <Text style={{ color: Colors.danger, fontSize: 13, fontWeight: "700", marginBottom: 6 }}>{t("stockAlerts")}</Text>
                 {(predictions.stockAlerts || []).slice(0, 5).map((alert: any, i: number) => (
                   <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 4 }}>
                     <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: alert.urgency === "critical" ? Colors.danger : Colors.warning }} />
@@ -381,7 +386,7 @@ export default function ReportsScreen() {
         <GlassCard>
           <View style={styles.empty}>
             <Ionicons name="bulb-outline" size={32} color={Colors.textMuted} />
-            <Text style={styles.emptyText}>Loading predictions...</Text>
+            <Text style={styles.emptyText}>{t("loadingPredictions")}</Text>
           </View>
         </GlassCard>
       )}
@@ -459,7 +464,7 @@ export default function ReportsScreen() {
         )}
       </GlassCard>
 
-      <Text style={styles.sectionTitle}>Recent Sales</Text>
+      <Text style={styles.sectionTitle}>{t("recentSales")}</Text>
       <FlatList
         data={(dateFrom || dateTo) ? filteredSales : salesData}
         keyExtractor={(item: any) => String(item.id)}
@@ -469,7 +474,7 @@ export default function ReportsScreen() {
           <GlassCard>
             <View style={styles.empty}>
               <Ionicons name="receipt-outline" size={40} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>No sales recorded yet</Text>
+              <Text style={styles.emptyText}>{t("noSalesData")}</Text>
             </View>
           </GlassCard>
         }
@@ -479,7 +484,7 @@ export default function ReportsScreen() {
 
   const renderInventory = () => (
     <>
-      <Text style={styles.sectionTitle}>Low Stock Alerts</Text>
+      <Text style={styles.sectionTitle}>{t("stockAlerts")}</Text>
       {lowStock.length > 0 ? (
         <FlatList
           data={lowStock}
@@ -521,7 +526,7 @@ export default function ReportsScreen() {
         </GlassCard>
       )}
 
-      <Text style={styles.sectionTitle}>Recent Movements</Text>
+      <Text style={styles.sectionTitle}>{t("recentMovements")}</Text>
       {inventoryMovements.length > 0 ? (
         <FlatList
           data={inventoryMovements.slice(0, 15)}
@@ -551,12 +556,12 @@ export default function ReportsScreen() {
         <GlassCard>
           <View style={styles.empty}>
             <Ionicons name="swap-vertical-outline" size={32} color={Colors.textMuted} />
-            <Text style={styles.emptyText}>No inventory movements yet</Text>
+            <Text style={styles.emptyText}>{t("noMovements")}</Text>
           </View>
         </GlassCard>
       )}
 
-      <Text style={styles.sectionTitle}>Full Inventory</Text>
+      <Text style={styles.sectionTitle}>{t("fullInventory")}</Text>
       <FlatList
         data={allProducts}
         keyExtractor={(item: any) => String(item.id)}
@@ -657,19 +662,19 @@ export default function ReportsScreen() {
           <View style={[styles.statIconWrap, { backgroundColor: Colors.warning + "20" }]}>
             <Ionicons name="swap-horizontal" size={20} color={Colors.warning} />
           </View>
-          <Text style={styles.statLabel}>Total Returns</Text>
+          <Text style={styles.statLabel}>{t("totalReturns")}</Text>
           <Text style={styles.statValue}>{returnsReport?.totalReturns || 0}</Text>
         </GlassCard>
         <GlassCard style={styles.statCardHalf}>
           <View style={[styles.statIconWrap, { backgroundColor: Colors.danger + "20" }]}>
             <Ionicons name="cash" size={20} color={Colors.danger} />
           </View>
-          <Text style={styles.statLabel}>Total Refunds</Text>
+          <Text style={styles.statLabel}>{t("totalRefunds")}</Text>
           <Text style={styles.statValue}>${Number(returnsReport?.totalRefundAmount || 0).toFixed(2)}</Text>
         </GlassCard>
       </View>
 
-      <Text style={styles.sectionTitle}>Recent Returns</Text>
+      <Text style={styles.sectionTitle}>{t("recentReturns")}</Text>
       {(returnsReport?.recentReturns || []).length > 0 ? (
         (returnsReport.recentReturns || []).map((ret: any) => (
           <GlassCard key={ret.id} style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12 }}>
@@ -689,7 +694,7 @@ export default function ReportsScreen() {
         <GlassCard>
           <View style={styles.empty}>
             <Ionicons name="checkmark-circle" size={40} color={Colors.success} />
-            <Text style={styles.emptyText}>No returns recorded</Text>
+            <Text style={styles.emptyText}>{t("noReturns")}</Text>
           </View>
         </GlassCard>
       )}
@@ -707,7 +712,7 @@ export default function ReportsScreen() {
             <View style={[styles.statIconWrap, { backgroundColor: Colors.success + "20" }]}>
               <Ionicons name="trending-up" size={20} color={Colors.success} />
             </View>
-            <Text style={styles.statLabel}>Total Profit</Text>
+            <Text style={styles.statLabel}>{t("totalProfit")}</Text>
             <Text style={[styles.statValue, { color: totalProfitAll >= 0 ? Colors.success : Colors.danger }]}>
               ${totalProfitAll.toFixed(2)}
             </Text>
@@ -716,12 +721,12 @@ export default function ReportsScreen() {
             <View style={[styles.statIconWrap, { backgroundColor: Colors.info + "20" }]}>
               <Ionicons name="people" size={20} color={Colors.info} />
             </View>
-            <Text style={styles.statLabel}>Active Cashiers</Text>
+            <Text style={styles.statLabel}>{t("activeCashiers")}</Text>
             <Text style={styles.statValue}>{cashierPerformance.length}</Text>
           </GlassCard>
         </View>
 
-        <Text style={styles.sectionTitle}>Cashier Performance</Text>
+        <Text style={styles.sectionTitle}>{t("cashierPerformance")}</Text>
         {cashierPerformance.length > 0 ? (
           <GlassCard>
             {cashierPerformance.map((perf: any, index: number) => (
@@ -746,12 +751,12 @@ export default function ReportsScreen() {
           <GlassCard>
             <View style={styles.empty}>
               <Ionicons name="people-outline" size={32} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>No sales data yet</Text>
+              <Text style={styles.emptyText}>{t("noSalesData")}</Text>
             </View>
           </GlassCard>
         )}
 
-        <Text style={styles.sectionTitle}>Profit by Product</Text>
+        <Text style={styles.sectionTitle}>{t("profitByProduct")}</Text>
         {profitByProduct.length > 0 ? (
           <GlassCard>
             {profitByProduct.slice(0, 10).map((product: any, index: number) => (
@@ -776,12 +781,12 @@ export default function ReportsScreen() {
           <GlassCard>
             <View style={styles.empty}>
               <Ionicons name="bar-chart-outline" size={32} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>No profit data yet</Text>
+              <Text style={styles.emptyText}>{t("noProfitData")}</Text>
             </View>
           </GlassCard>
         )}
 
-        <Text style={styles.sectionTitle}>Slow Moving Products (Last 30 Days)</Text>
+        <Text style={styles.sectionTitle}>{t("slowMovingProducts")}</Text>
         {slowMovingProducts.length > 0 ? (
           <GlassCard>
             {slowMovingProducts.slice(0, 8).map((product: any, index: number) => (
@@ -803,7 +808,7 @@ export default function ReportsScreen() {
           <GlassCard>
             <View style={styles.empty}>
               <Ionicons name="checkmark-circle" size={32} color={Colors.success} />
-              <Text style={styles.emptyText}>All products are selling well</Text>
+              <Text style={styles.emptyText}>{t("allProductsSelling")}</Text>
             </View>
           </GlassCard>
         )}
@@ -812,7 +817,7 @@ export default function ReportsScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + topPad }]}>
+    <View style={[styles.container, { paddingTop: insets.top + topPad, direction: isRTL ? "rtl" : "ltr" }]}>
       <LinearGradient
         colors={[Colors.gradientStart, Colors.gradientMid, Colors.gradientEnd]}
         start={{ x: 0, y: 0 }}
@@ -820,23 +825,23 @@ export default function ReportsScreen() {
         style={styles.header}
       >
         <Ionicons name="analytics" size={24} color={Colors.white} />
-        <Text style={styles.headerTitle}>Reports & Analytics</Text>
+        <Text style={styles.headerTitle}>{t("reports")}</Text>
       </LinearGradient>
 
       <View style={styles.tabRow}>
-        {(["overview", "sales", "inventory", "returns", "finance", "activity"] as const).map((t) => (
+        {(["overview", "sales", "inventory", "returns", "finance", "activity"] as const).map((tabKey) => (
           <Pressable
-            key={t}
-            style={[styles.tabBtn, tab === t && styles.tabBtnActive]}
-            onPress={() => setTab(t)}
+            key={tabKey}
+            style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]}
+            onPress={() => setTab(tabKey)}
           >
             <Ionicons
-              name={TAB_ICONS[t] as any}
+              name={TAB_ICONS[tabKey] as any}
               size={16}
-              color={tab === t ? Colors.textDark : Colors.textSecondary}
+              color={tab === tabKey ? Colors.textDark : Colors.textSecondary}
             />
-            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-              {t.charAt(0).toUpperCase() + t.slice(1)}
+            <Text style={[styles.tabText, tab === tabKey && styles.tabTextActive]}>
+              {t(tabKey)}
             </Text>
           </Pressable>
         ))}
@@ -1086,7 +1091,7 @@ const styles = StyleSheet.create({
   },
   quickStatCard: {
     flex: 1,
-    minWidth: isTablet ? 150 : 70,
+    minWidth: 70,
     alignItems: "center",
     paddingVertical: 14,
     gap: 6,

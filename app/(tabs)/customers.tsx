@@ -9,10 +9,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors } from "@/constants/colors";
 import { apiRequest, getQueryFn } from "@/lib/query-client";
+import { useLanguage } from "@/lib/language-context";
 
 export default function CustomersScreen() {
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
+  const { t, isRTL } = useLanguage();
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editCustomer, setEditCustomer] = useState<any>(null);
@@ -56,9 +58,9 @@ export default function CustomersScreen() {
   const topPad = Platform.OS === "web" ? 67 : 0;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + topPad }]}>
+    <View style={[styles.container, { paddingTop: insets.top + topPad, direction: isRTL ? "rtl" : "ltr" }]}>
       <LinearGradient colors={[Colors.gradientStart, Colors.gradientMid]} style={styles.header}>
-        <Text style={styles.headerTitle}>Customers</Text>
+        <Text style={styles.headerTitle}>{t("customers")}</Text>
         <Pressable style={styles.addBtn} onPress={() => { setEditCustomer(null); setForm({ name: "", email: "", phone: "", address: "", notes: "" }); setShowForm(true); }}>
           <Ionicons name="add" size={24} color={Colors.white} />
         </Pressable>
@@ -67,7 +69,7 @@ export default function CustomersScreen() {
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={18} color={Colors.textMuted} />
-          <TextInput style={styles.searchInput} placeholder="Search customers..." placeholderTextColor={Colors.textMuted} value={search} onChangeText={setSearch} />
+          <TextInput style={styles.searchInput} placeholder={t("search") + "..."} placeholderTextColor={Colors.textMuted} value={search} onChangeText={setSearch} />
         </View>
       </View>
 
@@ -94,30 +96,30 @@ export default function CustomersScreen() {
             </View>
           </Pressable>
         )}
-        ListEmptyComponent={<View style={styles.empty}><Ionicons name="people-outline" size={48} color={Colors.textMuted} /><Text style={styles.emptyText}>No customers yet</Text></View>}
+        ListEmptyComponent={<View style={styles.empty}><Ionicons name="people-outline" size={48} color={Colors.textMuted} /><Text style={styles.emptyText}>{t("noCustomers")}</Text></View>}
       />
 
       <Modal visible={showForm} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{editCustomer ? "Edit Customer" : "New Customer"}</Text>
+              <Text style={styles.modalTitle}>{editCustomer ? t("edit") + " " + t("customers") : t("addCustomer")}</Text>
               <Pressable onPress={() => setShowForm(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.label}>Name *</Text>
-              <TextInput style={styles.input} value={form.name} onChangeText={(t) => setForm({ ...form, name: t })} placeholderTextColor={Colors.textMuted} placeholder="Customer name" />
-              <Text style={styles.label}>Phone</Text>
-              <TextInput style={styles.input} value={form.phone} onChangeText={(t) => setForm({ ...form, phone: t })} keyboardType="phone-pad" placeholderTextColor={Colors.textMuted} placeholder="+1234567890" />
-              <Text style={styles.label}>Email</Text>
-              <TextInput style={styles.input} value={form.email} onChangeText={(t) => setForm({ ...form, email: t })} keyboardType="email-address" placeholderTextColor={Colors.textMuted} placeholder="email@example.com" autoCapitalize="none" />
-              <Text style={styles.label}>Address</Text>
-              <TextInput style={styles.input} value={form.address} onChangeText={(t) => setForm({ ...form, address: t })} placeholderTextColor={Colors.textMuted} placeholder="Address" />
+              <Text style={styles.label}>{t("customerName")} *</Text>
+              <TextInput style={styles.input} value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} placeholderTextColor={Colors.textMuted} placeholder={t("customerName")} />
+              <Text style={styles.label}>{t("phone")}</Text>
+              <TextInput style={styles.input} value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v })} keyboardType="phone-pad" placeholderTextColor={Colors.textMuted} placeholder="+1234567890" />
+              <Text style={styles.label}>{t("email")}</Text>
+              <TextInput style={styles.input} value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} keyboardType="email-address" placeholderTextColor={Colors.textMuted} placeholder="email@example.com" autoCapitalize="none" />
+              <Text style={styles.label}>{t("address")}</Text>
+              <TextInput style={styles.input} value={form.address} onChangeText={(v) => setForm({ ...form, address: v })} placeholderTextColor={Colors.textMuted} placeholder={t("address")} />
               <Text style={styles.label}>Notes</Text>
-              <TextInput style={[styles.input, { height: 80, textAlignVertical: "top" }]} value={form.notes} onChangeText={(t) => setForm({ ...form, notes: t })} multiline placeholderTextColor={Colors.textMuted} placeholder="Notes..." />
+              <TextInput style={[styles.input, { height: 80, textAlignVertical: "top" }]} value={form.notes} onChangeText={(v) => setForm({ ...form, notes: v })} multiline placeholderTextColor={Colors.textMuted} placeholder="Notes..." />
               <Pressable style={styles.saveBtn} onPress={handleSave}>
                 <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={styles.saveBtnGradient}>
-                  <Text style={styles.saveBtnText}>{editCustomer ? "Update" : "Create"} Customer</Text>
+                  <Text style={styles.saveBtnText}>{editCustomer ? t("save") : t("addCustomer")}</Text>
                 </LinearGradient>
               </Pressable>
             </ScrollView>
@@ -150,7 +152,7 @@ export default function CustomersScreen() {
                       <Ionicons name="star" size={16} color={Colors.warning} />
                       <Text style={{ color: Colors.warning, fontSize: 20, fontWeight: "800" }}>{selectedCustomer.loyaltyPoints || 0}</Text>
                     </View>
-                    <Text style={{ color: Colors.textMuted, fontSize: 11 }}>Loyalty Points</Text>
+                    <Text style={{ color: Colors.textMuted, fontSize: 11 }}>{t("loyaltyPoints")}</Text>
                   </View>
                   <View style={{ flex: 1, backgroundColor: Colors.surfaceLight, borderRadius: 14, padding: 14, alignItems: "center" }}>
                     <Text style={{ color: Colors.accent, fontSize: 20, fontWeight: "800" }}>${Number(selectedCustomer.totalSpent || 0).toFixed(0)}</Text>

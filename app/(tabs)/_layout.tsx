@@ -5,9 +5,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
 import { BlurView } from "expo-blur";
 import { useAuth } from "@/lib/auth-context";
+import { useLanguage } from "@/lib/language-context";
 
 export default function TabLayout() {
   const { isLoggedIn } = useAuth();
+  const { t, isRTL } = useLanguage();
   if (!isLoggedIn) {
     return <Redirect href="/login" />;
   }
@@ -26,6 +28,7 @@ export default function TabLayout() {
           paddingBottom: Platform.OS === "web" ? 34 : 6,
           paddingTop: 6,
           position: "absolute" as const,
+          direction: isRTL ? "rtl" : "ltr",
         },
         tabBarBackground: () =>
           Platform.OS === "ios" ? (
@@ -40,7 +43,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "POS",
+          title: t("pos"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="cart" size={size} color={color} />
           ),
@@ -49,7 +52,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="products"
         options={{
-          title: "Products",
+          title: t("products"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="grid" size={size} color={color} />
           ),
@@ -58,7 +61,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="customers"
         options={{
-          title: "Customers",
+          title: t("customers"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="people" size={size} color={color} />
           ),
@@ -67,7 +70,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="reports"
         options={{
-          title: "Reports",
+          title: t("reports"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="stats-chart" size={size} color={color} />
           ),
@@ -76,7 +79,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: "More",
+          title: t("more"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="menu" size={size} color={color} />
           ),

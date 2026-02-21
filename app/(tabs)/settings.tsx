@@ -9,19 +9,20 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
+import { useLanguage } from "@/lib/language-context";
 import { apiRequest, getQueryFn } from "@/lib/query-client";
 
-function SettingRow({ icon, label, value, onPress, color }: { icon: string; label: string; value?: string; onPress?: () => void; color?: string }) {
+function SettingRow({ icon, label, value, onPress, color, rtl }: { icon: string; label: string; value?: string; onPress?: () => void; color?: string; rtl?: boolean }) {
   return (
-    <Pressable style={rowStyles.row} onPress={onPress}>
-      <View style={[rowStyles.iconWrap, { backgroundColor: (color || Colors.accent) + "20" }]}>
+    <Pressable style={[rowStyles.row, rtl && { flexDirection: "row-reverse" }]} onPress={onPress}>
+      <View style={[rowStyles.iconWrap, { backgroundColor: (color || Colors.accent) + "20" }, rtl ? { marginLeft: 12, marginRight: 0 } : {}]}>
         <Ionicons name={icon as any} size={20} color={color || Colors.accent} />
       </View>
-      <View style={rowStyles.info}>
-        <Text style={rowStyles.label}>{label}</Text>
-        {value ? <Text style={rowStyles.value}>{value}</Text> : null}
+      <View style={[rowStyles.info, rtl && { alignItems: "flex-end" }]}>
+        <Text style={[rowStyles.label, rtl && { textAlign: "right" }]}>{label}</Text>
+        {value ? <Text style={[rowStyles.value, rtl && { textAlign: "right" }]}>{value}</Text> : null}
       </View>
-      {onPress && <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />}
+      {onPress && <Ionicons name={rtl ? "chevron-back" : "chevron-forward"} size={18} color={Colors.textMuted} />}
     </Pressable>
   );
 }
@@ -56,6 +57,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const { employee, logout } = useAuth();
+  const { t, isRTL, language, setLanguage } = useLanguage();
   const [showEmployees, setShowEmployees] = useState(false);
   const [showSuppliers, setShowSuppliers] = useState(false);
   const [showBranches, setShowBranches] = useState(false);
@@ -230,7 +232,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + topPad }]}>
+    <View style={[styles.container, { paddingTop: insets.top + topPad, direction: isRTL ? "rtl" : "ltr" }]}>
       <LinearGradient colors={[Colors.gradientStart, Colors.gradientMid]} style={styles.header}>
         <Text style={styles.headerTitle}>Settings & More</Text>
       </LinearGradient>
@@ -250,28 +252,38 @@ export default function SettingsScreen() {
           </View>
         )}
 
-        <Text style={styles.sectionTitle}>Management</Text>
-        <SettingRow icon="people" label="Employees" value={`${employees.length} members`} onPress={() => setShowEmployees(true)} color={Colors.info} />
-        <SettingRow icon="business" label="Branches" value={`${branches.length} locations`} onPress={() => setShowBranches(true)} color={Colors.secondary} />
-        <SettingRow icon="cube" label="Suppliers" value={`${suppliers.length} suppliers`} onPress={() => setShowSuppliers(true)} color={Colors.success} />
-        <SettingRow icon="wallet" label="Expenses" value={`${expenses.length} expenses`} onPress={() => setShowExpenses(true)} color={Colors.warning} />
-        <SettingRow icon="time" label="Attendance" value={`${shifts.length} shifts`} onPress={() => setShowAttendance(true)} color={Colors.warning} />
-        <SettingRow icon="document-text" label="Purchase Orders" value={`${purchaseOrders.length} orders`} onPress={() => setShowPurchaseOrders(true)} color={Colors.info} />
-        <SettingRow icon="list" label="Activity Log" value={`${activityLog.length} entries`} onPress={() => setShowActivityLog(true)} color={Colors.secondary} />
-        <SettingRow icon="swap-horizontal" label="Returns & Refunds" value={`${returns.length} returns`} onPress={() => setShowReturnsManager(true)} color={Colors.danger} />
-        <SettingRow icon="cash" label="Cash Drawer" value={activeShift ? "Active Shift" : "No Active Shift"} onPress={() => setShowCashDrawer(true)} color={Colors.success} />
-        <SettingRow icon="home" label="Warehouses" value={`${warehousesList.length} warehouses`} onPress={() => setShowWarehouseManager(true)} color={Colors.accent} />
-        <SettingRow icon="layers" label="Product Batches" value={`${batchesList.length} batches`} onPress={() => setShowBatchManager(true)} color={Colors.secondary} />
+        <Text style={styles.sectionTitle}>{t("management")}</Text>
+        <SettingRow icon="people" label={t("employees")} value={`${employees.length} members`} onPress={() => setShowEmployees(true)} color={Colors.info} rtl={isRTL} />
+        <SettingRow icon="business" label={t("branches")} value={`${branches.length} locations`} onPress={() => setShowBranches(true)} color={Colors.secondary} rtl={isRTL} />
+        <SettingRow icon="cube" label={t("suppliers")} value={`${suppliers.length} suppliers`} onPress={() => setShowSuppliers(true)} color={Colors.success} rtl={isRTL} />
+        <SettingRow icon="wallet" label={t("expenses")} value={`${expenses.length} expenses`} onPress={() => setShowExpenses(true)} color={Colors.warning} rtl={isRTL} />
+        <SettingRow icon="time" label={t("attendance")} value={`${shifts.length} shifts`} onPress={() => setShowAttendance(true)} color={Colors.warning} rtl={isRTL} />
+        <SettingRow icon="document-text" label={t("purchaseOrders")} value={`${purchaseOrders.length} orders`} onPress={() => setShowPurchaseOrders(true)} color={Colors.info} rtl={isRTL} />
+        <SettingRow icon="list" label={t("activityLog")} value={`${activityLog.length} entries`} onPress={() => setShowActivityLog(true)} color={Colors.secondary} rtl={isRTL} />
+        <SettingRow icon="swap-horizontal" label={t("returnsRefunds")} value={`${returns.length} returns`} onPress={() => setShowReturnsManager(true)} color={Colors.danger} rtl={isRTL} />
+        <SettingRow icon="cash" label={t("cashDrawer")} value={activeShift ? "Active Shift" : "No Active Shift"} onPress={() => setShowCashDrawer(true)} color={Colors.success} rtl={isRTL} />
+        <SettingRow icon="home" label={t("warehouses")} value={`${warehousesList.length} warehouses`} onPress={() => setShowWarehouseManager(true)} color={Colors.accent} rtl={isRTL} />
+        <SettingRow icon="layers" label={t("productBatches")} value={`${batchesList.length} batches`} onPress={() => setShowBatchManager(true)} color={Colors.secondary} rtl={isRTL} />
 
-        <Text style={styles.sectionTitle}>System</Text>
-        <SettingRow icon="language" label="Language" value="English" color={Colors.accent} />
-        <SettingRow icon="print" label="Receipt Printer" value="Not configured" color={Colors.textMuted} />
-        <SettingRow icon="cloud-upload" label="Sync Status" value="Connected" color={Colors.success} />
-        <SettingRow icon="information-circle" label="App Version" value="1.0.0" color={Colors.info} />
+        <Text style={styles.sectionTitle}>{t("system")}</Text>
+        <SettingRow icon="language" label={t("language")} value={language === "ar" ? "العربية" : "English"} onPress={() => {
+          Alert.alert(
+            t("language"),
+            "",
+            [
+              { text: "English", onPress: () => setLanguage("en") },
+              { text: "العربية (Arabic)", onPress: () => setLanguage("ar") },
+              { text: t("cancel"), style: "cancel" },
+            ]
+          );
+        }} color={Colors.info} rtl={isRTL} />
+        <SettingRow icon="print" label="Receipt Printer" value="Not configured" color={Colors.textMuted} rtl={isRTL} />
+        <SettingRow icon="cloud-upload" label="Sync Status" value="Connected" color={Colors.success} rtl={isRTL} />
+        <SettingRow icon="information-circle" label="App Version" value="1.0.0" color={Colors.info} rtl={isRTL} />
 
-        <Pressable style={styles.logoutBtn} onPress={() => { logout(); Alert.alert("Logged Out", "You have been logged out"); }}>
+        <Pressable style={styles.logoutBtn} onPress={() => { Alert.alert(t("logoutConfirm"), "", [{ text: t("cancel"), style: "cancel" }, { text: t("logout"), style: "destructive", onPress: () => logout() }]); }}>
           <Ionicons name="log-out" size={20} color={Colors.danger} />
-          <Text style={styles.logoutText}>Log Out</Text>
+          <Text style={styles.logoutText}>{t("logout")}</Text>
         </Pressable>
       </ScrollView>
 
@@ -279,7 +291,7 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Employees</Text>
+              <Text style={styles.modalTitle}>{t("employees")}</Text>
               <View style={styles.modalActions}>
                 <Pressable onPress={() => { setEmpForm({ name: "", pin: "", role: "cashier", email: "", phone: "" }); setShowEmployeeForm(true); }}>
                   <Ionicons name="add-circle" size={28} color={Colors.accent} />
@@ -349,7 +361,7 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Suppliers</Text>
+              <Text style={styles.modalTitle}>{t("suppliers")}</Text>
               <View style={styles.modalActions}>
                 <Pressable onPress={() => { setSupForm({ name: "", contactName: "", email: "", phone: "", paymentTerms: "" }); setShowSupplierForm(true); }}>
                   <Ionicons name="add-circle" size={28} color={Colors.accent} />
@@ -410,7 +422,7 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Branches</Text>
+              <Text style={styles.modalTitle}>{t("branches")}</Text>
               <Pressable onPress={() => setShowBranches(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
             </View>
             <FlatList
@@ -442,7 +454,7 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Expenses</Text>
+              <Text style={styles.modalTitle}>{t("expenses")}</Text>
               <View style={styles.modalActions}>
                 <Pressable onPress={() => { setExpenseForm({ description: "", amount: "", category: "other", date: new Date().toISOString().split("T")[0], notes: "" }); setShowExpenseForm(true); }}>
                   <Ionicons name="add-circle" size={28} color={Colors.accent} />
@@ -525,7 +537,7 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Attendance</Text>
+              <Text style={styles.modalTitle}>{t("attendance")}</Text>
               <Pressable onPress={() => setShowAttendance(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
             </View>
             {employee && (
@@ -590,7 +602,7 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Purchase Orders</Text>
+              <Text style={styles.modalTitle}>{t("purchaseOrders")}</Text>
               <View style={styles.modalActions}>
                 <Pressable onPress={() => { setPOForm({ supplierId: "", notes: "" }); setShowPOForm(true); }}>
                   <Ionicons name="add-circle" size={28} color={Colors.accent} />
@@ -668,7 +680,7 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Activity Log</Text>
+              <Text style={styles.modalTitle}>{t("activityLog")}</Text>
               <Pressable onPress={() => setShowActivityLog(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
             </View>
             <FlatList
@@ -705,7 +717,7 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Returns & Refunds</Text>
+              <Text style={styles.modalTitle}>{t("returnsRefunds")}</Text>
               <View style={styles.modalActions}>
                 <Pressable onPress={() => { setReturnForm({ originalSaleId: "", reason: "", type: "refund" }); setShowReturnForm(true); }}>
                   <Ionicons name="add-circle" size={28} color={Colors.accent} />
@@ -790,7 +802,7 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Cash Drawer</Text>
+              <Text style={styles.modalTitle}>{t("cashDrawer")}</Text>
               <Pressable onPress={() => setShowCashDrawer(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
             </View>
             <ScrollView>
@@ -851,7 +863,7 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Warehouses</Text>
+              <Text style={styles.modalTitle}>{t("warehouses")}</Text>
               <View style={styles.modalActions}>
                 <Pressable onPress={() => {
                   Alert.prompt ? Alert.prompt("New Warehouse", "Enter warehouse name", (name: string) => {
@@ -893,7 +905,7 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Product Batches</Text>
+              <Text style={styles.modalTitle}>{t("productBatches")}</Text>
               <View style={styles.modalActions}>
                 <Pressable onPress={() => {
                   if (productsList.length === 0) return Alert.alert("Error", "No products available");

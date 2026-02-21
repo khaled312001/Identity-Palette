@@ -13,15 +13,20 @@ import { useAuth } from "@/lib/auth-context";
 import { apiRequest, getQueryFn } from "@/lib/query-client";
 import * as Haptics from "expo-haptics";
 import BarcodeScanner from "@/components/BarcodeScanner";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const isTablet = SCREEN_WIDTH > 700;
+import { useLanguage } from "@/lib/language-context";
 
 export default function POSScreen() {
   const insets = useSafeAreaInsets();
   const { employee } = useAuth();
   const qc = useQueryClient();
   const cart = useCart();
+  const { t, isRTL } = useLanguage();
+  const [screenDims, setScreenDims] = useState(Dimensions.get("window"));
+  useEffect(() => {
+    const sub = Dimensions.addEventListener("change", ({ window }) => setScreenDims(window));
+    return () => sub?.remove();
+  }, []);
+  const isTablet = screenDims.width > 600;
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -114,7 +119,7 @@ export default function POSScreen() {
         paymentMethod,
         cashReceived: Number(cashReceived) || 0,
         change: paymentMethod === "cash" && cashReceived ? Number(cashReceived) - cart.total : 0,
-        customerName: selectedCustomer?.name || "Walk-in Customer",
+        customerName: selectedCustomer?.name || t("walkIn"),
         employeeName: employee?.name || "Staff",
         date: new Date().toLocaleString(),
       });
@@ -168,7 +173,7 @@ export default function POSScreen() {
   const topPad = Platform.OS === "web" ? 67 : 0;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + topPad }]}>
+    <View style={[styles.container, { paddingTop: insets.top + topPad, direction: isRTL ? "rtl" : "ltr" }]}>
       <View style={styles.header}>
         <LinearGradient colors={[Colors.gradientStart, Colors.gradientMid, Colors.gradientEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.headerGradient}>
           <View style={styles.headerContent}>
@@ -180,14 +185,14 @@ export default function POSScreen() {
         </LinearGradient>
       </View>
 
-      <View style={styles.mainContent}>
+      <View style={[styles.mainContent, { flexDirection: isTablet ? (isRTL ? "row-reverse" : "row") : "column" }]}>
         <View style={[styles.productsSection, isTablet && styles.productsSectionTablet]}>
           <View style={[styles.searchRow, { flexDirection: "row", gap: 8, alignItems: "center" }]}>
             <View style={[styles.searchBox, { flex: 1 }]}>
               <Ionicons name="search" size={18} color={Colors.textMuted} />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search products..."
+                placeholder={t("search") + "..."}
                 placeholderTextColor={Colors.textMuted}
                 value={search}
                 onChangeText={setSearch}
@@ -208,7 +213,7 @@ export default function POSScreen() {
               style={[styles.categoryChip, !selectedCategory && styles.categoryChipActive]}
               onPress={() => setSelectedCategory(null)}
             >
-              <Text style={[styles.categoryChipText, !selectedCategory && styles.categoryChipTextActive]}>All</Text>
+              <Text style={[styles.categoryChipText, !selectedCategory && styles.categoryChipTextActive]}>{t("allCategories")}</Text>
             </Pressable>
             {categories.map((cat: any) => (
               <Pressable
@@ -250,7 +255,7 @@ export default function POSScreen() {
 
         <View style={[styles.cartSection, isTablet && styles.cartSectionTablet]}>
           <View style={styles.cartHeader}>
-            <Text style={styles.cartTitle}>Cart ({cart.itemCount})</Text>
+            <Text style={styles.cartTitle}>{t("cart")} ({cart.itemCount})</Text>
             <View style={{ flexDirection: "row", gap: 10 }}>
               {cart.items.length > 0 && (
                 <>
@@ -268,7 +273,7 @@ export default function POSScreen() {
           <Pressable style={styles.customerSelect} onPress={() => setShowCustomerPicker(true)}>
             <Ionicons name="person" size={16} color={cart.customerId ? Colors.accent : Colors.textMuted} />
             <Text style={[styles.customerSelectText, cart.customerId && { color: Colors.accent }]}>
-              {selectedCustomer ? selectedCustomer.name : "Select Customer (Walk-in)"}
+              {selectedCustomer ? selectedCustomer.name : `${t("selectCustomer")} (${t("walkIn")})`}
             </Text>
             <Ionicons name="chevron-down" size={14} color={Colors.textMuted} />
           </Pressable>
@@ -298,20 +303,20 @@ export default function POSScreen() {
             ListEmptyComponent={
               <View style={styles.cartEmpty}>
                 <Ionicons name="cart-outline" size={40} color={Colors.textMuted} />
-                <Text style={styles.cartEmptyText}>Cart is empty</Text>
-                <Text style={styles.cartEmptySubtext}>Tap products to add</Text>
+                <Text style={styles.cartEmptyText}>{t("emptyCart")}</Text>
+                <Text style={styles.cartEmptySubtext}>{t("addToCart")}</Text>
               </View>
             }
           />
 
           <View style={styles.cartSummary}>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Subtotal</Text>
+              <Text style={styles.summaryLabel}>{t("subtotal")}</Text>
               <Text style={styles.summaryValue}>${cart.subtotal.toFixed(2)}</Text>
             </View>
             {cart.discount > 0 && (
               <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, { color: Colors.success }]}>Discount</Text>
+                <Text style={[styles.summaryLabel, { color: Colors.success }]}>{t("discount")}</Text>
                 <Text style={[styles.summaryValue, { color: Colors.success }]}>-${cart.discount.toFixed(2)}</Text>
               </View>
             )}
@@ -320,7 +325,7 @@ export default function POSScreen() {
               <Text style={styles.summaryValue}>${cart.tax.toFixed(2)}</Text>
             </View>
             <View style={[styles.summaryRow, styles.totalRow]}>
-              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalLabel}>{t("total")}</Text>
               <Text style={styles.totalValue}>${cart.total.toFixed(2)}</Text>
             </View>
           </View>
@@ -336,7 +341,7 @@ export default function POSScreen() {
               style={styles.checkoutBtnGradient}
             >
               <Ionicons name="card" size={20} color={Colors.white} />
-              <Text style={styles.checkoutBtnText}>Checkout ${cart.total.toFixed(2)}</Text>
+              <Text style={styles.checkoutBtnText}>{t("checkout")} ${cart.total.toFixed(2)}</Text>
             </LinearGradient>
           </Pressable>
         </View>
@@ -366,13 +371,13 @@ export default function POSScreen() {
                 </View>
               )}
 
-              <Text style={styles.sectionLabel}>Payment Method</Text>
+              <Text style={styles.sectionLabel}>{t("paymentMethod")}</Text>
               <View style={styles.paymentMethods}>
                 {[
-                  { key: "cash", icon: "cash" as const, label: "Cash" },
-                  { key: "card", icon: "card" as const, label: "Card" },
-                  { key: "mobile", icon: "phone-portrait" as const, label: "Mobile" },
-                  { key: "qr", icon: "qr-code" as const, label: "QR Pay" },
+                  { key: "cash", icon: "cash" as const, label: t("cash") },
+                  { key: "card", icon: "card" as const, label: t("card") },
+                  { key: "mobile", icon: "phone-portrait" as const, label: t("mobile") },
+                  { key: "qr", icon: "qr-code" as const, label: t("qrPay") },
                 ].map((m) => (
                   <Pressable
                     key={m.key}
@@ -387,7 +392,7 @@ export default function POSScreen() {
 
               {paymentMethod === "cash" && (
                 <View style={styles.cashSection}>
-                  <Text style={styles.sectionLabel}>Cash Received</Text>
+                  <Text style={styles.sectionLabel}>{t("cashReceived")}</Text>
                   <TextInput
                     style={styles.cashInput}
                     placeholder="Enter amount..."
@@ -397,7 +402,7 @@ export default function POSScreen() {
                     keyboardType="decimal-pad"
                   />
                   {cashReceived && Number(cashReceived) >= cart.total && (
-                    <Text style={styles.changeText}>Change: ${(Number(cashReceived) - cart.total).toFixed(2)}</Text>
+                    <Text style={styles.changeText}>{t("change")}: ${(Number(cashReceived) - cart.total).toFixed(2)}</Text>
                   )}
                 </View>
               )}
@@ -437,7 +442,7 @@ export default function POSScreen() {
                 <LinearGradient colors={[Colors.success, "#059669"]} style={styles.completeBtnGradient}>
                   <Ionicons name="checkmark-circle" size={22} color={Colors.white} />
                   <Text style={styles.completeBtnText}>
-                    {saleMutation.isPending ? "Processing..." : "Complete Sale"}
+                    {saleMutation.isPending ? t("processing") : t("completeSale")}
                   </Text>
                 </LinearGradient>
               </Pressable>
@@ -505,7 +510,7 @@ export default function POSScreen() {
                 </View>
                 {(lastSale?.change || 0) > 0 && (
                   <View style={styles.receiptTotalRow}>
-                    <Text style={[styles.receiptTotalLabel, { color: Colors.warning }]}>Change</Text>
+                    <Text style={[styles.receiptTotalLabel, { color: Colors.warning }]}>{t("change")}</Text>
                     <Text style={[styles.receiptTotalValue, { color: Colors.warning }]}>${lastSale?.change?.toFixed(2)}</Text>
                   </View>
                 )}
@@ -536,14 +541,14 @@ export default function POSScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Customer</Text>
+              <Text style={styles.modalTitle}>{t("selectCustomer")}</Text>
               <Pressable onPress={() => setShowCustomerPicker(false)}>
                 <Ionicons name="close" size={24} color={Colors.text} />
               </Pressable>
             </View>
             <Pressable style={styles.walkInBtn} onPress={() => { cart.setCustomerId(null); setShowCustomerPicker(false); }}>
               <Ionicons name="person-outline" size={20} color={Colors.textSecondary} />
-              <Text style={styles.walkInText}>Walk-in Customer</Text>
+              <Text style={styles.walkInText}>{t("walkIn")}</Text>
             </Pressable>
             <FlatList
               data={customers}
@@ -576,7 +581,7 @@ export default function POSScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxHeight: 340 }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Apply Discount</Text>
+              <Text style={styles.modalTitle}>{t("applyDiscount")}</Text>
               <Pressable onPress={() => setShowDiscountModal(false)}>
                 <Ionicons name="close" size={24} color={Colors.text} />
               </Pressable>
@@ -632,7 +637,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 22, fontWeight: "800", color: Colors.white, letterSpacing: 0.5 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 12 },
   employeeName: { color: Colors.white, fontSize: 13, opacity: 0.9 },
-  mainContent: { flex: 1, flexDirection: isTablet ? "row" : "column" },
+  mainContent: { flex: 1 },
   productsSection: { flex: 1 },
   productsSectionTablet: { flex: 2 },
   searchRow: { paddingHorizontal: 12, paddingTop: 12 },
@@ -653,13 +658,13 @@ const styles = StyleSheet.create({
   barcodeText: { color: Colors.textMuted, fontSize: 9, marginTop: 2 },
   emptyState: { alignItems: "center", justifyContent: "center", paddingVertical: 60 },
   emptyText: { color: Colors.textMuted, fontSize: 15, marginTop: 12 },
-  cartSection: { backgroundColor: Colors.surface, borderTopWidth: 1, borderColor: Colors.cardBorder, maxHeight: isTablet ? undefined : 360 },
-  cartSectionTablet: { flex: 1, borderTopWidth: 0, borderLeftWidth: 1, maxHeight: undefined },
+  cartSection: { backgroundColor: Colors.surface, borderTopWidth: 1, borderColor: Colors.cardBorder, maxHeight: 360 },
+  cartSectionTablet: { flex: 1, borderTopWidth: 0, borderLeftWidth: 1, maxHeight: "100%" as any },
   cartHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderColor: Colors.cardBorder },
   cartTitle: { color: Colors.text, fontSize: 16, fontWeight: "700" },
   customerSelect: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderColor: "rgba(255,255,255,0.05)" },
   customerSelectText: { color: Colors.textMuted, fontSize: 13, flex: 1 },
-  cartList: { maxHeight: isTablet ? undefined : 100 },
+  cartList: { maxHeight: 100 },
   cartItem: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderColor: "rgba(255,255,255,0.05)" },
   cartItemInfo: { flex: 1 },
   cartItemName: { color: Colors.text, fontSize: 13, fontWeight: "500" },
@@ -682,7 +687,7 @@ const styles = StyleSheet.create({
   checkoutBtnGradient: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 14, gap: 8 },
   checkoutBtnText: { color: Colors.white, fontSize: 16, fontWeight: "700" },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center" },
-  modalContent: { backgroundColor: Colors.surface, borderRadius: 20, padding: 24, width: isTablet ? 420 : "90%", maxHeight: "80%" },
+  modalContent: { backgroundColor: Colors.surface, borderRadius: 20, padding: 24, width: "90%", maxWidth: 420, maxHeight: "80%" },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   modalTitle: { color: Colors.text, fontSize: 20, fontWeight: "700" },
   modalTotal: { color: Colors.accent, fontSize: 36, fontWeight: "800", textAlign: "center", marginBottom: 16 },

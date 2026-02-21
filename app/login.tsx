@@ -9,10 +9,7 @@ import { apiRequest, getQueryFn } from "@/lib/query-client";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const isTablet = SCREEN_WIDTH > 700;
-const NUM_COLUMNS = isTablet ? 3 : 2;
+import { useLanguage } from "@/lib/language-context";
 
 interface Employee {
   id: number;
@@ -41,10 +38,22 @@ function getInitial(name: string): string {
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
+  const { t, isRTL } = useLanguage();
   const [mode, setMode] = useState<"select" | "pin">("select");
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
+  const [screenDims, setScreenDims] = useState(Dimensions.get("window"));
+  useEffect(() => {
+    const sub = Dimensions.addEventListener("change", ({ window }) => setScreenDims(window));
+    return () => sub?.remove();
+  }, []);
+  const screenWidth = screenDims.width;
+  const isTablet = screenWidth > 700;
+  const NUM_COLUMNS = isTablet ? 3 : 2;
+  const CARD_GAP = 12;
+  const GRID_PADDING = 24;
+  const CARD_WIDTH = (screenWidth - GRID_PADDING * 2 - CARD_GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
   const topPad = Platform.OS === "web" ? 67 : 0;
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 
@@ -106,6 +115,7 @@ export default function LoginScreen() {
       <Pressable
         style={({ pressed }) => [
           styles.employeeCard,
+          { width: CARD_WIDTH },
           pressed && styles.employeeCardPressed,
         ]}
         onPress={() => handleSelectEmployee(item)}
@@ -140,7 +150,7 @@ export default function LoginScreen() {
 
           {mode === "select" ? (
             <View style={styles.selectionContainer}>
-              <Text style={styles.modeLabel}>Select User</Text>
+              <Text style={styles.modeLabel}>{t("selectEmployee")}</Text>
               {employeesLoading ? (
                 <ActivityIndicator size="large" color={Colors.white} style={{ marginTop: 32 }} />
               ) : (
@@ -175,7 +185,7 @@ export default function LoginScreen() {
                 </View>
               )}
 
-              <Text style={styles.modeLabel}>Enter PIN</Text>
+              <Text style={styles.modeLabel}>{t("enterPin")}</Text>
               <View style={styles.pinDots}>
                 {[0, 1, 2, 3].map((i) => (
                   <View key={i} style={[styles.dot, i < pin.length && styles.dotFilled]} />
@@ -210,10 +220,6 @@ export default function LoginScreen() {
     </View>
   );
 }
-
-const CARD_GAP = 12;
-const GRID_PADDING = 24;
-const CARD_WIDTH = (SCREEN_WIDTH - GRID_PADDING * 2 - CARD_GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
 
 const styles = StyleSheet.create({
   container: {
@@ -269,12 +275,11 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   gridRow: {
-    gap: CARD_GAP,
+    gap: 12,
     justifyContent: "center",
-    marginBottom: CARD_GAP,
+    marginBottom: 12,
   },
   employeeCard: {
-    width: CARD_WIDTH,
     backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 16,
     paddingVertical: 20,
@@ -377,11 +382,11 @@ const styles = StyleSheet.create({
   keypad: {
     flexDirection: "row" as const,
     flexWrap: "wrap" as const,
-    width: Math.min(SCREEN_WIDTH * 0.7, 280),
+    width: 280,
     justifyContent: "center",
   },
   keyBtn: {
-    width: Math.min(SCREEN_WIDTH * 0.7, 280) / 3,
+    width: 280 / 3,
     height: 64,
     justifyContent: "center",
     alignItems: "center",

@@ -9,6 +9,7 @@ import { queryClient } from "@/lib/query-client";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "@/lib/auth-context";
 import { CartProvider } from "@/lib/cart-context";
+import { LanguageProvider } from "@/lib/language-context";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -31,12 +32,14 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <KeyboardProvider>
-            <AuthProvider>
-              <CartProvider>
-                <StatusBar style="light" />
-                <RootLayoutNav />
-              </CartProvider>
-            </AuthProvider>
+            <LanguageProvider>
+              <AuthProvider>
+                <CartProvider>
+                  <StatusBar style="light" />
+                  <RootLayoutNav />
+                </CartProvider>
+              </AuthProvider>
+            </LanguageProvider>
           </KeyboardProvider>
         </GestureHandlerRootView>
       </QueryClientProvider>

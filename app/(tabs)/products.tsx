@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet, Text, View, FlatList, Pressable, TextInput,
-  Modal, Alert, ScrollView, Platform,
+  Modal, Alert, ScrollView, Platform, Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -10,10 +10,18 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors } from "@/constants/colors";
 import { apiRequest, getQueryFn } from "@/lib/query-client";
 import BarcodeScanner from "@/components/BarcodeScanner";
+import { useLanguage } from "@/lib/language-context";
 
 export default function ProductsScreen() {
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
+  const { t, isRTL } = useLanguage();
+  const [screenDims, setScreenDims] = useState(Dimensions.get("window"));
+  useEffect(() => {
+    const sub = Dimensions.addEventListener("change", ({ window }) => setScreenDims(window));
+    return () => sub?.remove();
+  }, []);
+  const isTablet = screenDims.width > 600;
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editProduct, setEditProduct] = useState<any>(null);
@@ -114,9 +122,9 @@ export default function ProductsScreen() {
   const getCatName = (catId: number | null) => categories.find((c: any) => c.id === catId)?.name || "Uncategorized";
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + topPad }]}>
+    <View style={[styles.container, { paddingTop: insets.top + topPad, direction: isRTL ? "rtl" : "ltr" }]}>
       <LinearGradient colors={[Colors.gradientStart, Colors.gradientMid]} style={styles.header}>
-        <Text style={styles.headerTitle}>Products</Text>
+        <Text style={styles.headerTitle}>{t("products")}</Text>
         <Pressable style={styles.addBtn} onPress={() => {
           if (viewMode === "products") {
             resetForm(); setEditProduct(null); setShowForm(true);
@@ -133,13 +141,13 @@ export default function ProductsScreen() {
           style={{ flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: viewMode === "products" ? Colors.accent : Colors.surface, alignItems: "center", borderWidth: 1, borderColor: viewMode === "products" ? Colors.accent : Colors.cardBorder }}
           onPress={() => setViewMode("products")}
         >
-          <Text style={{ color: viewMode === "products" ? Colors.textDark : Colors.textSecondary, fontSize: 14, fontWeight: "600" }}>Products</Text>
+          <Text style={{ color: viewMode === "products" ? Colors.textDark : Colors.textSecondary, fontSize: 14, fontWeight: "600" }}>{t("products")}</Text>
         </Pressable>
         <Pressable
           style={{ flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: viewMode === "categories" ? Colors.accent : Colors.surface, alignItems: "center", borderWidth: 1, borderColor: viewMode === "categories" ? Colors.accent : Colors.cardBorder }}
           onPress={() => setViewMode("categories")}
         >
-          <Text style={{ color: viewMode === "categories" ? Colors.textDark : Colors.textSecondary, fontSize: 14, fontWeight: "600" }}>Categories</Text>
+          <Text style={{ color: viewMode === "categories" ? Colors.textDark : Colors.textSecondary, fontSize: 14, fontWeight: "600" }}>{t("category")}</Text>
         </Pressable>
       </View>
 
@@ -147,7 +155,7 @@ export default function ProductsScreen() {
         <View style={styles.searchRow}>
           <View style={styles.searchBox}>
             <Ionicons name="search" size={18} color={Colors.textMuted} />
-            <TextInput style={styles.searchInput} placeholder="Search products..." placeholderTextColor={Colors.textMuted} value={search} onChangeText={setSearch} />
+            <TextInput style={styles.searchInput} placeholder={t("search") + "..."} placeholderTextColor={Colors.textMuted} value={search} onChangeText={setSearch} />
           </View>
         </View>
       )}
@@ -242,31 +250,31 @@ export default function ProductsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{editProduct ? "Edit Product" : "New Product"}</Text>
+              <Text style={styles.modalTitle}>{editProduct ? t("editProduct") : t("addProduct")}</Text>
               <Pressable onPress={() => setShowForm(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.label}>Name *</Text>
-              <TextInput style={styles.input} value={form.name} onChangeText={(t) => setForm({ ...form, name: t })} placeholderTextColor={Colors.textMuted} placeholder="Product name" />
+              <Text style={styles.label}>{t("productName")} *</Text>
+              <TextInput style={styles.input} value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} placeholderTextColor={Colors.textMuted} placeholder={t("productName")} />
               <View style={styles.row}>
                 <View style={styles.half}>
-                  <Text style={styles.label}>Price *</Text>
-                  <TextInput style={styles.input} value={form.price} onChangeText={(t) => setForm({ ...form, price: t })} keyboardType="decimal-pad" placeholderTextColor={Colors.textMuted} placeholder="0.00" />
+                  <Text style={styles.label}>{t("price")} *</Text>
+                  <TextInput style={styles.input} value={form.price} onChangeText={(v) => setForm({ ...form, price: v })} keyboardType="decimal-pad" placeholderTextColor={Colors.textMuted} placeholder="0.00" />
                 </View>
                 <View style={styles.half}>
-                  <Text style={styles.label}>Cost Price</Text>
-                  <TextInput style={styles.input} value={form.costPrice} onChangeText={(t) => setForm({ ...form, costPrice: t })} keyboardType="decimal-pad" placeholderTextColor={Colors.textMuted} placeholder="0.00" />
+                  <Text style={styles.label}>{t("costPrice")}</Text>
+                  <TextInput style={styles.input} value={form.costPrice} onChangeText={(v) => setForm({ ...form, costPrice: v })} keyboardType="decimal-pad" placeholderTextColor={Colors.textMuted} placeholder="0.00" />
                 </View>
               </View>
               <View style={styles.row}>
                 <View style={styles.half}>
                   <Text style={styles.label}>SKU</Text>
-                  <TextInput style={styles.input} value={form.sku} onChangeText={(t) => setForm({ ...form, sku: t })} placeholderTextColor={Colors.textMuted} placeholder="SKU-001" />
+                  <TextInput style={styles.input} value={form.sku} onChangeText={(v) => setForm({ ...form, sku: v })} placeholderTextColor={Colors.textMuted} placeholder="SKU-001" />
                 </View>
                 <View style={styles.half}>
-                  <Text style={styles.label}>Barcode</Text>
+                  <Text style={styles.label}>{t("barcode")}</Text>
                   <View style={{ flexDirection: "row", gap: 8 }}>
-                    <TextInput style={[styles.input, { flex: 1 }]} value={form.barcode} onChangeText={(t) => setForm({ ...form, barcode: t })} placeholderTextColor={Colors.textMuted} placeholder="123456789" />
+                    <TextInput style={[styles.input, { flex: 1 }]} value={form.barcode} onChangeText={(v) => setForm({ ...form, barcode: v })} placeholderTextColor={Colors.textMuted} placeholder="123456789" />
                     <Pressable style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: Colors.accent, justifyContent: "center", alignItems: "center" }} onPress={() => setShowBarcodeScanner(true)}>
                       <Ionicons name="barcode-outline" size={22} color={Colors.textDark} />
                     </Pressable>
@@ -274,8 +282,8 @@ export default function ProductsScreen() {
                 </View>
               </View>
               <Text style={styles.label}>Expiry Date</Text>
-              <TextInput style={styles.input} value={form.expiryDate} onChangeText={(t) => setForm({ ...form, expiryDate: t })} placeholderTextColor={Colors.textMuted} placeholder="YYYY-MM-DD" />
-              <Text style={styles.label}>Category</Text>
+              <TextInput style={styles.input} value={form.expiryDate} onChangeText={(v) => setForm({ ...form, expiryDate: v })} placeholderTextColor={Colors.textMuted} placeholder="YYYY-MM-DD" />
+              <Text style={styles.label}>{t("category")}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catRow}>
                 {categories.map((cat: any) => (
                   <Pressable key={cat.id} style={[styles.catChip, form.categoryId === String(cat.id) && styles.catChipActive]} onPress={() => setForm({ ...form, categoryId: String(cat.id) })}>
@@ -285,7 +293,7 @@ export default function ProductsScreen() {
               </ScrollView>
               <Pressable style={styles.saveBtn} onPress={handleSave}>
                 <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={styles.saveBtnGradient}>
-                  <Text style={styles.saveBtnText}>{editProduct ? "Update Product" : "Create Product"}</Text>
+                  <Text style={styles.saveBtnText}>{editProduct ? t("editProduct") : t("addProduct")}</Text>
                 </LinearGradient>
               </Pressable>
             </ScrollView>
@@ -297,12 +305,12 @@ export default function ProductsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{editCategory ? "Edit Category" : "New Category"}</Text>
+              <Text style={styles.modalTitle}>{editCategory ? t("edit") + " " + t("category") : t("add") + " " + t("category")}</Text>
               <Pressable onPress={() => setShowCategoryForm(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.label}>Name *</Text>
-              <TextInput style={styles.input} value={catForm.name} onChangeText={(t) => setCatForm({ ...catForm, name: t })} placeholderTextColor={Colors.textMuted} placeholder="Category name" />
+              <Text style={styles.label}>{t("productName")} *</Text>
+              <TextInput style={styles.input} value={catForm.name} onChangeText={(v) => setCatForm({ ...catForm, name: v })} placeholderTextColor={Colors.textMuted} placeholder={t("category")} />
 
               <Text style={styles.label}>Color</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 }}>

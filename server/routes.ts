@@ -49,6 +49,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const emp = await storage.getEmployeeByPin(req.body.pin);
       if (!emp) return res.status(401).json({ error: "Invalid PIN" });
       if (!emp.isActive) return res.status(401).json({ error: "Account deactivated" });
+      // Log activity
+      await storage.createActivityLog({
+        employeeId: emp.id,
+        action: "login",
+        entityType: "employee",
+        entityId: emp.id,
+        details: `${emp.name} logged in`,
+      });
       res.json(emp);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -172,6 +180,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       }
+      // Log activity
+      await storage.createActivityLog({
+        employeeId: saleData.employeeId,
+        action: "sale_created",
+        entityType: "sale",
+        entityId: sale.id,
+        details: `Sale ${sale.receiptNumber} completed for $${saleData.totalAmount}`,
+      });
       res.json(sale);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -213,7 +229,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try { res.json(await storage.createShift(req.body)); } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.put("/api/shifts/:id/close", async (req, res) => {
-    try { res.json(await storage.closeShift(Number(req.params.id), req.body)); } catch (e: any) { res.status(500).json({ error: e.message }); }
+    try {
+      const shift = await storage.closeShift(Number(req.params.id), req.body);
+      // Log activity
+      await storage.createActivityLog({
+        employeeId: shift.employeeId,
+        action: "shift_closed",
+        entityType: "shift",
+        entityId: shift.id,
+        details: `Shift closed with ${shift.totalTransactions || 0} transactions and $${shift.closingCash || 0} closing cash`,
+      });
+      res.json(shift);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // Expenses
@@ -321,6 +348,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const seeded = await storage.seedInitialData();
       if (!seeded) return res.json({ message: "Data already seeded" });
       res.json({ message: "Seed data created successfully" });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Activity Log
+  app.get("/api/activity-log", async (req, res) => {
+    try {
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      res.json(await storage.getActivityLog(limit));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Returns & Refunds
+  app.get("/api/returns", async (_req, res) => {
+    try { res.json(await storage.getReturns()); } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/returns/:id", async (req, res) => {
+    try {
+      const ret = await storage.getReturn(Number(req.params.id));
+      if (!ret) return res.status(404).json({ error: "Return not found" });
+      const items = await storage.getReturnItems(ret.id);
+      res.json({ ...ret, items });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.post("/api/returns", async (req, res) => {
+    try {
+      const { items, ...returnData } = req.body;
+      const ret = await storage.createReturn(returnData);
+      if (items && items.length > 0) {
+        for (const item of items) {
+          await storage.createReturnItem({ ...item, returnId: ret.id });
+          if (returnData.branchId) {
+            await storage.adjustInventory(item.productId, returnData.branchId, item.quantity);
+          }
+        }
+      }
+      // Mark original sale as refunded
+      if (returnData.originalSaleId) {
+        await storage.updateSale(returnData.originalSaleId, { status: "refunded" });
+      }
+      // Log activity
+      await storage.createActivityLog({
+        employeeId: returnData.employeeId,
+        action: "return_created",
+        entityType: "return",
+        entityId: ret.id,
+        details: `Return/refund processed for sale #${returnData.originalSaleId}, amount: $${returnData.totalAmount}`,
+      });
+      res.json(ret);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 

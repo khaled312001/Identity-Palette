@@ -61,6 +61,7 @@ export const products = pgTable("products", {
   taxable: boolean("taxable").default(true),
   trackInventory: boolean("track_inventory").default(true),
   isActive: boolean("is_active").default(true),
+  expiryDate: timestamp("expiry_date"),
   modifiers: jsonb("modifiers").$type<{ name: string; options: { label: string; price: number }[] }[]>().default([]),
   variants: jsonb("variants").$type<{ name: string; sku: string; price: number; stock: number }[]>().default([]),
   createdAt: timestamp("created_at").defaultNow(),
@@ -237,6 +238,38 @@ export const subscriptions = pgTable("subscriptions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const activityLog = pgTable("activity_log", {
+  id: serial("id").primaryKey(),
+  employeeId: integer("employee_id").references(() => employees.id).notNull(),
+  action: text("action").notNull(),
+  entityType: text("entity_type"),
+  entityId: integer("entity_id"),
+  details: text("details"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const returns = pgTable("returns", {
+  id: serial("id").primaryKey(),
+  originalSaleId: integer("original_sale_id").references(() => sales.id).notNull(),
+  employeeId: integer("employee_id").references(() => employees.id),
+  reason: text("reason"),
+  type: text("type").default("refund"),
+  totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull(),
+  status: text("status").default("completed"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const returnItems = pgTable("return_items", {
+  id: serial("id").primaryKey(),
+  returnId: integer("return_id").references(() => returns.id).notNull(),
+  productId: integer("product_id").references(() => products.id).notNull(),
+  productName: text("product_name").notNull(),
+  quantity: integer("quantity").notNull(),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+});
+
 export const syncQueue = pgTable("sync_queue", {
   id: serial("id").primaryKey(),
   entityType: text("entity_type").notNull(),
@@ -266,6 +299,9 @@ export const insertTableSchema = createInsertSchema(tables).omit({ id: true, cre
 export const insertKitchenOrderSchema = createInsertSchema(kitchenOrders).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans).omit({ id: true, createdAt: true });
 export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({ id: true, createdAt: true });
+export const insertActivityLogSchema = createInsertSchema(activityLog).omit({ id: true, createdAt: true });
+export const insertReturnSchema = createInsertSchema(returns).omit({ id: true, createdAt: true });
+export const insertReturnItemSchema = createInsertSchema(returnItems).omit({ id: true });
 
 export type Branch = typeof branches.$inferSelect;
 export type InsertBranch = z.infer<typeof insertBranchSchema>;
@@ -301,3 +337,9 @@ export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
 export type InsertSubscriptionPlan = z.infer<typeof insertSubscriptionPlanSchema>;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type ActivityLog = typeof activityLog.$inferSelect;
+export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
+export type Return = typeof returns.$inferSelect;
+export type InsertReturn = z.infer<typeof insertReturnSchema>;
+export type ReturnItem = typeof returnItems.$inferSelect;
+export type InsertReturnItem = z.infer<typeof insertReturnItemSchema>;

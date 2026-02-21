@@ -4,13 +4,13 @@ import {
   branches, employees, categories, products, inventory,
   customers, sales, saleItems, suppliers, purchaseOrders,
   purchaseOrderItems, shifts, expenses, tables, kitchenOrders,
-  subscriptionPlans, subscriptions, syncQueue,
+  subscriptionPlans, subscriptions, syncQueue, activityLog, returns, returnItems,
   type InsertBranch, type InsertEmployee, type InsertCategory,
   type InsertProduct, type InsertInventory, type InsertCustomer,
   type InsertSale, type InsertSaleItem, type InsertSupplier,
   type InsertPurchaseOrder, type InsertPurchaseOrderItem, type InsertShift, type InsertExpense,
   type InsertTable, type InsertKitchenOrder, type InsertSubscriptionPlan,
-  type InsertSubscription,
+  type InsertSubscription, type InsertActivityLog, type InsertReturn, type InsertReturnItem,
 } from "@shared/schema";
 
 export const storage = {
@@ -205,6 +205,10 @@ export const storage = {
     const [item] = await db.insert(saleItems).values(data).returning();
     return item;
   },
+  async updateSale(id: number, data: Partial<InsertSale>) {
+    const [sale] = await db.update(sales).set(data).where(eq(sales.id, id)).returning();
+    return sale;
+  },
 
   // Suppliers
   async getSuppliers() {
@@ -355,6 +359,36 @@ export const storage = {
   async createSubscription(data: InsertSubscription) {
     const [sub] = await db.insert(subscriptions).values(data).returning();
     return sub;
+  },
+
+  // Activity Log
+  async getActivityLog(limit?: number) {
+    const l = limit || 50;
+    return db.select().from(activityLog).orderBy(desc(activityLog.createdAt)).limit(l);
+  },
+  async createActivityLog(data: InsertActivityLog) {
+    const [log] = await db.insert(activityLog).values(data).returning();
+    return log;
+  },
+
+  // Returns
+  async getReturns() {
+    return db.select().from(returns).orderBy(desc(returns.createdAt));
+  },
+  async getReturn(id: number) {
+    const [ret] = await db.select().from(returns).where(eq(returns.id, id));
+    return ret;
+  },
+  async createReturn(data: InsertReturn) {
+    const [ret] = await db.insert(returns).values(data).returning();
+    return ret;
+  },
+  async getReturnItems(returnId: number) {
+    return db.select().from(returnItems).where(eq(returnItems.returnId, returnId));
+  },
+  async createReturnItem(data: InsertReturnItem) {
+    const [item] = await db.insert(returnItems).values(data).returning();
+    return item;
   },
 
   // Sales Analytics

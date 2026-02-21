@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet, Text, View, ScrollView, Pressable, Modal,
   TextInput, Alert, Platform, FlatList,
@@ -34,6 +34,24 @@ const rowStyles = StyleSheet.create({
   value: { color: Colors.textMuted, fontSize: 12, marginTop: 2 },
 });
 
+const expenseCategoryColors: Record<string, string> = {
+  rent: "#3B82F6",
+  utilities: "#F59E0B",
+  salaries: "#10B981",
+  supplies: "#7C3AED",
+  marketing: "#EC4899",
+  maintenance: "#F97316",
+  other: "#6B7280",
+};
+
+const expenseCategories = ["rent", "utilities", "salaries", "supplies", "marketing", "maintenance", "other"];
+
+const poStatusColors: Record<string, string> = {
+  draft: Colors.textMuted,
+  ordered: Colors.warning,
+  received: Colors.success,
+};
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
@@ -46,10 +64,40 @@ export default function SettingsScreen() {
   const [empForm, setEmpForm] = useState({ name: "", pin: "", role: "cashier", email: "", phone: "" });
   const [supForm, setSupForm] = useState({ name: "", contactName: "", email: "", phone: "", paymentTerms: "" });
 
+  const [showExpenses, setShowExpenses] = useState(false);
+  const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [expenseForm, setExpenseForm] = useState({ description: "", amount: "", category: "other", date: new Date().toISOString().split("T")[0], notes: "" });
+
+  const [showAttendance, setShowAttendance] = useState(false);
+  const [activeShiftElapsed, setActiveShiftElapsed] = useState("");
+
+  const [showPurchaseOrders, setShowPurchaseOrders] = useState(false);
+  const [showPOForm, setShowPOForm] = useState(false);
+  const [poForm, setPOForm] = useState({ supplierId: "", notes: "" });
+
   const { data: employees = [] } = useQuery<any[]>({ queryKey: ["/api/employees"], queryFn: getQueryFn({ on401: "throw" }) });
   const { data: suppliers = [] } = useQuery<any[]>({ queryKey: ["/api/suppliers"], queryFn: getQueryFn({ on401: "throw" }) });
   const { data: branches = [] } = useQuery<any[]>({ queryKey: ["/api/branches"], queryFn: getQueryFn({ on401: "throw" }) });
   const { data: shifts = [] } = useQuery<any[]>({ queryKey: ["/api/shifts"], queryFn: getQueryFn({ on401: "throw" }) });
+  const { data: expenses = [] } = useQuery<any[]>({ queryKey: ["/api/expenses"], queryFn: getQueryFn({ on401: "throw" }) });
+  const { data: purchaseOrders = [] } = useQuery<any[]>({ queryKey: ["/api/purchase-orders"], queryFn: getQueryFn({ on401: "throw" }) });
+
+  const activeShift = shifts.find((s: any) => s.employeeId === employee?.id && s.clockIn && !s.clockOut);
+
+  useEffect(() => {
+    if (!activeShift) {
+      setActiveShiftElapsed("");
+      return;
+    }
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - new Date(activeShift.clockIn).getTime();
+      const hours = Math.floor(elapsed / 3600000);
+      const mins = Math.floor((elapsed % 3600000) / 60000);
+      const secs = Math.floor((elapsed % 60000) / 1000);
+      setActiveShiftElapsed(`${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [activeShift]);
 
   const createEmpMutation = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/employees", data),
@@ -63,8 +111,51 @@ export default function SettingsScreen() {
     onError: (e: any) => Alert.alert("Error", e.message),
   });
 
+  const createExpenseMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/expenses", data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/expenses"] }); setShowExpenseForm(false); },
+    onError: (e: any) => Alert.alert("Error", e.message),
+  });
+
+  const deleteExpenseMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/expenses/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/expenses"] }); },
+    onError: (e: any) => Alert.alert("Error", e.message),
+  });
+
+  const clockInMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/shifts", data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/shifts"] }); },
+    onError: (e: any) => Alert.alert("Error", e.message),
+  });
+
+  const clockOutMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: any }) => apiRequest("PUT", `/api/shifts/${id}`, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/shifts"] }); },
+    onError: (e: any) => Alert.alert("Error", e.message),
+  });
+
+  const createPOMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/purchase-orders", data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/purchase-orders"] }); setShowPOForm(false); },
+    onError: (e: any) => Alert.alert("Error", e.message),
+  });
+
+  const receivePOMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("POST", `/api/purchase-orders/${id}/receive`, { items: [] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/purchase-orders"] }); },
+    onError: (e: any) => Alert.alert("Error", e.message),
+  });
+
   const topPad = Platform.OS === "web" ? 67 : 0;
   const roleColors: Record<string, string> = { admin: Colors.danger, manager: Colors.warning, cashier: Colors.info, owner: Colors.secondary };
+
+  const formatDuration = (clockIn: string, clockOut: string) => {
+    const ms = new Date(clockOut).getTime() - new Date(clockIn).getTime();
+    const hours = Math.floor(ms / 3600000);
+    const mins = Math.floor((ms % 3600000) / 60000);
+    return `${hours}h ${mins}m`;
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + topPad }]}>
@@ -91,7 +182,9 @@ export default function SettingsScreen() {
         <SettingRow icon="people" label="Employees" value={`${employees.length} members`} onPress={() => setShowEmployees(true)} color={Colors.info} />
         <SettingRow icon="business" label="Branches" value={`${branches.length} locations`} onPress={() => setShowBranches(true)} color={Colors.secondary} />
         <SettingRow icon="cube" label="Suppliers" value={`${suppliers.length} suppliers`} onPress={() => setShowSuppliers(true)} color={Colors.success} />
-        <SettingRow icon="time" label="Shifts" value={`${shifts.length} records`} color={Colors.warning} />
+        <SettingRow icon="wallet" label="Expenses" value={`${expenses.length} expenses`} onPress={() => setShowExpenses(true)} color={Colors.warning} />
+        <SettingRow icon="time" label="Attendance" value={`${shifts.length} shifts`} onPress={() => setShowAttendance(true)} color={Colors.warning} />
+        <SettingRow icon="document-text" label="Purchase Orders" value={`${purchaseOrders.length} orders`} onPress={() => setShowPurchaseOrders(true)} color={Colors.info} />
 
         <Text style={styles.sectionTitle}>System</Text>
         <SettingRow icon="language" label="Language" value="English" color={Colors.accent} />
@@ -105,7 +198,6 @@ export default function SettingsScreen() {
         </Pressable>
       </ScrollView>
 
-      {/* Employees Modal */}
       <Modal visible={showEmployees} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -141,7 +233,6 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      {/* New Employee Form */}
       <Modal visible={showEmployeeForm} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -177,7 +268,6 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      {/* Suppliers Modal */}
       <Modal visible={showSuppliers} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -210,7 +300,6 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      {/* New Supplier Form */}
       <Modal visible={showSupplierForm} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -240,7 +329,6 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      {/* Branches Modal */}
       <Modal visible={showBranches} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -269,6 +357,232 @@ export default function SettingsScreen() {
                 </View>
               )}
             />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showExpenses} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Expenses</Text>
+              <View style={styles.modalActions}>
+                <Pressable onPress={() => { setExpenseForm({ description: "", amount: "", category: "other", date: new Date().toISOString().split("T")[0], notes: "" }); setShowExpenseForm(true); }}>
+                  <Ionicons name="add-circle" size={28} color={Colors.accent} />
+                </Pressable>
+                <Pressable onPress={() => setShowExpenses(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
+              </View>
+            </View>
+            <FlatList
+              data={expenses}
+              keyExtractor={(item: any) => String(item.id)}
+              scrollEnabled={!!expenses.length}
+              ListEmptyComponent={<Text style={{ color: Colors.textMuted, textAlign: "center", paddingVertical: 20 }}>No expenses recorded</Text>}
+              renderItem={({ item }: { item: any }) => (
+                <View style={styles.empCard}>
+                  <View style={[styles.empAvatar, { backgroundColor: (expenseCategoryColors[item.categoryId] || expenseCategoryColors.other) + "30" }]}>
+                    <Ionicons name="wallet" size={20} color={expenseCategoryColors[item.categoryId] || expenseCategoryColors.other} />
+                  </View>
+                  <View style={styles.empInfo}>
+                    <Text style={styles.empName}>{item.description}</Text>
+                    <Text style={styles.empMeta}>${parseFloat(item.amount).toFixed(2)} | {new Date(item.date).toLocaleDateString()}</Text>
+                  </View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <View style={[styles.roleBadge, { backgroundColor: (expenseCategoryColors[item.categoryId] || expenseCategoryColors.other) + "20" }]}>
+                      <Text style={[styles.roleText, { color: expenseCategoryColors[item.categoryId] || expenseCategoryColors.other }]}>{item.categoryId || "other"}</Text>
+                    </View>
+                    <Pressable onPress={() => {
+                      Alert.alert("Delete Expense", `Delete "${item.description}"?`, [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Delete", style: "destructive", onPress: () => deleteExpenseMutation.mutate(item.id) },
+                      ]);
+                    }}>
+                      <Ionicons name="trash" size={18} color={Colors.danger} />
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showExpenseForm} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add Expense</Text>
+              <Pressable onPress={() => setShowExpenseForm(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
+            </View>
+            <ScrollView>
+              <Text style={styles.label}>Description *</Text>
+              <TextInput style={styles.input} value={expenseForm.description} onChangeText={(t) => setExpenseForm({ ...expenseForm, description: t })} placeholderTextColor={Colors.textMuted} placeholder="Expense description" />
+              <Text style={styles.label}>Amount *</Text>
+              <TextInput style={styles.input} value={expenseForm.amount} onChangeText={(t) => setExpenseForm({ ...expenseForm, amount: t })} keyboardType="decimal-pad" placeholderTextColor={Colors.textMuted} placeholder="0.00" />
+              <Text style={styles.label}>Category</Text>
+              <View style={styles.roleRow}>
+                {expenseCategories.map((c) => (
+                  <Pressable key={c} style={[styles.roleChip, expenseForm.category === c && { backgroundColor: expenseCategoryColors[c] }]} onPress={() => setExpenseForm({ ...expenseForm, category: c })}>
+                    <Text style={[styles.roleChipText, expenseForm.category === c && { color: Colors.white }]}>{c}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.label}>Date</Text>
+              <TextInput style={styles.input} value={expenseForm.date} onChangeText={(t) => setExpenseForm({ ...expenseForm, date: t })} placeholderTextColor={Colors.textMuted} placeholder="YYYY-MM-DD" />
+              <Text style={styles.label}>Notes</Text>
+              <TextInput style={[styles.input, { minHeight: 60 }]} value={expenseForm.notes} onChangeText={(t) => setExpenseForm({ ...expenseForm, notes: t })} placeholderTextColor={Colors.textMuted} placeholder="Optional notes" multiline />
+              <Pressable style={styles.saveBtn} onPress={() => {
+                if (!expenseForm.description || !expenseForm.amount) return Alert.alert("Error", "Description and amount required");
+                createExpenseMutation.mutate({ branchId: 1, categoryId: expenseForm.category, description: expenseForm.description, amount: parseFloat(expenseForm.amount), date: expenseForm.date, notes: expenseForm.notes || undefined });
+              }}>
+                <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={styles.saveBtnGradient}>
+                  <Text style={styles.saveBtnText}>Add Expense</Text>
+                </LinearGradient>
+              </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showAttendance} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Attendance</Text>
+              <Pressable onPress={() => setShowAttendance(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
+            </View>
+            {employee && (
+              <View style={[styles.empCard, { marginBottom: 16 }]}>
+                <View style={[styles.empAvatar, { backgroundColor: activeShift ? Colors.success + "30" : Colors.textMuted + "30" }]}>
+                  <Ionicons name={activeShift ? "radio-button-on" : "radio-button-off"} size={20} color={activeShift ? Colors.success : Colors.textMuted} />
+                </View>
+                <View style={styles.empInfo}>
+                  <Text style={styles.empName}>{employee.name}</Text>
+                  {activeShift ? (
+                    <Text style={[styles.empMeta, { color: Colors.success }]}>Clocked In {activeShiftElapsed ? `| ${activeShiftElapsed}` : ""}</Text>
+                  ) : (
+                    <Text style={styles.empMeta}>Not clocked in</Text>
+                  )}
+                </View>
+                {activeShift ? (
+                  <Pressable style={[styles.clockBtn, { backgroundColor: Colors.danger + "20" }]} onPress={() => clockOutMutation.mutate({ id: activeShift.id, data: { clockOut: new Date().toISOString() } })}>
+                    <Ionicons name="stop-circle" size={20} color={Colors.danger} />
+                    <Text style={[styles.clockBtnText, { color: Colors.danger }]}>Out</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable style={[styles.clockBtn, { backgroundColor: Colors.success + "20" }]} onPress={() => clockInMutation.mutate({ employeeId: employee.id, branchId: 1, clockIn: new Date().toISOString() })}>
+                    <Ionicons name="play-circle" size={20} color={Colors.success} />
+                    <Text style={[styles.clockBtnText, { color: Colors.success }]}>In</Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
+            <FlatList
+              data={shifts}
+              keyExtractor={(item: any) => String(item.id)}
+              scrollEnabled={!!shifts.length}
+              ListEmptyComponent={<Text style={{ color: Colors.textMuted, textAlign: "center", paddingVertical: 20 }}>No shifts recorded</Text>}
+              renderItem={({ item }: { item: any }) => {
+                const emp = employees.find((e: any) => e.id === item.employeeId);
+                return (
+                  <View style={styles.empCard}>
+                    <View style={[styles.empAvatar, { backgroundColor: item.clockOut ? Colors.info + "30" : Colors.success + "30" }]}>
+                      <Ionicons name="time" size={20} color={item.clockOut ? Colors.info : Colors.success} />
+                    </View>
+                    <View style={styles.empInfo}>
+                      <Text style={styles.empName}>{emp?.name || `Employee #${item.employeeId}`}</Text>
+                      <Text style={styles.empMeta}>
+                        {new Date(item.clockIn).toLocaleString()}
+                        {item.clockOut ? ` - ${new Date(item.clockOut).toLocaleString()}` : " (Active)"}
+                      </Text>
+                    </View>
+                    {item.clockOut && (
+                      <View style={[styles.roleBadge, { backgroundColor: Colors.info + "20" }]}>
+                        <Text style={[styles.roleText, { color: Colors.info }]}>{formatDuration(item.clockIn, item.clockOut)}</Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showPurchaseOrders} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Purchase Orders</Text>
+              <View style={styles.modalActions}>
+                <Pressable onPress={() => { setPOForm({ supplierId: "", notes: "" }); setShowPOForm(true); }}>
+                  <Ionicons name="add-circle" size={28} color={Colors.accent} />
+                </Pressable>
+                <Pressable onPress={() => setShowPurchaseOrders(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
+              </View>
+            </View>
+            <FlatList
+              data={purchaseOrders}
+              keyExtractor={(item: any) => String(item.id)}
+              scrollEnabled={!!purchaseOrders.length}
+              ListEmptyComponent={<Text style={{ color: Colors.textMuted, textAlign: "center", paddingVertical: 20 }}>No purchase orders</Text>}
+              renderItem={({ item }: { item: any }) => {
+                const sup = suppliers.find((s: any) => s.id === item.supplierId);
+                const statusColor = poStatusColors[item.status] || Colors.textMuted;
+                return (
+                  <View style={styles.empCard}>
+                    <View style={[styles.empAvatar, { backgroundColor: statusColor + "30" }]}>
+                      <Ionicons name="document-text" size={20} color={statusColor} />
+                    </View>
+                    <View style={styles.empInfo}>
+                      <Text style={styles.empName}>PO #{item.id}</Text>
+                      <Text style={styles.empMeta}>{sup?.name || `Supplier #${item.supplierId}`} | ${parseFloat(item.totalAmount || "0").toFixed(2)}</Text>
+                    </View>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <View style={[styles.roleBadge, { backgroundColor: statusColor + "20" }]}>
+                        <Text style={[styles.roleText, { color: statusColor }]}>{item.status}</Text>
+                      </View>
+                      {item.status !== "received" && (
+                        <Pressable onPress={() => receivePOMutation.mutate(item.id)}>
+                          <Ionicons name="checkmark-circle" size={22} color={Colors.success} />
+                        </Pressable>
+                      )}
+                    </View>
+                  </View>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showPOForm} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Create Purchase Order</Text>
+              <Pressable onPress={() => setShowPOForm(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
+            </View>
+            <ScrollView>
+              <Text style={styles.label}>Supplier *</Text>
+              <View style={styles.roleRow}>
+                {suppliers.map((s: any) => (
+                  <Pressable key={s.id} style={[styles.roleChip, poForm.supplierId === String(s.id) && { backgroundColor: Colors.accent }]} onPress={() => setPOForm({ ...poForm, supplierId: String(s.id) })}>
+                    <Text style={[styles.roleChipText, poForm.supplierId === String(s.id) && { color: Colors.textDark }]}>{s.name}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.label}>Notes</Text>
+              <TextInput style={[styles.input, { minHeight: 60 }]} value={poForm.notes} onChangeText={(t) => setPOForm({ ...poForm, notes: t })} placeholderTextColor={Colors.textMuted} placeholder="Optional notes" multiline />
+              <Pressable style={styles.saveBtn} onPress={() => {
+                if (!poForm.supplierId) return Alert.alert("Error", "Please select a supplier");
+                createPOMutation.mutate({ branchId: 1, supplierId: parseInt(poForm.supplierId), status: "draft", notes: poForm.notes || undefined });
+              }}>
+                <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={styles.saveBtnGradient}>
+                  <Text style={styles.saveBtnText}>Create Order</Text>
+                </LinearGradient>
+              </Pressable>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -310,4 +624,6 @@ const styles = StyleSheet.create({
   saveBtn: { borderRadius: 14, overflow: "hidden", marginTop: 20, marginBottom: 16 },
   saveBtnGradient: { paddingVertical: 14, alignItems: "center" },
   saveBtnText: { color: Colors.white, fontSize: 16, fontWeight: "700" },
+  clockBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
+  clockBtnText: { fontSize: 13, fontWeight: "700" },
 });

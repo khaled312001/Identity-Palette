@@ -1,6 +1,13 @@
 import React, { useState } from "react";
 import {
-  StyleSheet, Text, View, ScrollView, Pressable, Platform, FlatList, Dimensions,
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  Pressable,
+  Platform,
+  FlatList,
+  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -12,40 +19,40 @@ import { getQueryFn } from "@/lib/query-client";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const isTablet = SCREEN_WIDTH > 700;
 
-function StatCard({ icon, label, value, color, subValue }: { icon: string; label: string; value: string; color: string; subValue?: string }) {
+type TabType = "overview" | "sales" | "inventory";
+
+const TAB_ICONS: Record<TabType, string> = {
+  overview: "analytics",
+  sales: "receipt",
+  inventory: "cube",
+};
+
+function GlassCard({ children, style }: { children: React.ReactNode; style?: any }) {
   return (
-    <View style={[statStyles.card, { borderLeftColor: color, borderLeftWidth: 3 }]}>
-      <View style={[statStyles.iconWrap, { backgroundColor: color + "20" }]}>
-        <Ionicons name={icon as any} size={22} color={color} />
-      </View>
-      <View style={statStyles.info}>
-        <Text style={statStyles.label}>{label}</Text>
-        <Text style={statStyles.value}>{value}</Text>
-        {subValue ? <Text style={statStyles.subValue}>{subValue}</Text> : null}
-      </View>
+    <View style={[styles.glassCard, style]}>
+      {children}
     </View>
   );
 }
 
-const statStyles = StyleSheet.create({
-  card: { backgroundColor: Colors.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.cardBorder, flexDirection: "row", alignItems: "center", gap: 14, flex: 1, minWidth: 150 },
-  iconWrap: { width: 44, height: 44, borderRadius: 12, justifyContent: "center", alignItems: "center" },
-  info: { flex: 1 },
-  label: { color: Colors.textMuted, fontSize: 11, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 },
-  value: { color: Colors.text, fontSize: 22, fontWeight: "800", marginTop: 2 },
-  subValue: { color: Colors.textSecondary, fontSize: 11, marginTop: 2 },
-});
+function PercentBar({ percent, color, height = 8 }: { percent: number; color: string; height?: number }) {
+  return (
+    <View style={[styles.barTrack, { height }]}>
+      <View style={[styles.barFill, { width: `${Math.min(Math.max(percent, 0), 100)}%`, backgroundColor: color, height }]} />
+    </View>
+  );
+}
 
 export default function ReportsScreen() {
   const insets = useSafeAreaInsets();
-  const [tab, setTab] = useState<"overview" | "sales" | "inventory">("overview");
+  const [tab, setTab] = useState<TabType>("overview");
 
   const { data: stats } = useQuery<any>({
     queryKey: ["/api/dashboard"],
     queryFn: getQueryFn({ on401: "throw" }),
   });
 
-  const { data: recentSales = [] } = useQuery<any[]>({
+  const { data: salesData = [] } = useQuery<any[]>({
     queryKey: ["/api/sales?limit=20"],
     queryFn: getQueryFn({ on401: "throw" }),
   });
@@ -61,144 +68,757 @@ export default function ReportsScreen() {
   });
 
   const topPad = Platform.OS === "web" ? 67 : 0;
+  const bottomPad = Platform.OS === "web" ? 84 : 60;
+
+  const todayRevenue = stats?.todayRevenue ?? 0;
+  const weekRevenue = stats?.weekRevenue ?? 0;
+  const monthRevenue = stats?.monthRevenue ?? 0;
+  const totalProfit = stats?.totalProfit ?? 0;
+  const totalRevenue = stats?.totalRevenue ?? 0;
+  const totalExpenses = stats?.totalExpenses ?? 0;
+  const todaySalesCount = stats?.todaySalesCount ?? 0;
+  const avgOrderValue = stats?.avgOrderValue ?? 0;
+  const totalCustomers = stats?.totalCustomers ?? 0;
+  const totalProducts = stats?.totalProducts ?? 0;
+  const lowStockItems = stats?.lowStockItems ?? 0;
+  const topProducts: any[] = stats?.topProducts ?? [];
+  const salesByPaymentMethod: any[] = stats?.salesByPaymentMethod ?? [];
+
+  const revenueExpenseMax = Math.max(totalRevenue, totalExpenses, 1);
+  const topProductMax = topProducts.length > 0 ? Math.max(...topProducts.map((p: any) => p.revenue || 0), 1) : 1;
+  const paymentTotal = salesByPaymentMethod.reduce((sum: number, m: any) => sum + (m.total || 0), 0) || 1;
+
+  const renderOverview = () => (
+    <>
+      <View style={styles.statGrid}>
+        <GlassCard style={styles.statCardHalf}>
+          <View style={[styles.statIconWrap, { backgroundColor: Colors.accent + "20" }]}>
+            <Ionicons name="today" size={20} color={Colors.accent} />
+          </View>
+          <Text style={styles.statLabel}>Today's Revenue</Text>
+          <Text style={styles.statValue}>${Number(todayRevenue).toFixed(2)}</Text>
+          <Text style={styles.statSub}>{todaySalesCount} transactions</Text>
+        </GlassCard>
+        <GlassCard style={styles.statCardHalf}>
+          <View style={[styles.statIconWrap, { backgroundColor: Colors.info + "20" }]}>
+            <Ionicons name="calendar" size={20} color={Colors.info} />
+          </View>
+          <Text style={styles.statLabel}>Week Revenue</Text>
+          <Text style={styles.statValue}>${Number(weekRevenue).toFixed(2)}</Text>
+        </GlassCard>
+      </View>
+      <View style={styles.statGrid}>
+        <GlassCard style={styles.statCardHalf}>
+          <View style={[styles.statIconWrap, { backgroundColor: Colors.secondary + "20" }]}>
+            <Ionicons name="trending-up" size={20} color={Colors.secondary} />
+          </View>
+          <Text style={styles.statLabel}>Month Revenue</Text>
+          <Text style={styles.statValue}>${Number(monthRevenue).toFixed(2)}</Text>
+        </GlassCard>
+        <GlassCard style={styles.statCardHalf}>
+          <View style={[styles.statIconWrap, { backgroundColor: totalProfit >= 0 ? Colors.success + "20" : Colors.danger + "20" }]}>
+            <Ionicons name="wallet" size={20} color={totalProfit >= 0 ? Colors.success : Colors.danger} />
+          </View>
+          <Text style={styles.statLabel}>Net Profit</Text>
+          <Text style={[styles.statValue, { color: totalProfit >= 0 ? Colors.success : Colors.danger }]}>
+            ${Number(totalProfit).toFixed(2)}
+          </Text>
+        </GlassCard>
+      </View>
+
+      <Text style={styles.sectionTitle}>Revenue vs Expenses</Text>
+      <GlassCard>
+        <View style={styles.revExpRow}>
+          <View style={styles.revExpItem}>
+            <View style={styles.revExpHeader}>
+              <View style={[styles.revExpDot, { backgroundColor: Colors.accent }]} />
+              <Text style={styles.revExpLabel}>Revenue</Text>
+            </View>
+            <Text style={styles.revExpValue}>${Number(totalRevenue).toFixed(2)}</Text>
+            <View style={[styles.barTrack, { height: 12, marginTop: 6 }]}>
+              <LinearGradient
+                colors={[Colors.gradientStart, Colors.accent]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[styles.barFillGradient, { width: `${(totalRevenue / revenueExpenseMax) * 100}%` }]}
+              />
+            </View>
+          </View>
+          <View style={styles.revExpItem}>
+            <View style={styles.revExpHeader}>
+              <View style={[styles.revExpDot, { backgroundColor: Colors.danger }]} />
+              <Text style={styles.revExpLabel}>Expenses</Text>
+            </View>
+            <Text style={styles.revExpValue}>${Number(totalExpenses).toFixed(2)}</Text>
+            <View style={[styles.barTrack, { height: 12, marginTop: 6 }]}>
+              <View style={[styles.barFill, { width: `${(totalExpenses / revenueExpenseMax) * 100}%`, backgroundColor: Colors.danger, height: 12 }]} />
+            </View>
+          </View>
+        </View>
+      </GlassCard>
+
+      <Text style={styles.sectionTitle}>Top Products</Text>
+      {topProducts.length > 0 ? (
+        <GlassCard>
+          {topProducts.slice(0, 5).map((product: any, index: number) => (
+            <View key={index} style={[styles.topProductRow, index < Math.min(topProducts.length, 5) - 1 && styles.topProductBorder]}>
+              <View style={styles.topProductRank}>
+                <Text style={styles.topProductRankText}>{index + 1}</Text>
+              </View>
+              <View style={styles.topProductInfo}>
+                <Text style={styles.topProductName} numberOfLines={1}>{product.name}</Text>
+                <View style={styles.topProductMeta}>
+                  <Text style={styles.topProductRevenue}>${Number(product.revenue || 0).toFixed(2)}</Text>
+                  <Text style={styles.topProductQty}>{product.totalSold || 0} sold</Text>
+                </View>
+                <PercentBar percent={(product.revenue / topProductMax) * 100} color={Colors.accent} height={6} />
+              </View>
+            </View>
+          ))}
+        </GlassCard>
+      ) : (
+        <GlassCard>
+          <View style={styles.empty}>
+            <Ionicons name="bar-chart-outline" size={32} color={Colors.textMuted} />
+            <Text style={styles.emptyText}>No product data yet</Text>
+          </View>
+        </GlassCard>
+      )}
+
+      <Text style={styles.sectionTitle}>Payment Methods</Text>
+      {salesByPaymentMethod.length > 0 ? (
+        <GlassCard>
+          {salesByPaymentMethod.map((method: any, index: number) => {
+            const pct = (method.total / paymentTotal) * 100;
+            const methodColors: Record<string, string> = {
+              cash: Colors.success,
+              card: Colors.info,
+              mobile: Colors.secondary,
+            };
+            const color = methodColors[method.method?.toLowerCase()] || Colors.accent;
+            const methodIcons: Record<string, string> = {
+              cash: "cash",
+              card: "card",
+              mobile: "phone-portrait",
+            };
+            const icon = methodIcons[method.method?.toLowerCase()] || "ellipse";
+            return (
+              <View key={index} style={[styles.paymentRow, index < salesByPaymentMethod.length - 1 && styles.topProductBorder]}>
+                <View style={[styles.paymentIcon, { backgroundColor: color + "20" }]}>
+                  <Ionicons name={icon as any} size={18} color={color} />
+                </View>
+                <View style={styles.paymentInfo}>
+                  <View style={styles.paymentHeader}>
+                    <Text style={styles.paymentName}>{method.method || "Unknown"}</Text>
+                    <Text style={styles.paymentPct}>{pct.toFixed(0)}%</Text>
+                  </View>
+                  <Text style={styles.paymentAmount}>${Number(method.total || 0).toFixed(2)} ({method.count || 0} sales)</Text>
+                  <PercentBar percent={pct} color={color} height={6} />
+                </View>
+              </View>
+            );
+          })}
+        </GlassCard>
+      ) : (
+        <GlassCard>
+          <View style={styles.empty}>
+            <Ionicons name="pie-chart-outline" size={32} color={Colors.textMuted} />
+            <Text style={styles.emptyText}>No payment data yet</Text>
+          </View>
+        </GlassCard>
+      )}
+
+      <Text style={styles.sectionTitle}>Quick Stats</Text>
+      <View style={styles.quickStatsGrid}>
+        <GlassCard style={styles.quickStatCard}>
+          <Ionicons name="pricetag" size={20} color={Colors.accent} />
+          <Text style={styles.quickStatValue}>${Number(avgOrderValue).toFixed(2)}</Text>
+          <Text style={styles.quickStatLabel}>Avg Order</Text>
+        </GlassCard>
+        <GlassCard style={styles.quickStatCard}>
+          <Ionicons name="people" size={20} color={Colors.info} />
+          <Text style={styles.quickStatValue}>{Number(totalCustomers).toFixed(0)}</Text>
+          <Text style={styles.quickStatLabel}>Customers</Text>
+        </GlassCard>
+        <GlassCard style={styles.quickStatCard}>
+          <Ionicons name="cube" size={20} color={Colors.secondary} />
+          <Text style={styles.quickStatValue}>{Number(totalProducts).toFixed(0)}</Text>
+          <Text style={styles.quickStatLabel}>Products</Text>
+        </GlassCard>
+        <GlassCard style={styles.quickStatCard}>
+          <Ionicons name="alert-circle" size={20} color={Colors.danger} />
+          <Text style={styles.quickStatValue}>{Number(lowStockItems).toFixed(0)}</Text>
+          <Text style={styles.quickStatLabel}>Low Stock</Text>
+        </GlassCard>
+      </View>
+    </>
+  );
+
+  const renderSaleItem = ({ item }: { item: any }) => {
+    const methodColors: Record<string, string> = {
+      cash: Colors.success,
+      card: Colors.info,
+      mobile: Colors.secondary,
+    };
+    const badgeColor = methodColors[item.paymentMethod?.toLowerCase()] || Colors.accent;
+    const statusColor = item.status === "completed" ? Colors.success : item.status === "refunded" ? Colors.danger : Colors.warning;
+
+    return (
+      <GlassCard style={styles.saleCard}>
+        <View style={styles.saleTop}>
+          <View style={styles.saleReceiptWrap}>
+            <Ionicons name="receipt-outline" size={16} color={Colors.accent} />
+            <Text style={styles.saleReceipt}>{item.receiptNumber}</Text>
+          </View>
+          <Text style={styles.saleAmount}>${Number(item.totalAmount).toFixed(2)}</Text>
+        </View>
+        <View style={styles.saleBottom}>
+          <Text style={styles.saleDate}>{new Date(item.createdAt).toLocaleDateString()} {new Date(item.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</Text>
+          <View style={styles.saleBadges}>
+            <View style={[styles.badge, { backgroundColor: badgeColor + "20" }]}>
+              <Text style={[styles.badgeText, { color: badgeColor }]}>{item.paymentMethod}</Text>
+            </View>
+            <View style={[styles.badge, { backgroundColor: statusColor + "20" }]}>
+              <Text style={[styles.badgeText, { color: statusColor }]}>{item.status}</Text>
+            </View>
+          </View>
+        </View>
+      </GlassCard>
+    );
+  };
+
+  const renderSales = () => (
+    <>
+      <Text style={styles.sectionTitle}>Recent Sales</Text>
+      <FlatList
+        data={salesData}
+        keyExtractor={(item: any) => String(item.id)}
+        renderItem={renderSaleItem}
+        scrollEnabled={!!salesData.length}
+        ListEmptyComponent={
+          <GlassCard>
+            <View style={styles.empty}>
+              <Ionicons name="receipt-outline" size={40} color={Colors.textMuted} />
+              <Text style={styles.emptyText}>No sales recorded yet</Text>
+            </View>
+          </GlassCard>
+        }
+      />
+    </>
+  );
+
+  const renderInventory = () => (
+    <>
+      <Text style={styles.sectionTitle}>Low Stock Alerts</Text>
+      {lowStock.length > 0 ? (
+        <FlatList
+          data={lowStock}
+          keyExtractor={(item: any) => String(item.id)}
+          scrollEnabled={!!lowStock.length}
+          renderItem={({ item }: { item: any }) => {
+            const product = allProducts.find((p: any) => p.id === item.productId);
+            const qty = item.quantity ?? 0;
+            const threshold = item.lowStockThreshold ?? 10;
+            const pct = threshold > 0 ? Math.min((qty / threshold) * 100, 100) : 0;
+            return (
+              <GlassCard style={styles.stockAlertCard}>
+                <View style={styles.stockAlertLeft}>
+                  <View style={[styles.stockAlertIcon, { backgroundColor: Colors.danger + "20" }]}>
+                    <Ionicons name="warning" size={20} color={Colors.danger} />
+                  </View>
+                  <View style={styles.stockAlertInfo}>
+                    <Text style={styles.stockAlertName} numberOfLines={1}>{product?.name || `Product #${item.productId}`}</Text>
+                    <Text style={styles.stockAlertMeta}>Threshold: {threshold}</Text>
+                    <PercentBar percent={pct} color={qty <= 5 ? Colors.danger : Colors.warning} height={4} />
+                  </View>
+                </View>
+                <View style={styles.stockAlertRight}>
+                  <Text style={[styles.stockAlertQty, { color: qty <= 5 ? Colors.danger : Colors.warning }]}>
+                    {qty}
+                  </Text>
+                  <Text style={styles.stockAlertUnit}>left</Text>
+                </View>
+              </GlassCard>
+            );
+          }}
+        />
+      ) : (
+        <GlassCard>
+          <View style={styles.empty}>
+            <Ionicons name="checkmark-circle" size={40} color={Colors.success} />
+            <Text style={styles.emptyText}>All stock levels are healthy</Text>
+          </View>
+        </GlassCard>
+      )}
+
+      <Text style={styles.sectionTitle}>Full Inventory</Text>
+      <FlatList
+        data={allProducts}
+        keyExtractor={(item: any) => String(item.id)}
+        scrollEnabled={!!allProducts.length}
+        renderItem={({ item }: { item: any }) => (
+          <GlassCard style={styles.inventoryCard}>
+            <View style={styles.inventoryLeft}>
+              <View style={[styles.inventoryIcon, { backgroundColor: Colors.accent + "15" }]}>
+                <Ionicons name="cube-outline" size={18} color={Colors.accent} />
+              </View>
+              <View style={styles.inventoryInfo}>
+                <Text style={styles.inventoryName} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.inventoryPrice}>${Number(item.price || 0).toFixed(2)}</Text>
+              </View>
+            </View>
+            <View style={styles.inventoryRight}>
+              <Text style={[styles.inventoryQty, { color: (item.stockQuantity ?? 0) <= 5 ? Colors.danger : (item.stockQuantity ?? 0) <= 15 ? Colors.warning : Colors.success }]}>
+                {item.stockQuantity ?? 0}
+              </Text>
+              <Text style={styles.inventoryUnit}>in stock</Text>
+            </View>
+          </GlassCard>
+        )}
+        ListEmptyComponent={
+          <GlassCard>
+            <View style={styles.empty}>
+              <Ionicons name="cube-outline" size={40} color={Colors.textMuted} />
+              <Text style={styles.emptyText}>No products in inventory</Text>
+            </View>
+          </GlassCard>
+        }
+      />
+    </>
+  );
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + topPad }]}>
-      <LinearGradient colors={[Colors.gradientStart, Colors.gradientMid]} style={styles.header}>
+      <LinearGradient
+        colors={[Colors.gradientStart, Colors.gradientMid, Colors.gradientEnd]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.header}
+      >
+        <Ionicons name="analytics" size={24} color={Colors.white} />
         <Text style={styles.headerTitle}>Reports & Analytics</Text>
       </LinearGradient>
 
       <View style={styles.tabRow}>
         {(["overview", "sales", "inventory"] as const).map((t) => (
-          <Pressable key={t} style={[styles.tabBtn, tab === t && styles.tabBtnActive]} onPress={() => setTab(t)}>
-            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>{t.charAt(0).toUpperCase() + t.slice(1)}</Text>
+          <Pressable
+            key={t}
+            style={[styles.tabBtn, tab === t && styles.tabBtnActive]}
+            onPress={() => setTab(t)}
+          >
+            <Ionicons
+              name={TAB_ICONS[t] as any}
+              size={16}
+              color={tab === t ? Colors.textDark : Colors.textSecondary}
+            />
+            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
+              {t.charAt(0).toUpperCase() + t.slice(1)}
+            </Text>
           </Pressable>
         ))}
       </View>
 
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: (Platform.OS === "web" ? 84 : 60) + 20 }]}>
-        {tab === "overview" && (
-          <>
-            <View style={[styles.statGrid, isTablet && styles.statGridTablet]}>
-              <StatCard icon="cash" label="Today Revenue" value={`$${(stats?.todayRevenue || 0).toFixed(0)}`} color={Colors.accent} subValue={`${stats?.todaySalesCount || 0} transactions`} />
-              <StatCard icon="trending-up" label="Total Revenue" value={`$${(stats?.totalRevenue || 0).toFixed(0)}`} color={Colors.info} subValue={`${stats?.totalSales || 0} total sales`} />
-            </View>
-            <View style={[styles.statGrid, isTablet && styles.statGridTablet]}>
-              <StatCard icon="people" label="Customers" value={String(stats?.totalCustomers || 0)} color={Colors.secondary} />
-              <StatCard icon="cube" label="Products" value={String(stats?.totalProducts || 0)} color={Colors.success} />
-            </View>
-            <View style={styles.statGrid}>
-              <StatCard icon="alert-circle" label="Low Stock Items" value={String(stats?.lowStockItems || 0)} color={Colors.danger} subValue="Need reorder" />
-            </View>
-
-            <Text style={styles.sectionTitle}>Recent Sales</Text>
-            {recentSales.slice(0, 8).map((sale: any) => (
-              <View key={sale.id} style={styles.saleCard}>
-                <View style={styles.saleInfo}>
-                  <Text style={styles.saleReceipt}>{sale.receiptNumber}</Text>
-                  <Text style={styles.saleDate}>{new Date(sale.createdAt).toLocaleDateString()}</Text>
-                </View>
-                <View style={styles.saleRight}>
-                  <Text style={styles.saleAmount}>${Number(sale.totalAmount).toFixed(2)}</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: sale.status === "completed" ? Colors.success + "20" : Colors.warning + "20" }]}>
-                    <Text style={[styles.statusText, { color: sale.status === "completed" ? Colors.success : Colors.warning }]}>
-                      {sale.paymentMethod}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            ))}
-            {recentSales.length === 0 && (
-              <View style={styles.empty}>
-                <Ionicons name="receipt-outline" size={40} color={Colors.textMuted} />
-                <Text style={styles.emptyText}>No sales yet. Start selling!</Text>
-              </View>
-            )}
-          </>
-        )}
-
-        {tab === "sales" && (
-          <>
-            <Text style={styles.sectionTitle}>All Sales</Text>
-            {recentSales.map((sale: any) => (
-              <View key={sale.id} style={styles.saleCard}>
-                <View style={styles.saleInfo}>
-                  <Text style={styles.saleReceipt}>{sale.receiptNumber}</Text>
-                  <Text style={styles.saleDate}>{new Date(sale.createdAt).toLocaleString()}</Text>
-                </View>
-                <View style={styles.saleRight}>
-                  <Text style={styles.saleAmount}>${Number(sale.totalAmount).toFixed(2)}</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: Colors.success + "20" }]}>
-                    <Text style={[styles.statusText, { color: Colors.success }]}>{sale.paymentMethod}</Text>
-                  </View>
-                </View>
-              </View>
-            ))}
-          </>
-        )}
-
-        {tab === "inventory" && (
-          <>
-            <Text style={styles.sectionTitle}>Low Stock Alerts</Text>
-            {lowStock.length > 0 ? lowStock.map((item: any) => {
-              const product = allProducts.find((p: any) => p.id === item.productId);
-              return (
-                <View key={item.id} style={styles.stockCard}>
-                  <View style={[styles.stockIcon, { backgroundColor: Colors.danger + "20" }]}>
-                    <Ionicons name="warning" size={20} color={Colors.danger} />
-                  </View>
-                  <View style={styles.stockInfo}>
-                    <Text style={styles.stockName}>{product?.name || `Product #${item.productId}`}</Text>
-                    <Text style={styles.stockMeta}>Threshold: {item.lowStockThreshold}</Text>
-                  </View>
-                  <View style={styles.stockRight}>
-                    <Text style={[styles.stockQty, { color: (item.quantity || 0) <= 5 ? Colors.danger : Colors.warning }]}>
-                      {item.quantity || 0} left
-                    </Text>
-                  </View>
-                </View>
-              );
-            }) : (
-              <View style={styles.empty}>
-                <Ionicons name="checkmark-circle" size={40} color={Colors.success} />
-                <Text style={styles.emptyText}>All stock levels are healthy</Text>
-              </View>
-            )}
-          </>
-        )}
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: bottomPad + 20 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {tab === "overview" && renderOverview()}
+        {tab === "sales" && renderSales()}
+        {tab === "inventory" && renderInventory()}
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  header: { paddingHorizontal: 16, paddingVertical: 14 },
-  headerTitle: { fontSize: 22, fontWeight: "800", color: Colors.white },
-  tabRow: { flexDirection: "row", paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
-  tabBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: Colors.surface },
-  tabBtnActive: { backgroundColor: Colors.accent },
-  tabText: { color: Colors.textSecondary, fontSize: 13, fontWeight: "600" },
-  tabTextActive: { color: Colors.textDark },
-  content: { paddingHorizontal: 12 },
-  statGrid: { flexDirection: "row", gap: 10, marginBottom: 10 },
-  statGridTablet: {},
-  sectionTitle: { color: Colors.text, fontSize: 17, fontWeight: "700", marginTop: 16, marginBottom: 10 },
-  saleCard: { flexDirection: "row", justifyContent: "space-between", backgroundColor: Colors.surface, borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: Colors.cardBorder },
-  saleInfo: { flex: 1 },
-  saleReceipt: { color: Colors.text, fontSize: 13, fontWeight: "600" },
-  saleDate: { color: Colors.textMuted, fontSize: 11, marginTop: 2 },
-  saleRight: { alignItems: "flex-end", gap: 4 },
-  saleAmount: { color: Colors.accent, fontSize: 16, fontWeight: "800" },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
-  statusText: { fontSize: 11, fontWeight: "600" },
-  stockCard: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.surface, borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: Colors.cardBorder },
-  stockIcon: { width: 40, height: 40, borderRadius: 10, justifyContent: "center", alignItems: "center", marginRight: 12 },
-  stockInfo: { flex: 1 },
-  stockName: { color: Colors.text, fontSize: 14, fontWeight: "600" },
-  stockMeta: { color: Colors.textMuted, fontSize: 12, marginTop: 2 },
-  stockRight: { alignItems: "flex-end" },
-  stockQty: { fontSize: 14, fontWeight: "800" },
-  empty: { alignItems: "center", paddingVertical: 40 },
-  emptyText: { color: Colors.textMuted, fontSize: 14, marginTop: 10 },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: Colors.white,
+  },
+  tabRow: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  tabBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  tabBtnActive: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  tabText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  tabTextActive: {
+    color: Colors.textDark,
+  },
+  content: {
+    paddingHorizontal: 16,
+  },
+  glassCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  statGrid: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 2,
+  },
+  statCardHalf: {
+    flex: 1,
+  },
+  statIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  statLabel: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  statValue: {
+    color: Colors.text,
+    fontSize: 22,
+    fontWeight: "800",
+    marginTop: 4,
+  },
+  statSub: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  sectionTitle: {
+    color: Colors.text,
+    fontSize: 17,
+    fontWeight: "700",
+    marginTop: 18,
+    marginBottom: 10,
+  },
+  barTrack: {
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 6,
+    overflow: "hidden",
+    width: "100%",
+  },
+  barFill: {
+    borderRadius: 6,
+  },
+  barFillGradient: {
+    height: 12,
+    borderRadius: 6,
+  },
+  revExpRow: {
+    gap: 16,
+  },
+  revExpItem: {
+    gap: 2,
+  },
+  revExpHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  revExpDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  revExpLabel: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  revExpValue: {
+    color: Colors.text,
+    fontSize: 20,
+    fontWeight: "800",
+    marginTop: 2,
+  },
+  topProductRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    gap: 12,
+  },
+  topProductBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.06)",
+  },
+  topProductRank: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.accent + "20",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  topProductRankText: {
+    color: Colors.accent,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  topProductInfo: {
+    flex: 1,
+  },
+  topProductName: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  topProductMeta: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  topProductRevenue: {
+    color: Colors.accent,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  topProductQty: {
+    color: Colors.textMuted,
+    fontSize: 12,
+  },
+  paymentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    gap: 12,
+  },
+  paymentIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  paymentInfo: {
+    flex: 1,
+  },
+  paymentHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  paymentName: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "600",
+    textTransform: "capitalize",
+  },
+  paymentPct: {
+    color: Colors.accent,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  paymentAmount: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  quickStatsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  quickStatCard: {
+    flex: 1,
+    minWidth: isTablet ? 150 : 70,
+    alignItems: "center",
+    paddingVertical: 14,
+    gap: 6,
+  },
+  quickStatValue: {
+    color: Colors.text,
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  quickStatLabel: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  saleCard: {
+    marginBottom: 8,
+  },
+  saleTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  saleReceiptWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  saleReceipt: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  saleAmount: {
+    color: Colors.accent,
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  saleBottom: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  saleDate: {
+    color: Colors.textMuted,
+    fontSize: 12,
+  },
+  saleBadges: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "capitalize",
+  },
+  stockAlertCard: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  stockAlertLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  stockAlertIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  stockAlertInfo: {
+    flex: 1,
+  },
+  stockAlertName: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  stockAlertMeta: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  stockAlertRight: {
+    alignItems: "center",
+    marginLeft: 12,
+  },
+  stockAlertQty: {
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  stockAlertUnit: {
+    color: Colors.textMuted,
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  inventoryCard: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  inventoryLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  inventoryIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  inventoryInfo: {
+    flex: 1,
+  },
+  inventoryName: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  inventoryPrice: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  inventoryRight: {
+    alignItems: "center",
+    marginLeft: 12,
+  },
+  inventoryQty: {
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  inventoryUnit: {
+    color: Colors.textMuted,
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  empty: {
+    alignItems: "center",
+    paddingVertical: 30,
+    gap: 8,
+  },
+  emptyText: {
+    color: Colors.textMuted,
+    fontSize: 14,
+  },
 });

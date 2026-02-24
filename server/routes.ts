@@ -794,7 +794,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get active shift for employee
   app.get("/api/shifts/active/:employeeId", async (req, res) => {
     try {
-      const shifts = await storage.getShifts(undefined);
+      const shifts = await storage.getShifts();
       const active = shifts.find((s: any) => s.employeeId === Number(req.params.employeeId) && s.status === "open");
       res.json(active || null);
     } catch (e: any) { res.status(500).json({ error: e.message }); }

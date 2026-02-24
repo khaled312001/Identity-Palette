@@ -21,6 +21,9 @@ Key functional areas include:
 - **Professional Reports** – 6-tab reporting (Overview, Sales, Inventory, Returns, Finance, Activity) with CSV export for all report types
 - **Web Admin Dashboard** – Full analytics dashboard at /dashboard route with revenue stats, top products, payment methods breakdown, inventory alerts, recent sales (served by Express on port 5000)
 - **Settings & Admin** – Branch management, suppliers, purchase orders, expenses, shifts, warehouses, product batches
+- **Admin Shift Monitoring** – Real-time active shift tracking with elapsed time, progress bars, overtime detection, force-close capability, shift history, configurable shift duration
+- **In-App Notifications** – Bell icon with unread badge, auto-notifications for shift start/end, sales, returns, cash drawer operations, mark read/unread, priority levels
+- **Stripe Payment Gateway** – Working Stripe integration with payment intent creation, webhook handling, automatic data sync via stripe-replit-sync
 - **Multi-branch support** – Branch-level data isolation
 - **Subscription billing** – Monthly/yearly subscription plan support (schema-level)
 - **Role-Based Permissions** – Differentiated access for admin/owner (full access), manager (management without employee/branch editing), and cashier (POS-only with 10% max discount cap)

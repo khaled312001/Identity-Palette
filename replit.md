@@ -23,6 +23,29 @@ Key functional areas include:
 - **Settings & Admin** – Branch management, suppliers, purchase orders, expenses, shifts, warehouses, product batches
 - **Multi-branch support** – Branch-level data isolation
 - **Subscription billing** – Monthly/yearly subscription plan support (schema-level)
+- **Role-Based Permissions** – Differentiated access for admin/owner (full access), manager (management without employee/branch editing), and cashier (POS-only with 10% max discount cap)
+
+## Role-Based Access Control
+
+### Role Hierarchy
+- **Admin/Owner**: Full access to all features, unlimited discounts, all settings
+- **Manager**: Management access (products, customers, reports, most settings), unlimited discounts, cannot manage employees or branches
+- **Cashier**: POS-only access, 10% maximum discount cap, limited settings (language, receipt printer, cash drawer only), no access to Reports tab
+
+### Auth Context Helpers (lib/auth-context.tsx)
+- `isAdmin` – true for admin/owner roles
+- `isManager` – true for manager role
+- `isCashier` – true for cashier role
+- `canManage` – true for admin/owner/manager (shorthand for management-level access)
+
+### Tab Restrictions
+- Reports tab: Hidden from tab bar for cashiers; shows "Access Restricted" if navigated to directly
+- Products/Customers: Read-only for cashiers (add/edit/delete buttons hidden)
+- Settings: Cashiers only see language, receipt printer, and cash drawer sections
+
+### POS Discount Cap
+- Cashiers capped at 10% maximum discount (both fixed amount and percentage modes)
+- Warning text displayed in discount modal for cashiers
 
 ## User Preferences
 

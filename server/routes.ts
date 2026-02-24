@@ -101,10 +101,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.post("/api/products", async (req, res) => {
-    try { res.json(await storage.createProduct(req.body)); } catch (e: any) { res.status(500).json({ error: e.message }); }
+    try {
+      const data = { ...req.body };
+      if (data.expiryDate === "" || data.expiryDate === null || data.expiryDate === undefined) { delete data.expiryDate; }
+      else if (data.expiryDate && typeof data.expiryDate === "string") { data.expiryDate = new Date(data.expiryDate); }
+      if (data.createdAt === "" || data.createdAt === null) { delete data.createdAt; }
+      else if (data.createdAt && typeof data.createdAt === "string") { data.createdAt = new Date(data.createdAt); }
+      if (data.updatedAt === "" || data.updatedAt === null) { delete data.updatedAt; }
+      else if (data.updatedAt && typeof data.updatedAt === "string") { data.updatedAt = new Date(data.updatedAt); }
+      res.json(await storage.createProduct(data));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.put("/api/products/:id", async (req, res) => {
-    try { res.json(await storage.updateProduct(Number(req.params.id), req.body)); } catch (e: any) { res.status(500).json({ error: e.message }); }
+    try {
+      const data = { ...req.body };
+      if (data.expiryDate === "" || data.expiryDate === null) { delete data.expiryDate; }
+      else if (data.expiryDate && typeof data.expiryDate === "string") { data.expiryDate = new Date(data.expiryDate); }
+      if (data.createdAt === "" || data.createdAt === null) { delete data.createdAt; }
+      else if (data.createdAt && typeof data.createdAt === "string") { data.createdAt = new Date(data.createdAt); }
+      if (data.updatedAt === "" || data.updatedAt === null) { delete data.updatedAt; }
+      else if (data.updatedAt && typeof data.updatedAt === "string") { data.updatedAt = new Date(data.updatedAt); }
+      res.json(await storage.updateProduct(Number(req.params.id), data));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.delete("/api/products/:id", async (req, res) => {
     try { await storage.deleteProduct(Number(req.params.id)); res.json({ success: true }); } catch (e: any) { res.status(500).json({ error: e.message }); }

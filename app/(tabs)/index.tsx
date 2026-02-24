@@ -17,7 +17,7 @@ import { useLanguage } from "@/lib/language-context";
 
 export default function POSScreen() {
   const insets = useSafeAreaInsets();
-  const { employee } = useAuth();
+  const { employee, isCashier, canManage } = useAuth();
   const qc = useQueryClient();
   const cart = useCart();
   const { t, isRTL } = useLanguage();
@@ -158,14 +158,19 @@ export default function POSScreen() {
     }
   }, [cart]);
 
+  const maxCashierDiscountPct = 10;
   const applyDiscount = () => {
     const val = Number(discountInput);
     if (isNaN(val) || val <= 0) return;
+    let discountAmount = 0;
     if (discountType === "percent") {
-      cart.setDiscount(cart.subtotal * (val / 100));
+      const pct = isCashier ? Math.min(val, maxCashierDiscountPct) : val;
+      discountAmount = cart.subtotal * (pct / 100);
     } else {
-      cart.setDiscount(val);
+      const maxFixed = isCashier ? cart.subtotal * (maxCashierDiscountPct / 100) : Infinity;
+      discountAmount = Math.min(val, maxFixed);
     }
+    cart.setDiscount(discountAmount);
     setShowDiscountModal(false);
     setDiscountInput("");
   };
@@ -632,6 +637,11 @@ export default function POSScreen() {
               onChangeText={setDiscountInput}
               keyboardType="decimal-pad"
             />
+            {isCashier && (
+              <Text style={{ color: Colors.warning, fontSize: 12, marginTop: 6, textAlign: "center" }}>
+                Max discount: {maxCashierDiscountPct}% (cashier limit)
+              </Text>
+            )}
             <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
               <Pressable style={[styles.completeBtn, { flex: 1 }]} onPress={() => { cart.setDiscount(0); setShowDiscountModal(false); }}>
                 <View style={[styles.completeBtnGradient, { backgroundColor: Colors.surfaceLight }]}>
@@ -673,13 +683,13 @@ const styles = StyleSheet.create({
   searchRow: { paddingHorizontal: 14, paddingTop: 14 },
   searchBox: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.inputBg, borderRadius: 14, paddingHorizontal: 14, height: 44, borderWidth: 1, borderColor: Colors.inputBorder },
   searchInput: { flex: 1, color: Colors.text, marginLeft: 8, fontSize: 15 },
-  categoriesRow: { maxHeight: 52, marginTop: 10 },
+  categoriesRow: { maxHeight: 64, marginTop: 12, marginBottom: 4 },
   categoriesContent: { paddingHorizontal: 14, gap: 8, alignItems: "center" },
   categoryChip: { borderRadius: 24, backgroundColor: Colors.surface, borderWidth: 1.5, borderColor: Colors.cardBorder, overflow: "hidden" },
   categoryChipAll: { borderColor: Colors.accent, borderWidth: 1.5 },
   categoryChipAllActive: { borderColor: Colors.gradientStart },
-  categoryChipGradient: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 10, gap: 7 },
-  categoryChipInner: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 10, gap: 6 },
+  categoryChipGradient: { flexDirection: "row", alignItems: "center", paddingHorizontal: 18, paddingVertical: 12, gap: 7 },
+  categoryChipInner: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, gap: 6 },
   categoryChipText: { color: Colors.textSecondary, fontSize: 13, fontWeight: "600" },
   categoryChipTextAll: { color: Colors.white, fontWeight: "700" },
   categoryDot: { width: 7, height: 7, borderRadius: 4 },

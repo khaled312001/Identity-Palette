@@ -18,6 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Colors } from "@/constants/colors";
 import { getQueryFn } from "@/lib/query-client";
 import { useLanguage } from "@/lib/language-context";
+import { useAuth } from "@/lib/auth-context";
 
 type TabType = "overview" | "sales" | "inventory" | "returns" | "finance" | "activity";
 
@@ -49,6 +50,7 @@ function PercentBar({ percent, color, height = 8 }: { percent: number; color: st
 export default function ReportsScreen() {
   const insets = useSafeAreaInsets();
   const { t, isRTL } = useLanguage();
+  const { isCashier } = useAuth();
   const [screenDims, setScreenDims] = useState(Dimensions.get("window"));
   useEffect(() => {
     const sub = Dimensions.addEventListener("change", ({ window }) => setScreenDims(window));
@@ -136,6 +138,18 @@ export default function ReportsScreen() {
 
   const topPad = Platform.OS === "web" ? 67 : 0;
   const bottomPad = Platform.OS === "web" ? 84 : 60;
+
+  if (isCashier) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top + topPad, justifyContent: "center", alignItems: "center" }]}>
+        <Ionicons name="lock-closed" size={64} color={Colors.textMuted} />
+        <Text style={{ color: Colors.text, fontSize: 20, fontWeight: "700", marginTop: 16 }}>Access Restricted</Text>
+        <Text style={{ color: Colors.textMuted, fontSize: 14, marginTop: 8, textAlign: "center", paddingHorizontal: 40 }}>
+          Reports are available for managers and administrators only.
+        </Text>
+      </View>
+    );
+  }
 
   const todayRevenue = stats?.todayRevenue ?? 0;
   const weekRevenue = stats?.weekRevenue ?? 0;

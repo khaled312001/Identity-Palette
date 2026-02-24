@@ -45,6 +45,8 @@ export default function POSScreen() {
   const [cardCvc, setCardCvc] = useState("");
   const [cardProcessing, setCardProcessing] = useState(false);
   const [cardError, setCardError] = useState("");
+  const [nfcStatus, setNfcStatus] = useState<"waiting" | "reading" | "success" | "error">("waiting");
+  const [nfcPulse, setNfcPulse] = useState(0);
 
   const { data: categories = [] } = useQuery<any[]>({
     queryKey: ["/api/categories"],
@@ -106,10 +108,39 @@ export default function POSScreen() {
 
   const saleMutation = useMutation({
     mutationFn: async () => {
-      const pm = paymentMethod === "qr" ? "mobile" : paymentMethod;
+      const pm = paymentMethod === "nfc" ? "card" : paymentMethod;
       let stripePaymentId: string | null = null;
 
-      if (pm === "card") {
+      if (paymentMethod === "nfc") {
+        setNfcStatus("reading");
+        try {
+          const amountInCents = Math.round(cart.total * 100);
+          const chargeRes = await apiRequest("POST", "/api/stripe/pos-charge", {
+            amount: amountInCents,
+            currency: "usd",
+            token: "tok_visa",
+            metadata: {
+              employeeId: String(employee?.id || 1),
+              branchId: String(employee?.branchId || 1),
+              source: "barmagly-pos-nfc",
+              paymentType: "contactless",
+            },
+          });
+          const chargeData = await chargeRes.json();
+          if (!chargeRes.ok || !chargeData.success) {
+            setNfcStatus("error");
+            throw new Error(chargeData.error || t("cardDeclined"));
+          }
+          stripePaymentId = chargeData.paymentIntentId;
+          setNfcStatus("success");
+          if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (err: any) {
+          setNfcStatus("error");
+          throw err;
+        }
+      }
+
+      if (pm === "card" && paymentMethod === "card") {
         setCardProcessing(true);
         setCardError("");
         try {
@@ -204,6 +235,7 @@ export default function POSScreen() {
       setCardExpiry("");
       setCardCvc("");
       setCardError("");
+      setNfcStatus("waiting");
       setShowReceipt(true);
       qc.invalidateQueries({ queryKey: ["/api/sales"] });
       qc.invalidateQueries({ queryKey: ["/api/dashboard"] });
@@ -489,12 +521,12 @@ export default function POSScreen() {
                   { key: "cash", icon: "cash" as const, label: t("cash") },
                   { key: "card", icon: "card" as const, label: t("card") },
                   { key: "mobile", icon: "phone-portrait" as const, label: t("mobile") },
-                  { key: "qr", icon: "qr-code" as const, label: t("qrPay") },
+                  { key: "nfc", icon: "wifi" as const, label: t("nfcPay") },
                 ].map((m) => (
                   <Pressable
                     key={m.key}
                     style={[styles.paymentBtn, paymentMethod === m.key && styles.paymentBtnActive]}
-                    onPress={() => setPaymentMethod(m.key)}
+                    onPress={() => { setPaymentMethod(m.key); if (m.key === "nfc") setNfcStatus("waiting"); }}
                   >
                     <Ionicons name={m.icon} size={22} color={paymentMethod === m.key ? Colors.accent : Colors.textSecondary} />
                     <Text style={[styles.paymentBtnText, paymentMethod === m.key && { color: Colors.accent }]}>{m.label}</Text>
@@ -519,11 +551,37 @@ export default function POSScreen() {
                 </View>
               )}
 
-              {paymentMethod === "qr" && (
-                <View style={styles.qrPaySection}>
-                  <Ionicons name="qr-code" size={64} color={Colors.accent} />
-                  <Text style={[styles.qrPayText, rtlTextAlign]}>{t("customerScanQR")}</Text>
-                  <Text style={styles.qrPayAmount}>${cart.total.toFixed(2)}</Text>
+              {paymentMethod === "nfc" && (
+                <View style={styles.nfcPaySection}>
+                  <View style={styles.nfcIconContainer}>
+                    <View style={[styles.nfcRing, styles.nfcRingOuter]} />
+                    <View style={[styles.nfcRing, styles.nfcRingMiddle]} />
+                    <View style={[styles.nfcRing, styles.nfcRingInner]} />
+                    <View style={styles.nfcCenterIcon}>
+                      <Ionicons name="wifi" size={32} color={Colors.white} />
+                    </View>
+                  </View>
+                  <Text style={[styles.nfcPayTitle, rtlTextAlign]}>{t("tapToPay")}</Text>
+                  <Text style={[styles.nfcPaySubtitle, rtlTextAlign]}>{t("holdCardNear")}</Text>
+                  <Text style={styles.nfcPayAmount}>${cart.total.toFixed(2)}</Text>
+                  <View style={[styles.nfcStatusBadge, 
+                    nfcStatus === "success" && { backgroundColor: "rgba(16,185,129,0.15)" },
+                    nfcStatus === "error" && { backgroundColor: "rgba(239,68,68,0.15)" },
+                    nfcStatus === "reading" && { backgroundColor: "rgba(59,130,246,0.15)" },
+                  ]}>
+                    <Ionicons 
+                      name={nfcStatus === "success" ? "checkmark-circle" : nfcStatus === "error" ? "close-circle" : nfcStatus === "reading" ? "sync" : "radio-outline"} 
+                      size={16} 
+                      color={nfcStatus === "success" ? Colors.success : nfcStatus === "error" ? Colors.error : nfcStatus === "reading" ? "#3B82F6" : Colors.accent} 
+                    />
+                    <Text style={[styles.nfcStatusText, 
+                      nfcStatus === "success" && { color: Colors.success },
+                      nfcStatus === "error" && { color: Colors.error },
+                      nfcStatus === "reading" && { color: "#3B82F6" },
+                    ]}>
+                      {nfcStatus === "success" ? t("paymentSuccess") : nfcStatus === "error" ? t("paymentFailed") : nfcStatus === "reading" ? t("processingPayment") : t("nfcReady")}
+                    </Text>
+                  </View>
                 </View>
               )}
 
@@ -604,14 +662,14 @@ export default function POSScreen() {
               ))}
 
               <Pressable
-                style={[styles.completeBtn, (saleMutation.isPending || cardProcessing || (paymentMethod === "card" && !isCardValid())) && { opacity: 0.5 }]}
-                onPress={() => !saleMutation.isPending && !cardProcessing && !(paymentMethod === "card" && !isCardValid()) && saleMutation.mutate()}
-                disabled={saleMutation.isPending || cardProcessing || (paymentMethod === "card" && !isCardValid())}
+                style={[styles.completeBtn, (saleMutation.isPending || cardProcessing || nfcStatus === "reading" || (paymentMethod === "card" && !isCardValid())) && { opacity: 0.5 }]}
+                onPress={() => !saleMutation.isPending && !cardProcessing && nfcStatus !== "reading" && !(paymentMethod === "card" && !isCardValid()) && saleMutation.mutate()}
+                disabled={saleMutation.isPending || cardProcessing || nfcStatus === "reading" || (paymentMethod === "card" && !isCardValid())}
               >
                 <LinearGradient colors={[Colors.success, "#059669"]} style={[styles.completeBtnGradient, isRTL && { flexDirection: "row-reverse" }]}>
                   <Ionicons name="checkmark-circle" size={22} color={Colors.white} />
                   <Text style={styles.completeBtnText}>
-                    {cardProcessing ? t("processingPayment") : saleMutation.isPending ? t("processing") : t("completeSale")}
+                    {cardProcessing || nfcStatus === "reading" ? t("processingPayment") : saleMutation.isPending ? t("processing") : t("completeSale")}
                   </Text>
                 </LinearGradient>
               </Pressable>
@@ -915,9 +973,18 @@ const styles = StyleSheet.create({
   cashSection: { marginBottom: 16 },
   cashInput: { backgroundColor: Colors.inputBg, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, color: Colors.text, fontSize: 18, fontWeight: "700", borderWidth: 1, borderColor: Colors.inputBorder, textAlign: "center" },
   changeText: { color: Colors.success, fontSize: 16, fontWeight: "700", textAlign: "center", marginTop: 8 },
-  qrPaySection: { alignItems: "center", paddingVertical: 20, gap: 8, marginBottom: 16 },
-  qrPayText: { color: Colors.textSecondary, fontSize: 14 },
-  qrPayAmount: { color: Colors.accent, fontSize: 24, fontWeight: "800" },
+  nfcPaySection: { alignItems: "center", paddingVertical: 20, gap: 10, marginBottom: 16 },
+  nfcIconContainer: { width: 120, height: 120, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  nfcRing: { position: "absolute", borderRadius: 999, borderWidth: 2, borderColor: "rgba(47,211,198,0.15)" },
+  nfcRingOuter: { width: 120, height: 120 },
+  nfcRingMiddle: { width: 90, height: 90, borderColor: "rgba(47,211,198,0.25)" },
+  nfcRingInner: { width: 60, height: 60, borderColor: "rgba(47,211,198,0.4)" },
+  nfcCenterIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.accent, alignItems: "center", justifyContent: "center", transform: [{ rotate: "90deg" }] },
+  nfcPayTitle: { color: Colors.text, fontSize: 18, fontWeight: "700" },
+  nfcPaySubtitle: { color: Colors.textSecondary, fontSize: 13 },
+  nfcPayAmount: { color: Colors.accent, fontSize: 28, fontWeight: "800" },
+  nfcStatusBadge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(47,211,198,0.15)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginTop: 4 },
+  nfcStatusText: { color: Colors.accent, fontSize: 13, fontWeight: "600" },
   nfcBadge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(47,211,198,0.15)", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   nfcText: { color: Colors.accent, fontSize: 13, fontWeight: "600" },
   cardInputSection: { backgroundColor: Colors.surfaceLight, borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: Colors.cardBorder },

@@ -482,6 +482,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/product-batches/:id", async (req, res) => {
     try { res.json(await storage.updateProductBatch(Number(req.params.id), req.body)); } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
+  app.delete("/api/product-batches/:id", async (req, res) => {
+    try { res.json(await storage.updateProductBatch(Number(req.params.id), { isActive: false })); } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
 
   // Inventory Movements
   app.get("/api/inventory-movements", async (req, res) => {

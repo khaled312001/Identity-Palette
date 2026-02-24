@@ -16,7 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { Colors } from "@/constants/colors";
-import { getQueryFn } from "@/lib/query-client";
+import { getQueryFn, getApiUrl } from "@/lib/query-client";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 
@@ -126,13 +126,13 @@ export default function ReportsScreen() {
     queryFn: getQueryFn({ on401: "throw" }),
   });
 
-  const apiBaseUrl = "";
-
   const handleExport = (endpoint: string) => {
+    const baseUrl = getApiUrl().replace(/\/$/, "");
+    const fullUrl = `${baseUrl}${endpoint}`;
     if (Platform.OS === "web") {
-      window.open(endpoint, "_blank");
+      window.open(fullUrl, "_blank");
     } else {
-      Linking.openURL(endpoint);
+      Linking.openURL(fullUrl);
     }
   };
 

@@ -40,6 +40,11 @@ export default function POSScreen() {
   const [discountInput, setDiscountInput] = useState("");
   const [discountType, setDiscountType] = useState<"fixed" | "percent">("fixed");
   const [showScanner, setShowScanner] = useState(false);
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvc, setCardCvc] = useState("");
+  const [cardProcessing, setCardProcessing] = useState(false);
+  const [cardError, setCardError] = useState("");
 
   const { data: categories = [] } = useQuery<any[]>({
     queryKey: ["/api/categories"],
@@ -81,8 +86,69 @@ export default function POSScreen() {
     } catch { }
   };
 
+  const formatCardNumber = (text: string) => {
+    const cleaned = text.replace(/\D/g, "").slice(0, 16);
+    const groups = cleaned.match(/.{1,4}/g);
+    return groups ? groups.join(" ") : cleaned;
+  };
+
+  const formatExpiry = (text: string) => {
+    const cleaned = text.replace(/\D/g, "").slice(0, 4);
+    if (cleaned.length >= 3) return cleaned.slice(0, 2) + "/" + cleaned.slice(2);
+    return cleaned;
+  };
+
+  const isCardValid = () => {
+    const num = cardNumber.replace(/\s/g, "");
+    const [mm, yy] = cardExpiry.split("/");
+    return num.length >= 15 && mm && yy && mm.length === 2 && yy.length >= 2 && cardCvc.length >= 3;
+  };
+
   const saleMutation = useMutation({
     mutationFn: async () => {
+      const pm = paymentMethod === "qr" ? "mobile" : paymentMethod;
+      let stripePaymentId: string | null = null;
+
+      if (pm === "card") {
+        setCardProcessing(true);
+        setCardError("");
+        try {
+          const num = cardNumber.replace(/\s/g, "");
+          const testCardTokens: Record<string, string> = {
+            "4242424242424242": "tok_visa",
+            "5555555555554444": "tok_mastercard",
+            "378282246310005": "tok_amex",
+            "4000056655665556": "tok_visa_debit",
+            "4000000000009995": "tok_chargeDeclined",
+            "4000000000000002": "tok_chargeDeclined",
+          };
+          const token = testCardTokens[num] || "tok_visa";
+
+          const amountInCents = Math.round(cart.total * 100);
+          const chargeRes = await apiRequest("POST", "/api/stripe/pos-charge", {
+            amount: amountInCents,
+            currency: "usd",
+            token,
+            metadata: {
+              employeeId: String(employee?.id || 1),
+              branchId: String(employee?.branchId || 1),
+              source: "barmagly-pos",
+              cardLast4: num.slice(-4),
+            },
+          });
+          const chargeData = await chargeRes.json();
+          if (!chargeRes.ok || !chargeData.success) {
+            throw new Error(chargeData.error || t("cardDeclined"));
+          }
+          stripePaymentId = chargeData.paymentIntentId;
+        } catch (err: any) {
+          setCardProcessing(false);
+          setCardError(err.message || t("cardDeclined"));
+          throw err;
+        }
+        setCardProcessing(false);
+      }
+
       const saleItems = cart.items.map((i) => ({
         productId: i.productId,
         productName: i.name,
@@ -91,8 +157,7 @@ export default function POSScreen() {
         total: (i.price * i.quantity).toFixed(2),
         discount: "0",
       }));
-      const pm = paymentMethod === "qr" ? "mobile" : paymentMethod;
-      const data = {
+      const data: any = {
         branchId: employee?.branchId || 1,
         employeeId: employee?.id || 1,
         customerId: cart.customerId,
@@ -109,6 +174,9 @@ export default function POSScreen() {
           ? (Number(cashReceived) - cart.total).toFixed(2) : "0",
         items: saleItems,
       };
+      if (stripePaymentId) {
+        data.notes = `Stripe: ${stripePaymentId}`;
+      }
       const res = await apiRequest("POST", "/api/sales", data);
       return await res.json();
     },
@@ -132,6 +200,10 @@ export default function POSScreen() {
       cart.clearCart();
       setShowCheckout(false);
       setCashReceived("");
+      setCardNumber("");
+      setCardExpiry("");
+      setCardCvc("");
+      setCardError("");
       setShowReceipt(true);
       qc.invalidateQueries({ queryKey: ["/api/sales"] });
       qc.invalidateQueries({ queryKey: ["/api/dashboard"] });
@@ -456,12 +528,69 @@ export default function POSScreen() {
               )}
 
               {paymentMethod === "card" && (
-                <View style={styles.qrPaySection}>
-                  <Ionicons name="card" size={48} color={Colors.info} />
-                  <Text style={[styles.qrPayText, rtlTextAlign]}>{t("tapCard")}</Text>
-                  <View style={[styles.nfcBadge, isRTL && { flexDirection: "row-reverse" }]}>
-                    <Ionicons name="wifi" size={16} color={Colors.accent} />
-                    <Text style={styles.nfcText}>{t("nfcReady")}</Text>
+                <View style={styles.cardInputSection}>
+                  <View style={[styles.cardInputHeader, isRTL && { flexDirection: "row-reverse" }]}>
+                    <Ionicons name="card" size={24} color={Colors.accent} />
+                    <Text style={[styles.cardInputTitle, rtlTextAlign]}>{t("cardDetails")}</Text>
+                    <View style={[styles.cardBrands, isRTL && { flexDirection: "row-reverse" }]}>
+                      <Text style={styles.cardBrand}>VISA</Text>
+                      <Text style={styles.cardBrand}>MC</Text>
+                    </View>
+                  </View>
+                  <View style={styles.cardField}>
+                    <Ionicons name="card-outline" size={18} color={Colors.textMuted} style={{ marginRight: 8 }} />
+                    <TextInput
+                      style={styles.cardInput}
+                      placeholder="4242 4242 4242 4242"
+                      placeholderTextColor={Colors.textMuted}
+                      value={cardNumber}
+                      onChangeText={(t) => setCardNumber(formatCardNumber(t))}
+                      keyboardType="number-pad"
+                      maxLength={19}
+                    />
+                  </View>
+                  <View style={[styles.cardRow, isRTL && { flexDirection: "row-reverse" }]}>
+                    <View style={[styles.cardField, { flex: 1, marginRight: isRTL ? 0 : 8, marginLeft: isRTL ? 8 : 0 }]}>
+                      <Ionicons name="calendar-outline" size={18} color={Colors.textMuted} style={{ marginRight: 8 }} />
+                      <TextInput
+                        style={styles.cardInput}
+                        placeholder="MM/YY"
+                        placeholderTextColor={Colors.textMuted}
+                        value={cardExpiry}
+                        onChangeText={(t) => setCardExpiry(formatExpiry(t))}
+                        keyboardType="number-pad"
+                        maxLength={5}
+                      />
+                    </View>
+                    <View style={[styles.cardField, { flex: 1 }]}>
+                      <Ionicons name="lock-closed-outline" size={18} color={Colors.textMuted} style={{ marginRight: 8 }} />
+                      <TextInput
+                        style={styles.cardInput}
+                        placeholder="CVC"
+                        placeholderTextColor={Colors.textMuted}
+                        value={cardCvc}
+                        onChangeText={(t) => setCardCvc(t.replace(/\D/g, "").slice(0, 4))}
+                        keyboardType="number-pad"
+                        maxLength={4}
+                        secureTextEntry
+                      />
+                    </View>
+                  </View>
+                  {cardError ? (
+                    <View style={[styles.cardErrorRow, isRTL && { flexDirection: "row-reverse" }]}>
+                      <Ionicons name="alert-circle" size={16} color={Colors.error} />
+                      <Text style={[styles.cardErrorText, rtlTextAlign]}>{cardError}</Text>
+                    </View>
+                  ) : null}
+                  {cardProcessing && (
+                    <View style={[styles.cardProcessingRow, isRTL && { flexDirection: "row-reverse" }]}>
+                      <Ionicons name="sync" size={16} color={Colors.accent} />
+                      <Text style={[styles.cardProcessingText, rtlTextAlign]}>{t("processingPayment")}</Text>
+                    </View>
+                  )}
+                  <View style={[styles.cardSecureRow, isRTL && { flexDirection: "row-reverse" }]}>
+                    <Ionicons name="shield-checkmark" size={14} color={Colors.success} />
+                    <Text style={styles.cardSecureText}>{t("securePayment")}</Text>
                   </View>
                 </View>
               )}
@@ -475,14 +604,14 @@ export default function POSScreen() {
               ))}
 
               <Pressable
-                style={[styles.completeBtn, saleMutation.isPending && { opacity: 0.7 }]}
-                onPress={() => !saleMutation.isPending && saleMutation.mutate()}
-                disabled={saleMutation.isPending}
+                style={[styles.completeBtn, (saleMutation.isPending || cardProcessing || (paymentMethod === "card" && !isCardValid())) && { opacity: 0.5 }]}
+                onPress={() => !saleMutation.isPending && !cardProcessing && !(paymentMethod === "card" && !isCardValid()) && saleMutation.mutate()}
+                disabled={saleMutation.isPending || cardProcessing || (paymentMethod === "card" && !isCardValid())}
               >
                 <LinearGradient colors={[Colors.success, "#059669"]} style={[styles.completeBtnGradient, isRTL && { flexDirection: "row-reverse" }]}>
                   <Ionicons name="checkmark-circle" size={22} color={Colors.white} />
                   <Text style={styles.completeBtnText}>
-                    {saleMutation.isPending ? t("processing") : t("completeSale")}
+                    {cardProcessing ? t("processingPayment") : saleMutation.isPending ? t("processing") : t("completeSale")}
                   </Text>
                 </LinearGradient>
               </Pressable>
@@ -791,6 +920,20 @@ const styles = StyleSheet.create({
   qrPayAmount: { color: Colors.accent, fontSize: 24, fontWeight: "800" },
   nfcBadge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(47,211,198,0.15)", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   nfcText: { color: Colors.accent, fontSize: 13, fontWeight: "600" },
+  cardInputSection: { backgroundColor: Colors.surfaceLight, borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: Colors.cardBorder },
+  cardInputHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 },
+  cardInputTitle: { color: Colors.text, fontSize: 15, fontWeight: "700", flex: 1 },
+  cardBrands: { flexDirection: "row", gap: 4 },
+  cardBrand: { color: Colors.textMuted, fontSize: 10, fontWeight: "700", backgroundColor: Colors.surface, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: "hidden" },
+  cardField: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.surface, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 0, borderWidth: 1, borderColor: Colors.cardBorder, marginBottom: 8, height: 48 },
+  cardInput: { flex: 1, color: Colors.text, fontSize: 15, fontWeight: "500", height: 48 },
+  cardRow: { flexDirection: "row", gap: 0 },
+  cardErrorRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
+  cardErrorText: { color: Colors.error, fontSize: 12, fontWeight: "500", flex: 1 },
+  cardProcessingRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
+  cardProcessingText: { color: Colors.accent, fontSize: 12, fontWeight: "500" },
+  cardSecureRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 8, justifyContent: "center" },
+  cardSecureText: { color: Colors.textMuted, fontSize: 11 },
   checkoutItem: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
   checkoutItemName: { color: Colors.textSecondary, fontSize: 13 },
   checkoutItemTotal: { color: Colors.text, fontSize: 13, fontWeight: "600" },

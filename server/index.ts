@@ -355,6 +355,45 @@ function setupStripeRoutes(app: express.Application) {
       res.status(500).json({ error: e.message });
     }
   });
+
+  app.post('/api/stripe/pos-charge', async (req, res) => {
+    try {
+      const { amount, currency = 'usd', token, metadata } = req.body;
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ error: 'Valid amount is required' });
+      }
+      if (!token) {
+        return res.status(400).json({ error: 'Payment token is required' });
+      }
+      const stripe = await getUncachableStripeClient();
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount),
+        currency,
+        payment_method_data: {
+          type: 'card',
+          card: { token },
+        },
+        confirm: true,
+        automatic_payment_methods: {
+          enabled: true,
+          allow_redirects: 'never',
+        },
+        metadata: metadata || {},
+      });
+      res.json({
+        success: paymentIntent.status === 'succeeded',
+        status: paymentIntent.status,
+        paymentIntentId: paymentIntent.id,
+        amount: paymentIntent.amount,
+        currency: paymentIntent.currency,
+      });
+    } catch (e: any) {
+      const errorMsg = e.type === 'StripeCardError'
+        ? e.message
+        : e.message || 'Payment processing failed';
+      res.status(e.statusCode || 500).json({ error: errorMsg, code: e.code });
+    }
+  });
 }
 
 (async () => {

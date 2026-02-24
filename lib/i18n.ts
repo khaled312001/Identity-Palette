@@ -341,6 +341,46 @@ const en = {
   smartPosSystem: "Smart POS System",
   products2: "products",
   maxDiscountWarning: "Maximum discount for cashiers is 10%",
+
+  // Image Upload
+  uploadImage: "Upload Image",
+  changeImage: "Change Image",
+  removeImage: "Remove Image",
+  imageUploading: "Uploading...",
+  imageUploadFailed: "Image upload failed",
+  tapToAddImage: "Tap to add image",
+  productImage: "Product Image",
+  categoryImage: "Category Image",
+
+  // Stock
+  initialStock: "Initial Stock",
+  stockQuantity: "Stock Quantity",
+  enterInitialStock: "Enter initial stock quantity",
+
+  // Shift Prompt
+  shiftPromptTitle: "Start Your Shift",
+  shiftPromptMessage: "Would you like to start your shift now?",
+  startShiftNow: "Start Shift",
+  skipForNow: "Skip for Now",
+  enterOpeningCash: "Enter Opening Cash",
+  shiftStartedSuccess: "Shift started successfully!",
+
+  // Store Settings
+  storeSettings: "Store Settings",
+  storeName: "Store Name",
+  storeAddress: "Store Address",
+  storePhone: "Store Phone",
+  storeEmail: "Store Email",
+  storeLogo: "Store Logo",
+  storeSettingsSaved: "Store settings saved",
+  configureStore: "Configure your store details for receipts",
+
+  // Receipt
+  receiptDate: "Date",
+  receiptTime: "Time",
+  servedBy: "Served by",
+  thankYou: "Thank you for your purchase!",
+  visitUs: "Visit us at",
 };
 
 const ar: typeof en = {
@@ -686,6 +726,46 @@ const ar: typeof en = {
   smartPosSystem: "نظام نقاط بيع ذكي",
   products2: "منتجات",
   maxDiscountWarning: "الحد الأقصى للخصم للكاشير هو 10%",
+
+  // Image Upload
+  uploadImage: "رفع صورة",
+  changeImage: "تغيير الصورة",
+  removeImage: "إزالة الصورة",
+  imageUploading: "جاري الرفع...",
+  imageUploadFailed: "فشل رفع الصورة",
+  tapToAddImage: "اضغط لإضافة صورة",
+  productImage: "صورة المنتج",
+  categoryImage: "صورة الفئة",
+
+  // Stock
+  initialStock: "المخزون الأولي",
+  stockQuantity: "كمية المخزون",
+  enterInitialStock: "أدخل كمية المخزون الأولية",
+
+  // Shift Prompt
+  shiftPromptTitle: "ابدأ وردتك",
+  shiftPromptMessage: "هل تريد بدء وردتك الآن؟",
+  startShiftNow: "ابدأ الوردة",
+  skipForNow: "تخطي الآن",
+  enterOpeningCash: "أدخل النقد الافتتاحي",
+  shiftStartedSuccess: "تم بدء الوردة بنجاح!",
+
+  // Store Settings
+  storeSettings: "إعدادات المتجر",
+  storeName: "اسم المتجر",
+  storeAddress: "عنوان المتجر",
+  storePhone: "هاتف المتجر",
+  storeEmail: "بريد المتجر",
+  storeLogo: "شعار المتجر",
+  storeSettingsSaved: "تم حفظ إعدادات المتجر",
+  configureStore: "قم بتكوين تفاصيل متجرك للإيصالات",
+
+  // Receipt
+  receiptDate: "التاريخ",
+  receiptTime: "الوقت",
+  servedBy: "خدمك",
+  thankYou: "شكراً لتسوقكم!",
+  visitUs: "زورونا على",
 };
 
 export type TranslationKey = keyof typeof en;

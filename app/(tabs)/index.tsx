@@ -106,11 +106,73 @@ export default function POSScreen() {
     return num.length >= 15 && mm && yy && mm.length === 2 && yy.length >= 2 && cardCvc.length >= 3;
   };
 
+  const completeSaleAfterPayment = (saleData: any) => {
+    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setLastSale({
+      ...saleData,
+      items: cart.items.map((i) => ({ name: i.name, quantity: i.quantity, price: i.price, total: i.price * i.quantity })),
+      subtotal: cart.subtotal,
+      tax: cart.tax,
+      discount: cart.discount,
+      total: cart.total,
+      paymentMethod,
+      cashReceived: Number(cashReceived) || 0,
+      change: paymentMethod === "cash" && cashReceived ? Number(cashReceived) - cart.total : 0,
+      customerName: selectedCustomer?.name || t("walkIn"),
+      employeeName: employee?.name || "Staff",
+      date: new Date().toLocaleString(),
+    });
+    generateQR(`barmagly:receipt:${saleData.receiptNumber || saleData.id}`);
+    cart.clearCart();
+    setShowCheckout(false);
+    setCashReceived("");
+    setCardNumber("");
+    setCardExpiry("");
+    setCardCvc("");
+    setCardError("");
+    setNfcStatus("waiting");
+    setShowReceipt(true);
+    qc.invalidateQueries({ queryKey: ["/api/sales"] });
+    qc.invalidateQueries({ queryKey: ["/api/dashboard"] });
+    qc.invalidateQueries({ queryKey: ["/api/inventory"] });
+    qc.invalidateQueries({ queryKey: ["/api/customers"] });
+  };
+
+  const createSale = async (pm: string, stripePaymentId: string | null) => {
+    const saleItems = cart.items.map((i) => ({
+      productId: i.productId,
+      productName: i.name,
+      quantity: i.quantity,
+      unitPrice: i.price.toFixed(2),
+      total: (i.price * i.quantity).toFixed(2),
+      discount: "0",
+    }));
+    const data: any = {
+      branchId: employee?.branchId || 1,
+      employeeId: employee?.id || 1,
+      customerId: cart.customerId,
+      subtotal: cart.subtotal.toFixed(2),
+      taxAmount: cart.tax.toFixed(2),
+      discountAmount: cart.discount.toFixed(2),
+      totalAmount: cart.total.toFixed(2),
+      paymentMethod: pm,
+      paymentStatus: "completed",
+      status: "completed",
+      tableNumber: cart.tableNumber || null,
+      orderType: cart.orderType,
+      changeAmount: paymentMethod === "cash" && cashReceived
+        ? (Number(cashReceived) - cart.total).toFixed(2) : "0",
+      items: saleItems,
+    };
+    if (stripePaymentId) {
+      data.notes = `Stripe: ${stripePaymentId}`;
+    }
+    const res = await apiRequest("POST", "/api/sales", data);
+    return await res.json();
+  };
+
   const saleMutation = useMutation({
     mutationFn: async () => {
-      const pm = paymentMethod === "nfc" ? "card" : paymentMethod;
-      let stripePaymentId: string | null = null;
-
       if (paymentMethod === "nfc") {
         setNfcStatus("reading");
         try {
@@ -131,16 +193,17 @@ export default function POSScreen() {
             setNfcStatus("error");
             throw new Error(chargeData.error || t("cardDeclined"));
           }
-          stripePaymentId = chargeData.paymentIntentId;
           setNfcStatus("success");
           if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          const saleData = await createSale("card", chargeData.paymentIntentId);
+          return saleData;
         } catch (err: any) {
           setNfcStatus("error");
           throw err;
         }
       }
 
-      if (pm === "card" && paymentMethod === "card") {
+      if (paymentMethod === "card") {
         setCardProcessing(true);
         setCardError("");
         try {
@@ -154,7 +217,6 @@ export default function POSScreen() {
             "4000000000000002": "tok_chargeDeclined",
           };
           const token = testCardTokens[num] || "tok_visa";
-
           const amountInCents = Math.round(cart.total * 100);
           const chargeRes = await apiRequest("POST", "/api/stripe/pos-charge", {
             amount: amountInCents,
@@ -171,76 +233,20 @@ export default function POSScreen() {
           if (!chargeRes.ok || !chargeData.success) {
             throw new Error(chargeData.error || t("cardDeclined"));
           }
-          stripePaymentId = chargeData.paymentIntentId;
+          setCardProcessing(false);
+          const saleData = await createSale("card", chargeData.paymentIntentId);
+          return saleData;
         } catch (err: any) {
           setCardProcessing(false);
           setCardError(err.message || t("cardDeclined"));
           throw err;
         }
-        setCardProcessing(false);
       }
 
-      const saleItems = cart.items.map((i) => ({
-        productId: i.productId,
-        productName: i.name,
-        quantity: i.quantity,
-        unitPrice: i.price.toFixed(2),
-        total: (i.price * i.quantity).toFixed(2),
-        discount: "0",
-      }));
-      const data: any = {
-        branchId: employee?.branchId || 1,
-        employeeId: employee?.id || 1,
-        customerId: cart.customerId,
-        subtotal: cart.subtotal.toFixed(2),
-        taxAmount: cart.tax.toFixed(2),
-        discountAmount: cart.discount.toFixed(2),
-        totalAmount: cart.total.toFixed(2),
-        paymentMethod: pm,
-        paymentStatus: "completed",
-        status: "completed",
-        tableNumber: cart.tableNumber || null,
-        orderType: cart.orderType,
-        changeAmount: paymentMethod === "cash" && cashReceived
-          ? (Number(cashReceived) - cart.total).toFixed(2) : "0",
-        items: saleItems,
-      };
-      if (stripePaymentId) {
-        data.notes = `Stripe: ${stripePaymentId}`;
-      }
-      const res = await apiRequest("POST", "/api/sales", data);
-      return await res.json();
+      return await createSale(paymentMethod, null);
     },
     onSuccess: (saleData: any) => {
-      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setLastSale({
-        ...saleData,
-        items: cart.items.map((i) => ({ name: i.name, quantity: i.quantity, price: i.price, total: i.price * i.quantity })),
-        subtotal: cart.subtotal,
-        tax: cart.tax,
-        discount: cart.discount,
-        total: cart.total,
-        paymentMethod,
-        cashReceived: Number(cashReceived) || 0,
-        change: paymentMethod === "cash" && cashReceived ? Number(cashReceived) - cart.total : 0,
-        customerName: selectedCustomer?.name || t("walkIn"),
-        employeeName: employee?.name || "Staff",
-        date: new Date().toLocaleString(),
-      });
-      generateQR(`barmagly:receipt:${saleData.receiptNumber || saleData.id}`);
-      cart.clearCart();
-      setShowCheckout(false);
-      setCashReceived("");
-      setCardNumber("");
-      setCardExpiry("");
-      setCardCvc("");
-      setCardError("");
-      setNfcStatus("waiting");
-      setShowReceipt(true);
-      qc.invalidateQueries({ queryKey: ["/api/sales"] });
-      qc.invalidateQueries({ queryKey: ["/api/dashboard"] });
-      qc.invalidateQueries({ queryKey: ["/api/inventory"] });
-      qc.invalidateQueries({ queryKey: ["/api/customers"] });
+      completeSaleAfterPayment(saleData);
     },
     onError: (e: any) => {
       Alert.alert(t("error"), e.message || "Failed to complete sale");
@@ -669,7 +675,7 @@ export default function POSScreen() {
                 <LinearGradient colors={[Colors.success, "#059669"]} style={[styles.completeBtnGradient, isRTL && { flexDirection: "row-reverse" }]}>
                   <Ionicons name="checkmark-circle" size={22} color={Colors.white} />
                   <Text style={styles.completeBtnText}>
-                    {cardProcessing || nfcStatus === "reading" ? t("processingPayment") : saleMutation.isPending ? t("processing") : t("completeSale")}
+                    {cardProcessing || nfcStatus === "reading" ? t("processingPayment") : saleMutation.isPending ? t("processing") : (paymentMethod === "card" || paymentMethod === "nfc") ? t("payAndComplete") : t("completeSale")}
                   </Text>
                 </LinearGradient>
               </Pressable>

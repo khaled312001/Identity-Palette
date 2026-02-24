@@ -52,6 +52,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const emp = await storage.getEmployeeByPin(req.body.pin);
       if (!emp) return res.status(401).json({ error: "Invalid PIN" });
+      if (req.body.employeeId && emp.id !== Number(req.body.employeeId)) {
+        return res.status(401).json({ error: "Invalid PIN for this employee" });
+      }
       if (!emp.isActive) return res.status(401).json({ error: "Account deactivated" });
       // Log activity
       await storage.createActivityLog({

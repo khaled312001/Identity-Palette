@@ -99,7 +99,7 @@ export default function LoginScreen() {
   const handleLogin = async (pinCode: string) => {
     setLoading(true);
     try {
-      const res = await apiRequest("POST", "/api/employees/login", { pin: pinCode });
+      const res = await apiRequest("POST", "/api/employees/login", { pin: pinCode, employeeId: selectedEmployee?.id });
       const emp = await res.json();
       login(emp);
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

@@ -7,6 +7,7 @@ import {
   subscriptionPlans, subscriptions, syncQueue, activityLog, returns, returnItems,
   cashDrawerOperations, warehouses, warehouseTransfers, productBatches,
   inventoryMovements, stockCounts, stockCountItems, supplierContracts, employeeCommissions,
+  notifications,
   type InsertBranch, type InsertEmployee, type InsertCategory,
   type InsertProduct, type InsertInventory, type InsertCustomer,
   type InsertSale, type InsertSaleItem, type InsertSupplier,
@@ -16,6 +17,7 @@ import {
   type InsertCashDrawerOperation, type InsertWarehouse, type InsertWarehouseTransfer,
   type InsertProductBatch, type InsertInventoryMovement, type InsertStockCount,
   type InsertStockCountItem, type InsertSupplierContract, type InsertEmployeeCommission,
+  type InsertNotification,
 } from "@shared/schema";
 
 export const storage = {
@@ -759,5 +761,89 @@ export const storage = {
       totalRefundAmount: Number(result[0]?.total || 0),
       recentReturns: returnsList,
     };
+  },
+
+  // Notifications
+  async getNotifications(recipientId: number) {
+    return db.select().from(notifications).where(eq(notifications.recipientId, recipientId)).orderBy(desc(notifications.createdAt)).limit(50);
+  },
+  async getUnreadNotificationCount(recipientId: number) {
+    const [result] = await db.select({ count: sql<number>`count(*)` }).from(notifications).where(and(eq(notifications.recipientId, recipientId), eq(notifications.isRead, false)));
+    return Number(result?.count || 0);
+  },
+  async createNotification(data: InsertNotification) {
+    const [notif] = await db.insert(notifications).values(data).returning();
+    return notif;
+  },
+  async markNotificationRead(id: number) {
+    const [notif] = await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, id)).returning();
+    return notif;
+  },
+  async markAllNotificationsRead(recipientId: number) {
+    await db.update(notifications).set({ isRead: true }).where(eq(notifications.recipientId, recipientId));
+  },
+  async notifyAdmins(senderId: number, type: string, title: string, message: string, entityType?: string, entityId?: number, priority?: string) {
+    const admins = await db.select().from(employees).where(
+      or(eq(employees.role, "admin"), eq(employees.role, "owner"))
+    );
+    const notifs = [];
+    for (const admin of admins) {
+      if (admin.id === senderId) continue;
+      const [notif] = await db.insert(notifications).values({
+        recipientId: admin.id,
+        senderId,
+        type,
+        title,
+        message,
+        entityType,
+        entityId,
+        priority: priority || "normal",
+      }).returning();
+      notifs.push(notif);
+    }
+    return notifs;
+  },
+
+  // Enhanced shift operations
+  async getShiftWithEmployee(shiftId: number) {
+    const [shift] = await db.select().from(shifts).where(eq(shifts.id, shiftId));
+    if (!shift) return null;
+    const [emp] = await db.select().from(employees).where(eq(employees.id, shift.employeeId));
+    return { ...shift, employee: emp };
+  },
+  async getAllActiveShifts() {
+    const activeShifts = await db.select().from(shifts).where(eq(shifts.status, "open")).orderBy(desc(shifts.startTime));
+    const empList = await db.select().from(employees);
+    const empMap = new Map(empList.map(e => [e.id, e]));
+    return activeShifts.map(s => ({
+      ...s,
+      employeeName: empMap.get(s.employeeId)?.name || "Unknown",
+      employeeRole: empMap.get(s.employeeId)?.role || "unknown",
+    }));
+  },
+  async getShiftStats() {
+    const allShifts = await db.select().from(shifts).orderBy(desc(shifts.startTime)).limit(100);
+    const empList = await db.select().from(employees);
+    const empMap = new Map(empList.map(e => [e.id, e]));
+    const activeShifts = allShifts.filter(s => s.status === "open");
+    const closedShifts = allShifts.filter(s => s.status === "closed");
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayShifts = allShifts.filter(s => s.startTime && new Date(s.startTime) >= today);
+    return {
+      activeCount: activeShifts.length,
+      todayCount: todayShifts.length,
+      totalTransactions: closedShifts.reduce((sum, s) => sum + (s.totalTransactions || 0), 0),
+      totalSales: closedShifts.reduce((sum, s) => sum + Number(s.totalSales || 0), 0),
+      shifts: allShifts.map(s => ({
+        ...s,
+        employeeName: empMap.get(s.employeeId)?.name || "Unknown",
+        employeeRole: empMap.get(s.employeeId)?.role || "unknown",
+      })),
+    };
+  },
+  async updateShift(id: number, data: Partial<typeof shifts.$inferInsert>) {
+    const [shift] = await db.update(shifts).set(data).where(eq(shifts.id, id)).returning();
+    return shift;
   },
 };

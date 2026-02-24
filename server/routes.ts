@@ -221,6 +221,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       }
+      // Notify admins about the sale
+      const saleEmp = await storage.getEmployee(saleData.employeeId);
+      await storage.notifyAdmins(
+        saleData.employeeId,
+        "sale_completed",
+        "New Sale",
+        `${saleEmp?.name || "Employee"} completed sale ${sale.receiptNumber} for $${saleData.totalAmount} (${saleData.paymentMethod || "cash"})`,
+        "sale",
+        sale.id
+      );
       res.json(sale);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -258,13 +268,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/shifts", async (_req, res) => {
     try { res.json(await storage.getShifts()); } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
+  app.get("/api/shifts/stats", async (_req, res) => {
+    try { res.json(await storage.getShiftStats()); } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/shifts/active", async (_req, res) => {
+    try { res.json(await storage.getAllActiveShifts()); } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
   app.post("/api/shifts", async (req, res) => {
-    try { res.json(await storage.createShift(req.body)); } catch (e: any) { res.status(500).json({ error: e.message }); }
+    try {
+      const shift = await storage.createShift(req.body);
+      const emp = await storage.getEmployee(shift.employeeId);
+      await storage.createActivityLog({
+        employeeId: shift.employeeId,
+        action: "shift_started",
+        entityType: "shift",
+        entityId: shift.id,
+        details: `Shift started by ${emp?.name || "Unknown"} with $${shift.openingCash || 0} opening cash`,
+      });
+      await storage.notifyAdmins(
+        shift.employeeId,
+        "shift_started",
+        "Shift Started",
+        `${emp?.name || "Employee"} has started a new shift with $${shift.openingCash || 0} opening cash`,
+        "shift",
+        shift.id,
+        "normal"
+      );
+      res.json(shift);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.put("/api/shifts/:id", async (req, res) => {
+    try {
+      const shift = await storage.updateShift(Number(req.params.id), req.body);
+      res.json(shift);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.put("/api/shifts/:id/close", async (req, res) => {
     try {
       const shift = await storage.closeShift(Number(req.params.id), req.body);
-      // Log activity
+      const emp = await storage.getEmployee(shift.employeeId);
       await storage.createActivityLog({
         employeeId: shift.employeeId,
         action: "shift_closed",
@@ -272,8 +314,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         entityId: shift.id,
         details: `Shift closed with ${shift.totalTransactions || 0} transactions and $${shift.closingCash || 0} closing cash`,
       });
+      await storage.notifyAdmins(
+        shift.employeeId,
+        "shift_ended",
+        "Shift Ended",
+        `${emp?.name || "Employee"} has ended their shift. Transactions: ${shift.totalTransactions || 0}, Sales: $${shift.totalSales || 0}`,
+        "shift",
+        shift.id,
+        "normal"
+      );
       res.json(shift);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Notifications
+  app.get("/api/notifications/:employeeId", async (req, res) => {
+    try { res.json(await storage.getNotifications(Number(req.params.employeeId))); } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/notifications/:employeeId/unread-count", async (req, res) => {
+    try { res.json({ count: await storage.getUnreadNotificationCount(Number(req.params.employeeId)) }); } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.post("/api/notifications", async (req, res) => {
+    try { res.json(await storage.createNotification(req.body)); } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.put("/api/notifications/:id/read", async (req, res) => {
+    try { res.json(await storage.markNotificationRead(Number(req.params.id))); } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.put("/api/notifications/:employeeId/read-all", async (req, res) => {
+    try { await storage.markAllNotificationsRead(Number(req.params.employeeId)); res.json({ success: true }); } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // Expenses
@@ -437,6 +505,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         entityId: ret.id,
         details: `Return/refund processed for sale #${returnData.originalSaleId}, amount: $${returnData.totalAmount}`,
       });
+      // Notify admins about the return
+      const retEmp = await storage.getEmployee(returnData.employeeId);
+      await storage.notifyAdmins(
+        returnData.employeeId,
+        "return_processed",
+        "Return Processed",
+        `${retEmp?.name || "Employee"} processed a ${returnData.type || "refund"} for $${returnData.totalAmount}`,
+        "return",
+        ret.id,
+        "high"
+      );
       res.json(ret);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -449,6 +528,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const op = await storage.createCashDrawerOperation(req.body);
       await storage.createActivityLog({ employeeId: req.body.employeeId, action: "cash_drawer_" + req.body.type, entityType: "cash_drawer", entityId: op.id, details: `Cash drawer ${req.body.type}: $${req.body.amount}` });
+      const cdEmp = await storage.getEmployee(req.body.employeeId);
+      await storage.notifyAdmins(
+        req.body.employeeId,
+        "cash_drawer",
+        `Cash Drawer: ${req.body.type}`,
+        `${cdEmp?.name || "Employee"} performed ${req.body.type} of $${req.body.amount}${req.body.reason ? ` - ${req.body.reason}` : ""}`,
+        "cash_drawer",
+        op.id,
+        req.body.type === "withdrawal" ? "high" : "normal"
+      );
       res.json(op);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });

@@ -1126,40 +1126,66 @@ export default function SettingsScreen() {
                     const isExpired = item.expiryDate && new Date(item.expiryDate) < new Date();
                     const isNearExpiry = item.expiryDate && !isExpired && (new Date(item.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24) <= 30;
                     return (
-                      <Pressable style={styles.empCard} onPress={() => {
-                        setEditBatch(item);
-                        setBatchForm({
-                          productId: String(item.productId),
-                          batchNumber: item.batchNumber || "",
-                          quantity: String(item.quantity || 0),
-                          expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split("T")[0] : "",
-                          costPrice: item.costPrice ? String(item.costPrice) : "",
-                          supplierId: item.supplierId ? String(item.supplierId) : "",
-                        });
-                        setBatchView("form");
-                      }}>
-                        <View style={[styles.empAvatar, { backgroundColor: (isExpired ? Colors.danger : isNearExpiry ? Colors.warning : Colors.secondary) + "30" }]}>
-                          <Ionicons name="layers" size={20} color={isExpired ? Colors.danger : isNearExpiry ? Colors.warning : Colors.secondary} />
-                        </View>
-                        <View style={styles.empInfo}>
-                          <Text style={styles.empName}>{prod?.name || `Product #${item.productId}`}</Text>
-                          <Text style={styles.empMeta}>
-                            Batch: {item.batchNumber} | Qty: {item.quantity}
-                            {item.expiryDate ? ` | Exp: ${new Date(item.expiryDate).toLocaleDateString()}` : ""}
-                          </Text>
-                          {item.costPrice && <Text style={[styles.empMeta, { color: Colors.accent }]}>Cost: ${Number(item.costPrice).toFixed(2)}</Text>}
-                        </View>
-                        {isExpired && (
-                          <View style={[styles.roleBadge, { backgroundColor: Colors.danger + "20" }]}>
-                            <Text style={[styles.roleText, { color: Colors.danger }]}>Expired</Text>
+                      <View style={[styles.empCard, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+                        <Pressable style={{ flexDirection: isRTL ? "row-reverse" : "row", flex: 1, alignItems: "center", gap: 12 }} onPress={() => {
+                          setEditBatch(item);
+                          setBatchForm({
+                            productId: String(item.productId),
+                            batchNumber: item.batchNumber || "",
+                            quantity: String(item.quantity || 0),
+                            expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split("T")[0] : "",
+                            costPrice: item.costPrice ? String(item.costPrice) : "",
+                            supplierId: item.supplierId ? String(item.supplierId) : "",
+                          });
+                          setBatchView("form");
+                        }}>
+                          <View style={[styles.empAvatar, { backgroundColor: (isExpired ? Colors.danger : isNearExpiry ? Colors.warning : Colors.secondary) + "30" }]}>
+                            <Ionicons name="layers" size={20} color={isExpired ? Colors.danger : isNearExpiry ? Colors.warning : Colors.secondary} />
                           </View>
-                        )}
-                        {isNearExpiry && (
-                          <View style={[styles.roleBadge, { backgroundColor: Colors.warning + "20" }]}>
-                            <Text style={[styles.roleText, { color: Colors.warning }]}>Near Expiry</Text>
+                          <View style={[styles.empInfo, { flex: 1 }]}>
+                            <Text style={[styles.empName, rtlTextAlign]}>{prod?.name || `Product #${item.productId}`}</Text>
+                            <Text style={[styles.empMeta, rtlTextAlign]}>
+                              {t("batchNumber")}: {item.batchNumber} | {t("quantity")}: {item.quantity}
+                              {item.expiryDate ? ` | ${t("expiryDate")}: ${new Date(item.expiryDate).toLocaleDateString()}` : ""}
+                            </Text>
+                            {item.costPrice && <Text style={[styles.empMeta, { color: Colors.accent }, rtlTextAlign]}>{t("cost")}: ${Number(item.costPrice).toFixed(2)}</Text>}
                           </View>
-                        )}
-                      </Pressable>
+                          {isExpired && (
+                            <View style={[styles.roleBadge, { backgroundColor: Colors.danger + "20" }]}>
+                              <Text style={[styles.roleText, { color: Colors.danger }]}>{t("expired")}</Text>
+                            </View>
+                          )}
+                          {isNearExpiry && (
+                            <View style={[styles.roleBadge, { backgroundColor: Colors.warning + "20" }]}>
+                              <Text style={[styles.roleText, { color: Colors.warning }]}>{t("nearExpiry")}</Text>
+                            </View>
+                          )}
+                        </Pressable>
+                        <View style={{ flexDirection: "row", gap: 6, marginLeft: isRTL ? 0 : 8, marginRight: isRTL ? 8 : 0 }}>
+                          <Pressable onPress={() => {
+                            setEditBatch(item);
+                            setBatchForm({
+                              productId: String(item.productId),
+                              batchNumber: item.batchNumber || "",
+                              quantity: String(item.quantity || 0),
+                              expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split("T")[0] : "",
+                              costPrice: item.costPrice ? String(item.costPrice) : "",
+                              supplierId: item.supplierId ? String(item.supplierId) : "",
+                            });
+                            setBatchView("form");
+                          }} style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.info + "20", justifyContent: "center", alignItems: "center" }}>
+                            <Ionicons name="create-outline" size={18} color={Colors.info} />
+                          </Pressable>
+                          <Pressable onPress={() => {
+                            Alert.alert(t("delete"), `${t("deleteBatch")}?`, [
+                              { text: t("cancel"), style: "cancel" },
+                              { text: t("delete"), style: "destructive", onPress: () => deleteBatchMutation.mutate(item.id) },
+                            ]);
+                          }} style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.danger + "20", justifyContent: "center", alignItems: "center" }}>
+                            <Ionicons name="trash-outline" size={18} color={Colors.danger} />
+                          </Pressable>
+                        </View>
+                      </View>
                     );
                   }}
                 />

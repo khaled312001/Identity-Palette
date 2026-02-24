@@ -20,7 +20,7 @@ export default function POSScreen() {
   const { employee, isCashier, canManage } = useAuth();
   const qc = useQueryClient();
   const cart = useCart();
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, rtlTextAlign, rtlText, rtlRow } = useLanguage();
   const [screenDims, setScreenDims] = useState(Dimensions.get("window"));
   useEffect(() => {
     const sub = Dimensions.addEventListener("change", ({ window }) => setScreenDims(window));
@@ -134,7 +134,7 @@ export default function POSScreen() {
       qc.invalidateQueries({ queryKey: ["/api/customers"] });
     },
     onError: (e: any) => {
-      Alert.alert("Error", e.message || "Failed to complete sale");
+      Alert.alert(t("error"), e.message || "Failed to complete sale");
     },
   });
 
@@ -151,10 +151,10 @@ export default function POSScreen() {
         cart.addItem({ id: product.id, name: product.name, price: Number(product.price) });
         if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setShowScanner(false);
-        Alert.alert("Added", `${product.name} added to cart`);
+        Alert.alert(t("success"), `${product.name} - ${t("itemAdded")}`);
       }
     } catch {
-      Alert.alert("Not Found", "No product found with this barcode. Please try again.");
+      Alert.alert(t("error"), t("noProductsFound"));
     }
   }, [cart]);
 
@@ -181,10 +181,10 @@ export default function POSScreen() {
     <View style={[styles.container, { paddingTop: insets.top + topPad, direction: isRTL ? "rtl" : "ltr" }]}>
       <View style={styles.header}>
         <LinearGradient colors={[Colors.gradientStart, Colors.gradientMid, Colors.gradientEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.headerGradient}>
-          <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Barmagly POS</Text>
-            <View style={styles.headerRight}>
-              {employee && <Text style={styles.employeeName}>{employee.name}</Text>}
+          <View style={[styles.headerContent, isRTL && { flexDirection: "row-reverse" }]}>
+            <Text style={[styles.headerTitle, rtlTextAlign]}>Barmagly POS</Text>
+            <View style={[styles.headerRight, isRTL && { flexDirection: "row-reverse" }]}>
+              {employee && <Text style={[styles.employeeName, rtlTextAlign]}>{employee.name}</Text>}
             </View>
           </View>
         </LinearGradient>
@@ -192,11 +192,11 @@ export default function POSScreen() {
 
       <View style={[styles.mainContent, { flexDirection: isTablet ? (isRTL ? "row-reverse" : "row") : "column" }]}>
         <View style={[styles.productsSection, isTablet && styles.productsSectionTablet]}>
-          <View style={[styles.searchRow, { flexDirection: "row", gap: 8, alignItems: "center" }]}>
-            <View style={[styles.searchBox, { flex: 1 }]}>
+          <View style={[styles.searchRow, { flexDirection: isRTL ? "row-reverse" : "row", gap: 8, alignItems: "center" }]}>
+            <View style={[styles.searchBox, { flex: 1 }, isRTL && { flexDirection: "row-reverse" }]}>
               <Ionicons name="search" size={18} color={Colors.textMuted} />
               <TextInput
-                style={styles.searchInput}
+                style={[styles.searchInput, isRTL ? { marginRight: 8, marginLeft: 0 } : null, rtlTextAlign]}
                 placeholder={t("search") + "..."}
                 placeholderTextColor={Colors.textMuted}
                 value={search}
@@ -275,16 +275,16 @@ export default function POSScreen() {
             ListEmptyComponent={
               <View style={styles.emptyState}>
                 <Ionicons name="search" size={48} color={Colors.textMuted} />
-                <Text style={styles.emptyText}>No products found</Text>
+                <Text style={[styles.emptyText, rtlTextAlign]}>{t("noProductsFound")}</Text>
               </View>
             }
           />
         </View>
 
-        <View style={[styles.cartSection, isTablet && styles.cartSectionTablet]}>
-          <View style={styles.cartHeader}>
-            <Text style={styles.cartTitle}>{t("cart")} ({cart.itemCount})</Text>
-            <View style={{ flexDirection: "row", gap: 10 }}>
+        <View style={[styles.cartSection, isTablet && styles.cartSectionTablet, isTablet && isRTL && { borderLeftWidth: 0, borderRightWidth: 1, borderColor: Colors.cardBorder }]}>
+          <View style={[styles.cartHeader, isRTL && { flexDirection: "row-reverse" }]}>
+            <Text style={[styles.cartTitle, rtlTextAlign]}>{t("cart")} ({cart.itemCount})</Text>
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 10 }}>
               {cart.items.length > 0 && (
                 <>
                   <Pressable onPress={() => setShowDiscountModal(true)}>
@@ -298,12 +298,12 @@ export default function POSScreen() {
             </View>
           </View>
 
-          <Pressable style={styles.customerSelect} onPress={() => setShowCustomerPicker(true)}>
+          <Pressable style={[styles.customerSelect, isRTL && { flexDirection: "row-reverse" }]} onPress={() => setShowCustomerPicker(true)}>
             <Ionicons name="person" size={16} color={cart.customerId ? Colors.accent : Colors.textMuted} />
-            <Text style={[styles.customerSelectText, cart.customerId && { color: Colors.accent }]}>
+            <Text style={[styles.customerSelectText, cart.customerId && { color: Colors.accent }, rtlTextAlign]}>
               {selectedCustomer ? selectedCustomer.name : `${t("selectCustomer")} (${t("walkIn")})`}
             </Text>
-            <Ionicons name="chevron-down" size={14} color={Colors.textMuted} />
+            <Ionicons name={isRTL ? "chevron-back" : "chevron-down"} size={14} color={Colors.textMuted} />
           </Pressable>
 
           <FlatList
@@ -312,12 +312,12 @@ export default function POSScreen() {
             scrollEnabled={!!cart.items.length}
             style={styles.cartList}
             renderItem={({ item }) => (
-              <View style={styles.cartItem}>
+              <View style={[styles.cartItem, isRTL && { flexDirection: "row-reverse" }]}>
                 <View style={styles.cartItemInfo}>
-                  <Text style={styles.cartItemName} numberOfLines={1}>{item.name}</Text>
-                  <Text style={styles.cartItemPrice}>${(item.price * item.quantity).toFixed(2)}</Text>
+                  <Text style={[styles.cartItemName, rtlTextAlign]} numberOfLines={1}>{item.name}</Text>
+                  <Text style={[styles.cartItemPrice, rtlTextAlign]}>${(item.price * item.quantity).toFixed(2)}</Text>
                 </View>
-                <View style={styles.cartItemActions}>
+                <View style={[styles.cartItemActions, isRTL && { flexDirection: "row-reverse" }]}>
                   <Pressable style={styles.qtyBtn} onPress={() => cart.updateQuantity(item.productId, item.quantity - 1)}>
                     <Ionicons name="remove" size={16} color={Colors.text} />
                   </Pressable>
@@ -338,23 +338,23 @@ export default function POSScreen() {
           />
 
           <View style={styles.cartSummary}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>{t("subtotal")}</Text>
-              <Text style={styles.summaryValue}>${cart.subtotal.toFixed(2)}</Text>
+            <View style={[styles.summaryRow, isRTL && { flexDirection: "row-reverse" }]}>
+              <Text style={[styles.summaryLabel, rtlTextAlign]}>{t("subtotal")}</Text>
+              <Text style={[styles.summaryValue, rtlTextAlign]}>${cart.subtotal.toFixed(2)}</Text>
             </View>
             {cart.discount > 0 && (
-              <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, { color: Colors.success }]}>{t("discount")}</Text>
-                <Text style={[styles.summaryValue, { color: Colors.success }]}>-${cart.discount.toFixed(2)}</Text>
+              <View style={[styles.summaryRow, isRTL && { flexDirection: "row-reverse" }]}>
+                <Text style={[styles.summaryLabel, { color: Colors.success }, rtlTextAlign]}>{t("discount")}</Text>
+                <Text style={[styles.summaryValue, { color: Colors.success }, rtlTextAlign]}>-${cart.discount.toFixed(2)}</Text>
               </View>
             )}
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Tax ({cart.taxRate}%)</Text>
-              <Text style={styles.summaryValue}>${cart.tax.toFixed(2)}</Text>
+            <View style={[styles.summaryRow, isRTL && { flexDirection: "row-reverse" }]}>
+              <Text style={[styles.summaryLabel, rtlTextAlign]}>{t("tax")} ({cart.taxRate}%)</Text>
+              <Text style={[styles.summaryValue, rtlTextAlign]}>${cart.tax.toFixed(2)}</Text>
             </View>
-            <View style={[styles.summaryRow, styles.totalRow]}>
-              <Text style={styles.totalLabel}>{t("total")}</Text>
-              <Text style={styles.totalValue}>${cart.total.toFixed(2)}</Text>
+            <View style={[styles.summaryRow, styles.totalRow, isRTL && { flexDirection: "row-reverse" }]}>
+              <Text style={[styles.totalLabel, rtlTextAlign]}>{t("total")}</Text>
+              <Text style={[styles.totalValue, rtlTextAlign]}>${cart.total.toFixed(2)}</Text>
             </View>
           </View>
 
@@ -368,8 +368,8 @@ export default function POSScreen() {
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={styles.checkoutBtnGradient}
             >
-              <View style={styles.checkoutBtnInner}>
-                <View style={styles.checkoutBtnLeft}>
+              <View style={[styles.checkoutBtnInner, isRTL && { flexDirection: "row-reverse" }]}>
+                <View style={[styles.checkoutBtnLeft, isRTL && { flexDirection: "row-reverse" }]}>
                   <Ionicons name="card" size={20} color={Colors.white} />
                   <Text style={styles.checkoutBtnText}>{t("checkout")}</Text>
                 </View>
@@ -386,8 +386,8 @@ export default function POSScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Complete Payment</Text>
+              <View style={[styles.modalHeader, isRTL && { flexDirection: "row-reverse" }]}>
+                <Text style={[styles.modalTitle, rtlTextAlign]}>{t("completePayment")}</Text>
                 <Pressable onPress={() => setShowCheckout(false)}>
                   <Ionicons name="close" size={24} color={Colors.text} />
                 </Pressable>
@@ -396,18 +396,18 @@ export default function POSScreen() {
               <Text style={styles.modalTotal}>${cart.total.toFixed(2)}</Text>
 
               {selectedCustomer && (
-                <View style={styles.customerInfo}>
+                <View style={[styles.customerInfo, isRTL && { flexDirection: "row-reverse" }]}>
                   <Ionicons name="person-circle" size={20} color={Colors.accent} />
-                  <Text style={styles.customerInfoText}>{selectedCustomer.name}</Text>
-                  <View style={styles.loyaltyBadge}>
+                  <Text style={[styles.customerInfoText, rtlTextAlign]}>{selectedCustomer.name}</Text>
+                  <View style={[styles.loyaltyBadge, isRTL && { flexDirection: "row-reverse" }]}>
                     <Ionicons name="star" size={12} color={Colors.warning} />
-                    <Text style={styles.loyaltyBadgeText}>{selectedCustomer.loyaltyPoints || 0} pts</Text>
+                    <Text style={styles.loyaltyBadgeText}>{selectedCustomer.loyaltyPoints || 0} {t("pts")}</Text>
                   </View>
                 </View>
               )}
 
-              <Text style={styles.sectionLabel}>{t("paymentMethod")}</Text>
-              <View style={styles.paymentMethods}>
+              <Text style={[styles.sectionLabel, rtlTextAlign]}>{t("paymentMethod")}</Text>
+              <View style={[styles.paymentMethods, isRTL && { flexDirection: "row-reverse" }]}>
                 {[
                   { key: "cash", icon: "cash" as const, label: t("cash") },
                   { key: "card", icon: "card" as const, label: t("card") },
@@ -427,10 +427,10 @@ export default function POSScreen() {
 
               {paymentMethod === "cash" && (
                 <View style={styles.cashSection}>
-                  <Text style={styles.sectionLabel}>{t("cashReceived")}</Text>
+                  <Text style={[styles.sectionLabel, rtlTextAlign]}>{t("cashReceived")}</Text>
                   <TextInput
                     style={styles.cashInput}
-                    placeholder="Enter amount..."
+                    placeholder={t("enterAmount")}
                     placeholderTextColor={Colors.textMuted}
                     value={cashReceived}
                     onChangeText={setCashReceived}
@@ -445,7 +445,7 @@ export default function POSScreen() {
               {paymentMethod === "qr" && (
                 <View style={styles.qrPaySection}>
                   <Ionicons name="qr-code" size={64} color={Colors.accent} />
-                  <Text style={styles.qrPayText}>Customer scans QR to pay</Text>
+                  <Text style={[styles.qrPayText, rtlTextAlign]}>{t("customerScanQR")}</Text>
                   <Text style={styles.qrPayAmount}>${cart.total.toFixed(2)}</Text>
                 </View>
               )}
@@ -453,19 +453,19 @@ export default function POSScreen() {
               {paymentMethod === "card" && (
                 <View style={styles.qrPaySection}>
                   <Ionicons name="card" size={48} color={Colors.info} />
-                  <Text style={styles.qrPayText}>Tap card on NFC reader or swipe</Text>
-                  <View style={styles.nfcBadge}>
+                  <Text style={[styles.qrPayText, rtlTextAlign]}>{t("tapCard")}</Text>
+                  <View style={[styles.nfcBadge, isRTL && { flexDirection: "row-reverse" }]}>
                     <Ionicons name="wifi" size={16} color={Colors.accent} />
-                    <Text style={styles.nfcText}>NFC Ready</Text>
+                    <Text style={styles.nfcText}>{t("nfcReady")}</Text>
                   </View>
                 </View>
               )}
 
-              <Text style={styles.sectionLabel}>Order Summary</Text>
+              <Text style={[styles.sectionLabel, rtlTextAlign]}>{t("orderSummary")}</Text>
               {cart.items.map((item) => (
-                <View key={item.productId} style={styles.checkoutItem}>
-                  <Text style={styles.checkoutItemName}>{item.name} x{item.quantity}</Text>
-                  <Text style={styles.checkoutItemTotal}>${(item.price * item.quantity).toFixed(2)}</Text>
+                <View key={item.productId} style={[styles.checkoutItem, isRTL && { flexDirection: "row-reverse" }]}>
+                  <Text style={[styles.checkoutItemName, rtlTextAlign]}>{item.name} x{item.quantity}</Text>
+                  <Text style={[styles.checkoutItemTotal, rtlTextAlign]}>${(item.price * item.quantity).toFixed(2)}</Text>
                 </View>
               ))}
 
@@ -474,7 +474,7 @@ export default function POSScreen() {
                 onPress={() => !saleMutation.isPending && saleMutation.mutate()}
                 disabled={saleMutation.isPending}
               >
-                <LinearGradient colors={[Colors.success, "#059669"]} style={styles.completeBtnGradient}>
+                <LinearGradient colors={[Colors.success, "#059669"]} style={[styles.completeBtnGradient, isRTL && { flexDirection: "row-reverse" }]}>
                   <Ionicons name="checkmark-circle" size={22} color={Colors.white} />
                   <Text style={styles.completeBtnText}>
                     {saleMutation.isPending ? t("processing") : t("completeSale")}
@@ -501,52 +501,52 @@ export default function POSScreen() {
               <View style={styles.receiptDivider} />
 
               <View style={styles.receiptInfo}>
-                <Text style={styles.receiptInfoText}>Receipt: {lastSale?.receiptNumber || `#${lastSale?.id}`}</Text>
-                <Text style={styles.receiptInfoText}>Date: {lastSale?.date}</Text>
-                <Text style={styles.receiptInfoText}>Cashier: {lastSale?.employeeName}</Text>
-                <Text style={styles.receiptInfoText}>Customer: {lastSale?.customerName}</Text>
+                <Text style={[styles.receiptInfoText, rtlTextAlign]}>{t("receiptNumber")}: {lastSale?.receiptNumber || `#${lastSale?.id}`}</Text>
+                <Text style={[styles.receiptInfoText, rtlTextAlign]}>{lastSale?.date}</Text>
+                <Text style={[styles.receiptInfoText, rtlTextAlign]}>{lastSale?.employeeName}</Text>
+                <Text style={[styles.receiptInfoText, rtlTextAlign]}>{t("customer")}: {lastSale?.customerName}</Text>
               </View>
 
               <View style={styles.receiptDivider} />
 
               {lastSale?.items?.map((item: any, idx: number) => (
-                <View key={idx} style={styles.receiptItem}>
-                  <Text style={styles.receiptItemName}>{item.name} x{item.quantity}</Text>
-                  <Text style={styles.receiptItemTotal}>${item.total.toFixed(2)}</Text>
+                <View key={idx} style={[styles.receiptItem, isRTL && { flexDirection: "row-reverse" }]}>
+                  <Text style={[styles.receiptItemName, rtlTextAlign]}>{item.name} x{item.quantity}</Text>
+                  <Text style={[styles.receiptItemTotal, rtlTextAlign]}>${item.total.toFixed(2)}</Text>
                 </View>
               ))}
 
               <View style={styles.receiptDivider} />
 
               <View style={styles.receiptTotals}>
-                <View style={styles.receiptTotalRow}>
-                  <Text style={styles.receiptTotalLabel}>Subtotal</Text>
-                  <Text style={styles.receiptTotalValue}>${lastSale?.subtotal?.toFixed(2)}</Text>
+                <View style={[styles.receiptTotalRow, isRTL && { flexDirection: "row-reverse" }]}>
+                  <Text style={[styles.receiptTotalLabel, rtlTextAlign]}>{t("subtotal")}</Text>
+                  <Text style={[styles.receiptTotalValue, rtlTextAlign]}>${lastSale?.subtotal?.toFixed(2)}</Text>
                 </View>
                 {(lastSale?.discount || 0) > 0 && (
-                  <View style={styles.receiptTotalRow}>
-                    <Text style={[styles.receiptTotalLabel, { color: Colors.success }]}>Discount</Text>
-                    <Text style={[styles.receiptTotalValue, { color: Colors.success }]}>-${lastSale?.discount?.toFixed(2)}</Text>
+                  <View style={[styles.receiptTotalRow, isRTL && { flexDirection: "row-reverse" }]}>
+                    <Text style={[styles.receiptTotalLabel, { color: Colors.success }, rtlTextAlign]}>{t("discount")}</Text>
+                    <Text style={[styles.receiptTotalValue, { color: Colors.success }, rtlTextAlign]}>-${lastSale?.discount?.toFixed(2)}</Text>
                   </View>
                 )}
-                <View style={styles.receiptTotalRow}>
-                  <Text style={styles.receiptTotalLabel}>Tax</Text>
-                  <Text style={styles.receiptTotalValue}>${lastSale?.tax?.toFixed(2)}</Text>
+                <View style={[styles.receiptTotalRow, isRTL && { flexDirection: "row-reverse" }]}>
+                  <Text style={[styles.receiptTotalLabel, rtlTextAlign]}>{t("tax")}</Text>
+                  <Text style={[styles.receiptTotalValue, rtlTextAlign]}>${lastSale?.tax?.toFixed(2)}</Text>
                 </View>
-                <View style={[styles.receiptTotalRow, { borderTopWidth: 1, borderColor: Colors.cardBorder, paddingTop: 8, marginTop: 4 }]}>
-                  <Text style={styles.receiptGrandLabel}>TOTAL</Text>
-                  <Text style={styles.receiptGrandValue}>${lastSale?.total?.toFixed(2)}</Text>
+                <View style={[styles.receiptTotalRow, { borderTopWidth: 1, borderColor: Colors.cardBorder, paddingTop: 8, marginTop: 4 }, isRTL && { flexDirection: "row-reverse" }]}>
+                  <Text style={[styles.receiptGrandLabel, rtlTextAlign]}>{t("total")}</Text>
+                  <Text style={[styles.receiptGrandValue, rtlTextAlign]}>${lastSale?.total?.toFixed(2)}</Text>
                 </View>
-                <View style={styles.receiptTotalRow}>
-                  <Text style={styles.receiptTotalLabel}>Paid ({lastSale?.paymentMethod})</Text>
-                  <Text style={styles.receiptTotalValue}>
+                <View style={[styles.receiptTotalRow, isRTL && { flexDirection: "row-reverse" }]}>
+                  <Text style={[styles.receiptTotalLabel, rtlTextAlign]}>{t("paymentMethod")} ({lastSale?.paymentMethod})</Text>
+                  <Text style={[styles.receiptTotalValue, rtlTextAlign]}>
                     {lastSale?.paymentMethod === "cash" ? `$${lastSale?.cashReceived?.toFixed(2)}` : `$${lastSale?.total?.toFixed(2)}`}
                   </Text>
                 </View>
                 {(lastSale?.change || 0) > 0 && (
-                  <View style={styles.receiptTotalRow}>
-                    <Text style={[styles.receiptTotalLabel, { color: Colors.warning }]}>{t("change")}</Text>
-                    <Text style={[styles.receiptTotalValue, { color: Colors.warning }]}>${lastSale?.change?.toFixed(2)}</Text>
+                  <View style={[styles.receiptTotalRow, isRTL && { flexDirection: "row-reverse" }]}>
+                    <Text style={[styles.receiptTotalLabel, { color: Colors.warning }, rtlTextAlign]}>{t("change")}</Text>
+                    <Text style={[styles.receiptTotalValue, { color: Colors.warning }, rtlTextAlign]}>${lastSale?.change?.toFixed(2)}</Text>
                   </View>
                 )}
               </View>
@@ -554,17 +554,17 @@ export default function POSScreen() {
               {qrDataUrl && Platform.OS === "web" && (
                 <View style={styles.qrSection}>
                   <Image source={{ uri: qrDataUrl }} style={styles.qrImage} />
-                  <Text style={styles.qrLabel}>Scan for digital receipt</Text>
+                  <Text style={[styles.qrLabel, rtlTextAlign]}>{t("receiptNumber")}</Text>
                 </View>
               )}
 
-              <Text style={styles.receiptFooter}>Thank you for shopping with us!</Text>
+              <Text style={styles.receiptFooter}>{t("poweredBy")}</Text>
               <Text style={styles.receiptFooter2}>info@barmagly.tech | +201010254819</Text>
 
               <Pressable style={styles.closeReceiptBtn} onPress={() => { setShowReceipt(false); setLastSale(null); setQrDataUrl(null); }}>
-                <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={styles.closeReceiptGradient}>
+                <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={[styles.closeReceiptGradient, isRTL && { flexDirection: "row-reverse" }]}>
                   <Ionicons name="checkmark" size={20} color={Colors.white} />
-                  <Text style={styles.closeReceiptText}>Done</Text>
+                  <Text style={styles.closeReceiptText}>{t("newSale")}</Text>
                 </LinearGradient>
               </Pressable>
             </ScrollView>
@@ -575,15 +575,15 @@ export default function POSScreen() {
       <Modal visible={showCustomerPicker} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t("selectCustomer")}</Text>
+            <View style={[styles.modalHeader, isRTL && { flexDirection: "row-reverse" }]}>
+              <Text style={[styles.modalTitle, rtlTextAlign]}>{t("selectCustomer")}</Text>
               <Pressable onPress={() => setShowCustomerPicker(false)}>
                 <Ionicons name="close" size={24} color={Colors.text} />
               </Pressable>
             </View>
-            <Pressable style={styles.walkInBtn} onPress={() => { cart.setCustomerId(null); setShowCustomerPicker(false); }}>
+            <Pressable style={[styles.walkInBtn, isRTL && { flexDirection: "row-reverse" }]} onPress={() => { cart.setCustomerId(null); setShowCustomerPicker(false); }}>
               <Ionicons name="person-outline" size={20} color={Colors.textSecondary} />
-              <Text style={styles.walkInText}>{t("walkIn")}</Text>
+              <Text style={[styles.walkInText, rtlTextAlign]}>{t("walkIn")}</Text>
             </Pressable>
             <FlatList
               data={customers}
@@ -591,17 +591,17 @@ export default function POSScreen() {
               scrollEnabled={!!customers.length}
               renderItem={({ item }: { item: any }) => (
                 <Pressable
-                  style={[styles.customerCard, cart.customerId === item.id && styles.customerCardActive]}
+                  style={[styles.customerCard, cart.customerId === item.id && styles.customerCardActive, isRTL && { flexDirection: "row-reverse" }]}
                   onPress={() => { cart.setCustomerId(item.id); setShowCustomerPicker(false); }}
                 >
-                  <View style={styles.customerAvatar}>
+                  <View style={[styles.customerAvatar, isRTL ? { marginLeft: 10, marginRight: 0 } : null]}>
                     <Text style={styles.customerAvatarText}>{item.name.charAt(0)}</Text>
                   </View>
                   <View style={styles.customerCardInfo}>
-                    <Text style={styles.customerCardName}>{item.name}</Text>
-                    <Text style={styles.customerCardMeta}>{item.phone || item.email || "No contact"}</Text>
+                    <Text style={[styles.customerCardName, rtlTextAlign]}>{item.name}</Text>
+                    <Text style={[styles.customerCardMeta, rtlTextAlign]}>{item.phone || item.email || t("noContact")}</Text>
                   </View>
-                  <View style={styles.customerLoyalty}>
+                  <View style={[styles.customerLoyalty, isRTL && { flexDirection: "row-reverse" }]}>
                     <Ionicons name="star" size={12} color={Colors.warning} />
                     <Text style={styles.customerLoyaltyText}>{item.loyaltyPoints || 0}</Text>
                   </View>
@@ -615,23 +615,23 @@ export default function POSScreen() {
       <Modal visible={showDiscountModal} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxHeight: 340 }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t("applyDiscount")}</Text>
+            <View style={[styles.modalHeader, isRTL && { flexDirection: "row-reverse" }]}>
+              <Text style={[styles.modalTitle, rtlTextAlign]}>{t("applyDiscount")}</Text>
               <Pressable onPress={() => setShowDiscountModal(false)}>
                 <Ionicons name="close" size={24} color={Colors.text} />
               </Pressable>
             </View>
-            <View style={styles.discountTypeRow}>
+            <View style={[styles.discountTypeRow, isRTL && { flexDirection: "row-reverse" }]}>
               <Pressable style={[styles.discountTypeBtn, discountType === "fixed" && styles.discountTypeBtnActive]} onPress={() => setDiscountType("fixed")}>
-                <Text style={[styles.discountTypeBtnText, discountType === "fixed" && { color: Colors.textDark }]}>Fixed ($)</Text>
+                <Text style={[styles.discountTypeBtnText, discountType === "fixed" && { color: Colors.textDark }]}>{t("fixedAmount")} ($)</Text>
               </Pressable>
               <Pressable style={[styles.discountTypeBtn, discountType === "percent" && styles.discountTypeBtnActive]} onPress={() => setDiscountType("percent")}>
-                <Text style={[styles.discountTypeBtnText, discountType === "percent" && { color: Colors.textDark }]}>Percent (%)</Text>
+                <Text style={[styles.discountTypeBtnText, discountType === "percent" && { color: Colors.textDark }]}>{t("percentage")} (%)</Text>
               </Pressable>
             </View>
             <TextInput
               style={styles.cashInput}
-              placeholder={discountType === "fixed" ? "Amount..." : "Percentage..."}
+              placeholder={discountType === "fixed" ? t("enterAmount") : t("percentage") + "..."}
               placeholderTextColor={Colors.textMuted}
               value={discountInput}
               onChangeText={setDiscountInput}
@@ -639,18 +639,18 @@ export default function POSScreen() {
             />
             {isCashier && (
               <Text style={{ color: Colors.warning, fontSize: 12, marginTop: 6, textAlign: "center" }}>
-                Max discount: {maxCashierDiscountPct}% (cashier limit)
+                {t("maxDiscountWarning")}
               </Text>
             )}
-            <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 10, marginTop: 16 }}>
               <Pressable style={[styles.completeBtn, { flex: 1 }]} onPress={() => { cart.setDiscount(0); setShowDiscountModal(false); }}>
                 <View style={[styles.completeBtnGradient, { backgroundColor: Colors.surfaceLight }]}>
-                  <Text style={styles.completeBtnText}>Clear</Text>
+                  <Text style={styles.completeBtnText}>{t("removeDiscount")}</Text>
                 </View>
               </Pressable>
               <Pressable style={[styles.completeBtn, { flex: 1 }]} onPress={applyDiscount}>
                 <LinearGradient colors={[Colors.success, "#059669"]} style={styles.completeBtnGradient}>
-                  <Text style={styles.completeBtnText}>Apply</Text>
+                  <Text style={styles.completeBtnText}>{t("apply")}</Text>
                 </LinearGradient>
               </Pressable>
             </View>

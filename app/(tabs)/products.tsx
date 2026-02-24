@@ -17,7 +17,7 @@ export default function ProductsScreen() {
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const { canManage } = useAuth();
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, rtlTextAlign, rtlText } = useLanguage();
   const [screenDims, setScreenDims] = useState(Dimensions.get("window"));
   useEffect(() => {
     const sub = Dimensions.addEventListener("change", ({ window }) => setScreenDims(window));
@@ -61,7 +61,7 @@ export default function ProductsScreen() {
       setEditProduct(null);
       resetForm();
     },
-    onError: (e: any) => Alert.alert("Error", e.message),
+    onError: (e: any) => Alert.alert(t("error"), e.message),
   });
 
   const deleteMutation = useMutation({
@@ -77,7 +77,7 @@ export default function ProductsScreen() {
       setEditCategory(null);
       setCatForm({ name: "", color: "#7C3AED", icon: "grid" });
     },
-    onError: (e: any) => Alert.alert("Error", e.message),
+    onError: (e: any) => Alert.alert(t("error"), e.message),
   });
 
   const deleteCategoryMutation = useMutation({
@@ -98,7 +98,7 @@ export default function ProductsScreen() {
   };
 
   const handleSave = () => {
-    if (!form.name || !form.price) return Alert.alert("Error", "Name and price are required");
+    if (!form.name || !form.price) return Alert.alert(t("error"), t("productName") + " & " + t("price"));
     createMutation.mutate({
       name: form.name, price: form.price, sku: form.sku || undefined,
       barcode: form.barcode || undefined, costPrice: form.costPrice || undefined,
@@ -125,12 +125,12 @@ export default function ProductsScreen() {
   };
 
   const topPad = Platform.OS === "web" ? 67 : 0;
-  const getCatName = (catId: number | null) => categories.find((c: any) => c.id === catId)?.name || "Uncategorized";
+  const getCatName = (catId: number | null) => categories.find((c: any) => c.id === catId)?.name || t("uncategorized");
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + topPad, direction: isRTL ? "rtl" : "ltr" }]}>
-      <LinearGradient colors={[Colors.gradientStart, Colors.gradientMid]} style={styles.header}>
-        <Text style={styles.headerTitle}>{t("products")}</Text>
+      <LinearGradient colors={[Colors.gradientStart, Colors.gradientMid]} style={[styles.header, isRTL && { flexDirection: "row-reverse" }]}>
+        <Text style={[styles.headerTitle, rtlTextAlign]}>{t("products")}</Text>
         {canManage && (
           <Pressable style={styles.addBtn} onPress={() => {
             if (viewMode === "products") {
@@ -144,7 +144,7 @@ export default function ProductsScreen() {
         )}
       </LinearGradient>
 
-      <View style={{ flexDirection: "row", paddingHorizontal: 12, paddingTop: 10, gap: 8 }}>
+      <View style={{ flexDirection: isRTL ? "row-reverse" : "row", paddingHorizontal: 12, paddingTop: 10, gap: 8 }}>
         <Pressable
           style={{ flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: viewMode === "products" ? Colors.accent : Colors.surface, alignItems: "center", borderWidth: 1, borderColor: viewMode === "products" ? Colors.accent : Colors.cardBorder }}
           onPress={() => setViewMode("products")}
@@ -161,9 +161,9 @@ export default function ProductsScreen() {
 
       {viewMode === "products" && (
         <View style={styles.searchRow}>
-          <View style={styles.searchBox}>
+          <View style={[styles.searchBox, isRTL && { flexDirection: "row-reverse" }]}>
             <Ionicons name="search" size={18} color={Colors.textMuted} />
-            <TextInput style={styles.searchInput} placeholder={t("search") + "..."} placeholderTextColor={Colors.textMuted} value={search} onChangeText={setSearch} />
+            <TextInput style={[styles.searchInput, isRTL ? { marginRight: 8, marginLeft: 0, textAlign: "right" } : {}]} placeholder={t("search") + "..."} placeholderTextColor={Colors.textMuted} value={search} onChangeText={setSearch} />
           </View>
         </View>
       )}
@@ -175,36 +175,36 @@ export default function ProductsScreen() {
           contentContainerStyle={styles.list}
           scrollEnabled={!!products.length}
           renderItem={({ item }: { item: any }) => (
-            <Pressable style={styles.productCard} onPress={() => canManage ? openEdit(item) : null}>
-              <View style={styles.productIconWrap}>
+            <Pressable style={[styles.productCard, isRTL && { flexDirection: "row-reverse" }]} onPress={() => canManage ? openEdit(item) : null}>
+              <View style={[styles.productIconWrap, isRTL ? { marginLeft: 12, marginRight: 0 } : {}]}>
                 <Ionicons name="cube" size={24} color={Colors.accent} />
               </View>
               <View style={styles.productInfo}>
-                <Text style={styles.productName}>{item.name}</Text>
-                <Text style={styles.productMeta}>{item.sku || "No SKU"} | {getCatName(item.categoryId)}</Text>
+                <Text style={[styles.productName, rtlTextAlign]}>{item.name}</Text>
+                <Text style={[styles.productMeta, rtlTextAlign]}>{item.sku || t("noSku")} | {getCatName(item.categoryId)}</Text>
                 {(() => {
                   const stock = getStock(item.id);
                   return stock !== null ? (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                    <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 4, marginTop: 2 }}>
                       <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: stock <= 0 ? Colors.danger : stock <= 10 ? Colors.warning : Colors.success }} />
                       <Text style={{ color: stock <= 0 ? Colors.danger : stock <= 10 ? Colors.warning : Colors.textMuted, fontSize: 11 }}>
-                        {stock <= 0 ? "Out of stock" : `${stock} in stock`}
+                        {stock <= 0 ? t("outOfStockFull") : `${stock} ${t("xInStock")}`}
                       </Text>
                     </View>
                   ) : null;
                 })()}
                 {item.expiryDate && (
-                  <Text style={{ color: isExpired(item.expiryDate) ? Colors.danger : isNearExpiry(item.expiryDate) ? Colors.warning : Colors.textMuted, fontSize: 10, marginTop: 2 }}>
-                    {isExpired(item.expiryDate) ? "EXPIRED" : `Exp: ${new Date(item.expiryDate).toLocaleDateString()}`}
+                  <Text style={{ color: isExpired(item.expiryDate) ? Colors.danger : isNearExpiry(item.expiryDate) ? Colors.warning : Colors.textMuted, fontSize: 10, marginTop: 2, ...rtlTextAlign }}>
+                    {isExpired(item.expiryDate) ? t("expired") : `${t("expiryDate")}: ${new Date(item.expiryDate).toLocaleDateString()}`}
                   </Text>
                 )}
               </View>
-              <View style={styles.productRight}>
+              <View style={[styles.productRight, isRTL && { alignItems: "flex-start" }]}>
                 <Text style={styles.productPrice}>${Number(item.price).toFixed(2)}</Text>
                 {canManage && (
-                  <Pressable onPress={() => { Alert.alert("Delete", `Delete ${item.name}?`, [
-                    { text: "Cancel" },
-                    { text: "Delete", style: "destructive", onPress: () => deleteMutation.mutate(item.id) },
+                  <Pressable onPress={() => { Alert.alert(t("delete"), `${t("delete")} ${item.name}?`, [
+                    { text: t("cancel") },
+                    { text: t("delete"), style: "destructive", onPress: () => deleteMutation.mutate(item.id) },
                   ]); }}>
                     <Ionicons name="trash-outline" size={18} color={Colors.danger} />
                   </Pressable>
@@ -212,7 +212,7 @@ export default function ProductsScreen() {
               </View>
             </Pressable>
           )}
-          ListEmptyComponent={<View style={styles.empty}><Ionicons name="cube-outline" size={48} color={Colors.textMuted} /><Text style={styles.emptyText}>No products yet</Text></View>}
+          ListEmptyComponent={<View style={styles.empty}><Ionicons name="cube-outline" size={48} color={Colors.textMuted} /><Text style={styles.emptyText}>{t("noProducts")}</Text></View>}
         />
       )}
 
@@ -223,80 +223,80 @@ export default function ProductsScreen() {
           contentContainerStyle={styles.list}
           scrollEnabled={!!categories.length}
           renderItem={({ item }: { item: any }) => (
-            <Pressable style={styles.productCard} onPress={() => {
+            <Pressable style={[styles.productCard, isRTL && { flexDirection: "row-reverse" }]} onPress={() => {
               if (!canManage) return;
               setEditCategory(item);
               setCatForm({ name: item.name, color: item.color || "#7C3AED", icon: item.icon || "grid" });
               setShowCategoryForm(true);
             }}>
-              <View style={[styles.productIconWrap, { backgroundColor: (item.color || "#7C3AED") + "20" }]}>
+              <View style={[styles.productIconWrap, isRTL ? { marginLeft: 12, marginRight: 0 } : {}, { backgroundColor: (item.color || "#7C3AED") + "20" }]}>
                 <Ionicons name={(item.icon || "grid") as any} size={24} color={item.color || "#7C3AED"} />
               </View>
               <View style={styles.productInfo}>
-                <Text style={styles.productName}>{item.name}</Text>
-                <Text style={styles.productMeta}>
-                  {products.filter((p: any) => p.categoryId === item.id).length} products
+                <Text style={[styles.productName, rtlTextAlign]}>{item.name}</Text>
+                <Text style={[styles.productMeta, rtlTextAlign]}>
+                  {products.filter((p: any) => p.categoryId === item.id).length} {t("products2")}
                 </Text>
               </View>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 8 }}>
                 {canManage && (
                   <Pressable
                     onPress={() => {
-                      Alert.alert("Delete Category", `Delete "${item.name}"?`, [
-                        { text: "Cancel", style: "cancel" },
-                        { text: "Delete", style: "destructive", onPress: () => deleteCategoryMutation.mutate(item.id) },
+                      Alert.alert(t("delete") + " " + t("category"), `${t("delete")} "${item.name}"?`, [
+                        { text: t("cancel"), style: "cancel" },
+                        { text: t("delete"), style: "destructive", onPress: () => deleteCategoryMutation.mutate(item.id) },
                       ]);
                     }}
                   >
                     <Ionicons name="trash-outline" size={18} color={Colors.danger} />
                   </Pressable>
                 )}
-                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+                <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={18} color={Colors.textMuted} />
               </View>
             </Pressable>
           )}
-          ListEmptyComponent={<View style={styles.empty}><Ionicons name="grid-outline" size={48} color={Colors.textMuted} /><Text style={styles.emptyText}>No categories yet</Text></View>}
+          ListEmptyComponent={<View style={styles.empty}><Ionicons name="grid-outline" size={48} color={Colors.textMuted} /><Text style={styles.emptyText}>{t("noCategories")}</Text></View>}
         />
       )}
 
       <Modal visible={showForm} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{editProduct ? t("editProduct") : t("addProduct")}</Text>
+            <View style={[styles.modalHeader, isRTL && { flexDirection: "row-reverse" }]}>
+              <Text style={[styles.modalTitle, rtlTextAlign]}>{editProduct ? t("editProduct") : t("addProduct")}</Text>
               <Pressable onPress={() => setShowForm(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.label}>{t("productName")} *</Text>
-              <TextInput style={styles.input} value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} placeholderTextColor={Colors.textMuted} placeholder={t("productName")} />
-              <View style={styles.row}>
+              <Text style={[styles.label, rtlTextAlign]}>{t("productName")} *</Text>
+              <TextInput style={[styles.input, rtlTextAlign]} value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} placeholderTextColor={Colors.textMuted} placeholder={t("productName")} />
+              <View style={[styles.row, isRTL && { flexDirection: "row-reverse" }]}>
                 <View style={styles.half}>
-                  <Text style={styles.label}>{t("price")} *</Text>
-                  <TextInput style={styles.input} value={form.price} onChangeText={(v) => setForm({ ...form, price: v })} keyboardType="decimal-pad" placeholderTextColor={Colors.textMuted} placeholder="0.00" />
+                  <Text style={[styles.label, rtlTextAlign]}>{t("price")} *</Text>
+                  <TextInput style={[styles.input, rtlTextAlign]} value={form.price} onChangeText={(v) => setForm({ ...form, price: v })} keyboardType="decimal-pad" placeholderTextColor={Colors.textMuted} placeholder="0.00" />
                 </View>
                 <View style={styles.half}>
-                  <Text style={styles.label}>{t("costPrice")}</Text>
-                  <TextInput style={styles.input} value={form.costPrice} onChangeText={(v) => setForm({ ...form, costPrice: v })} keyboardType="decimal-pad" placeholderTextColor={Colors.textMuted} placeholder="0.00" />
+                  <Text style={[styles.label, rtlTextAlign]}>{t("costPrice")}</Text>
+                  <TextInput style={[styles.input, rtlTextAlign]} value={form.costPrice} onChangeText={(v) => setForm({ ...form, costPrice: v })} keyboardType="decimal-pad" placeholderTextColor={Colors.textMuted} placeholder="0.00" />
                 </View>
               </View>
-              <View style={styles.row}>
+              <View style={[styles.row, isRTL && { flexDirection: "row-reverse" }]}>
                 <View style={styles.half}>
-                  <Text style={styles.label}>SKU</Text>
-                  <TextInput style={styles.input} value={form.sku} onChangeText={(v) => setForm({ ...form, sku: v })} placeholderTextColor={Colors.textMuted} placeholder="SKU-001" />
+                  <Text style={[styles.label, rtlTextAlign]}>SKU</Text>
+                  <TextInput style={[styles.input, rtlTextAlign]} value={form.sku} onChangeText={(v) => setForm({ ...form, sku: v })} placeholderTextColor={Colors.textMuted} placeholder="SKU-001" />
                 </View>
                 <View style={styles.half}>
-                  <Text style={styles.label}>{t("barcode")}</Text>
-                  <View style={{ flexDirection: "row", gap: 8 }}>
-                    <TextInput style={[styles.input, { flex: 1 }]} value={form.barcode} onChangeText={(v) => setForm({ ...form, barcode: v })} placeholderTextColor={Colors.textMuted} placeholder="ABC-123456" />
+                  <Text style={[styles.label, rtlTextAlign]}>{t("barcode")}</Text>
+                  <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8 }}>
+                    <TextInput style={[styles.input, { flex: 1 }, rtlTextAlign]} value={form.barcode} onChangeText={(v) => setForm({ ...form, barcode: v })} placeholderTextColor={Colors.textMuted} placeholder="ABC-123456" />
                     <Pressable style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: Colors.accent, justifyContent: "center", alignItems: "center" }} onPress={() => setShowBarcodeScanner(true)}>
                       <Ionicons name="barcode-outline" size={22} color={Colors.textDark} />
                     </Pressable>
                   </View>
                 </View>
               </View>
-              <Text style={styles.label}>Expiry Date</Text>
+              <Text style={[styles.label, rtlTextAlign]}>{t("expiryDateFull")}</Text>
               <Pressable
-                style={[styles.input, { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
+                style={[styles.input, { flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", justifyContent: "space-between" }]}
                 onPress={() => {
                   if (form.expiryDate) {
                     const parts = form.expiryDate.split("-");
@@ -312,14 +312,14 @@ export default function ProductsScreen() {
                 }}
               >
                 <Text style={{ color: form.expiryDate ? Colors.text : Colors.textMuted, fontSize: 15 }}>
-                  {form.expiryDate || "Select date"}
+                  {form.expiryDate || t("selectDate")}
                 </Text>
                 <Ionicons name="calendar-outline" size={20} color={Colors.textMuted} />
               </Pressable>
-              <Text style={styles.label}>{t("category")}</Text>
+              <Text style={[styles.label, rtlTextAlign]}>{t("category")}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catRow}>
                 {categories.map((cat: any) => (
-                  <Pressable key={cat.id} style={[styles.catChip, form.categoryId === String(cat.id) && styles.catChipActive]} onPress={() => setForm({ ...form, categoryId: String(cat.id) })}>
+                  <Pressable key={cat.id} style={[styles.catChip, form.categoryId === String(cat.id) && styles.catChipActive, isRTL ? { marginLeft: 8, marginRight: 0 } : {}]} onPress={() => setForm({ ...form, categoryId: String(cat.id) })}>
                     <Text style={[styles.catChipText, form.categoryId === String(cat.id) && { color: Colors.textDark }]}>{cat.name}</Text>
                   </Pressable>
                 ))}
@@ -337,16 +337,16 @@ export default function ProductsScreen() {
       <Modal visible={showCategoryForm} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{editCategory ? t("edit") + " " + t("category") : t("add") + " " + t("category")}</Text>
+            <View style={[styles.modalHeader, isRTL && { flexDirection: "row-reverse" }]}>
+              <Text style={[styles.modalTitle, rtlTextAlign]}>{editCategory ? t("edit") + " " + t("category") : t("add") + " " + t("category")}</Text>
               <Pressable onPress={() => setShowCategoryForm(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.label}>{t("productName")} *</Text>
-              <TextInput style={styles.input} value={catForm.name} onChangeText={(v) => setCatForm({ ...catForm, name: v })} placeholderTextColor={Colors.textMuted} placeholder={t("category")} />
+              <Text style={[styles.label, rtlTextAlign]}>{t("name")} *</Text>
+              <TextInput style={[styles.input, rtlTextAlign]} value={catForm.name} onChangeText={(v) => setCatForm({ ...catForm, name: v })} placeholderTextColor={Colors.textMuted} placeholder={t("category")} />
 
-              <Text style={styles.label}>Color</Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+              <Text style={[styles.label, rtlTextAlign]}>{t("color")}</Text>
+              <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
                 {["#7C3AED", "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#EC4899", "#2FD3C6", "#F97316"].map((c) => (
                   <Pressable
                     key={c}
@@ -358,8 +358,8 @@ export default function ProductsScreen() {
                 ))}
               </View>
 
-              <Text style={styles.label}>Icon</Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+              <Text style={[styles.label, rtlTextAlign]}>{t("icon")}</Text>
+              <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
                 {["grid", "cube", "nutrition", "medical", "cart", "cafe", "beer", "pizza", "leaf", "sparkles", "hardware-chip", "shirt"].map((ic) => (
                   <Pressable
                     key={ic}
@@ -372,11 +372,11 @@ export default function ProductsScreen() {
               </View>
 
               <Pressable style={styles.saveBtn} onPress={() => {
-                if (!catForm.name) return Alert.alert("Error", "Name is required");
+                if (!catForm.name) return Alert.alert(t("error"), t("name"));
                 createCategoryMutation.mutate({ name: catForm.name, color: catForm.color, icon: catForm.icon });
               }}>
                 <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={styles.saveBtnGradient}>
-                  <Text style={styles.saveBtnText}>{editCategory ? "Update" : "Create"} Category</Text>
+                  <Text style={styles.saveBtnText}>{editCategory ? t("update") : t("create")} {t("category")}</Text>
                 </LinearGradient>
               </Pressable>
             </ScrollView>
@@ -393,13 +393,13 @@ export default function ProductsScreen() {
       <Modal visible={showDatePicker} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxHeight: "70%" }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Expiry Date</Text>
+            <View style={[styles.modalHeader, isRTL && { flexDirection: "row-reverse" }]}>
+              <Text style={[styles.modalTitle, rtlTextAlign]}>{t("expiryDateFull")}</Text>
               <Pressable onPress={() => setShowDatePicker(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
             </View>
-            <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8, marginBottom: 16 }}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.label, { marginTop: 0 }]}>Year</Text>
+                <Text style={[styles.label, { marginTop: 0 }, rtlTextAlign]}>{t("year")}</Text>
                 <ScrollView style={{ maxHeight: 150, backgroundColor: Colors.inputBg, borderRadius: 12, borderWidth: 1, borderColor: Colors.inputBorder }}>
                   {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() + i).map((y) => (
                     <Pressable
@@ -413,7 +413,7 @@ export default function ProductsScreen() {
                 </ScrollView>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.label, { marginTop: 0 }]}>Month</Text>
+                <Text style={[styles.label, { marginTop: 0 }, rtlTextAlign]}>{t("month")}</Text>
                 <ScrollView style={{ maxHeight: 150, backgroundColor: Colors.inputBg, borderRadius: 12, borderWidth: 1, borderColor: Colors.inputBorder }}>
                   {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                     <Pressable
@@ -429,7 +429,7 @@ export default function ProductsScreen() {
                 </ScrollView>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.label, { marginTop: 0 }]}>Day</Text>
+                <Text style={[styles.label, { marginTop: 0 }, rtlTextAlign]}>{t("day")}</Text>
                 <ScrollView style={{ maxHeight: 150, backgroundColor: Colors.inputBg, borderRadius: 12, borderWidth: 1, borderColor: Colors.inputBorder }}>
                   {Array.from({ length: new Date(pickerYear, pickerMonth, 0).getDate() }, (_, i) => i + 1).map((d) => (
                     <Pressable
@@ -446,12 +446,12 @@ export default function ProductsScreen() {
             <Text style={{ color: Colors.textSecondary, fontSize: 14, textAlign: "center", marginBottom: 16 }}>
               {pickerYear}-{String(pickerMonth).padStart(2, "0")}-{String(pickerDay).padStart(2, "0")}
             </Text>
-            <View style={{ flexDirection: "row", gap: 12 }}>
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12 }}>
               <Pressable
                 style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: Colors.surfaceLight, alignItems: "center" }}
                 onPress={() => { setForm({ ...form, expiryDate: "" }); setShowDatePicker(false); }}
               >
-                <Text style={{ color: Colors.danger, fontSize: 15, fontWeight: "600" }}>Clear</Text>
+                <Text style={{ color: Colors.danger, fontSize: 15, fontWeight: "600" }}>{t("cancel")}</Text>
               </Pressable>
               <Pressable
                 style={{ flex: 1, borderRadius: 12, overflow: "hidden" }}
@@ -462,7 +462,7 @@ export default function ProductsScreen() {
                 }}
               >
                 <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={{ paddingVertical: 12, alignItems: "center", borderRadius: 12 }}>
-                  <Text style={{ color: Colors.white, fontSize: 15, fontWeight: "600" }}>Set Date</Text>
+                  <Text style={{ color: Colors.white, fontSize: 15, fontWeight: "600" }}>{t("set")}</Text>
                 </LinearGradient>
               </Pressable>
             </View>

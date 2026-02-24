@@ -38,7 +38,7 @@ function getInitial(name: string): string {
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, rtlTextAlign, rtlText } = useLanguage();
   const [mode, setMode] = useState<"select" | "pin">("select");
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [pin, setPin] = useState("");
@@ -102,7 +102,7 @@ export default function LoginScreen() {
       router.replace("/(tabs)");
     } catch (e: any) {
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("Login Failed", "Invalid PIN. Please try again.");
+      Alert.alert(t("loginFailed"), t("invalidPinTryAgain"));
       setPin("");
     } finally {
       setLoading(false);
@@ -123,7 +123,7 @@ export default function LoginScreen() {
         <View style={[styles.avatar, { borderColor: badgeColor }]}>
           <Text style={styles.avatarText}>{getInitial(item.name)}</Text>
         </View>
-        <Text style={styles.employeeName} numberOfLines={1}>{item.name}</Text>
+        <Text style={[styles.employeeName, rtlText]} numberOfLines={1}>{item.name}</Text>
         <View style={[styles.roleBadge, { backgroundColor: badgeColor }]}>
           <Text style={styles.roleBadgeText}>{item.role}</Text>
         </View>
@@ -145,12 +145,12 @@ export default function LoginScreen() {
               <Ionicons name="cart" size={36} color={Colors.accent} />
             </View>
             <Text style={styles.appName}>Barmagly</Text>
-            <Text style={styles.appDesc}>Smart POS System</Text>
+            <Text style={[styles.appDesc, rtlText]}>{t("smartPosSystem")}</Text>
           </View>
 
           {mode === "select" ? (
             <View style={styles.selectionContainer}>
-              <Text style={styles.modeLabel}>{t("selectEmployee")}</Text>
+              <Text style={[styles.modeLabel, rtlTextAlign, rtlText]}>{t("selectEmployee")}</Text>
               {employeesLoading ? (
                 <ActivityIndicator size="large" color={Colors.white} style={{ marginTop: 32 }} />
               ) : (
@@ -165,15 +165,15 @@ export default function LoginScreen() {
                   columnWrapperStyle={styles.gridRow}
                   showsVerticalScrollIndicator={false}
                   ListEmptyComponent={
-                    <Text style={styles.emptyText}>No employees found</Text>
+                    <Text style={[styles.emptyText, rtlText]}>{t("noEmployees")}</Text>
                   }
                 />
               )}
             </View>
           ) : (
             <View style={styles.pinContainer}>
-              <Pressable style={styles.backButton} onPress={handleBack}>
-                <Ionicons name="arrow-back" size={24} color={Colors.white} />
+              <Pressable style={[styles.backButton, isRTL ? { left: undefined, right: 0 } : undefined]} onPress={handleBack}>
+                <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={Colors.white} />
               </Pressable>
 
               {selectedEmployee && (
@@ -181,11 +181,11 @@ export default function LoginScreen() {
                   <View style={[styles.avatarLarge, { borderColor: getRoleBadgeColor(selectedEmployee.role) }]}>
                     <Text style={styles.avatarLargeText}>{getInitial(selectedEmployee.name)}</Text>
                   </View>
-                  <Text style={styles.selectedUserName}>{selectedEmployee.name}</Text>
+                  <Text style={[styles.selectedUserName, rtlText]}>{selectedEmployee.name}</Text>
                 </View>
               )}
 
-              <Text style={styles.modeLabel}>{t("enterPin")}</Text>
+              <Text style={[styles.modeLabel, rtlTextAlign, rtlText]}>{t("enterPin")}</Text>
               <View style={styles.pinDots}>
                 {[0, 1, 2, 3].map((i) => (
                   <View key={i} style={[styles.dot, i < pin.length && styles.dotFilled]} />

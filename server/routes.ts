@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "node:http";
 import { storage } from "./storage";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard
@@ -720,6 +721,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
           stockAlerts.filter((a: any) => a.urgency === "critical").length > 0 ? `${stockAlerts.filter((a: any) => a.urgency === "critical").length} products critically low on stock - reorder immediately` : "Stock levels are healthy",
         ],
       });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Object Storage - Public file serving
+  app.get("/public-objects/:filePath(*)", async (req, res) => {
+    const filePath = req.params.filePath;
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const file = await objectStorageService.searchPublicObject(filePath);
+      if (!file) return res.status(404).json({ error: "File not found" });
+      objectStorageService.downloadObject(file, res);
+    } catch (error) {
+      console.error("Error serving public object:", error);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Object Storage - Private file serving
+  app.get("/objects/:objectPath(*)", async (req, res) => {
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      if (error instanceof ObjectNotFoundError) return res.sendStatus(404);
+      return res.sendStatus(500);
+    }
+  });
+
+  // Object Storage - Get upload URL
+  app.post("/api/objects/upload", async (_req, res) => {
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (error: any) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Object Storage - Save uploaded image path
+  app.put("/api/images/save", async (req, res) => {
+    if (!req.body.imageURL) return res.status(400).json({ error: "imageURL is required" });
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = objectStorageService.normalizeObjectEntityPath(req.body.imageURL);
+      res.status(200).json({ objectPath });
+    } catch (error) {
+      console.error("Error saving image:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Create product with initial stock
+  app.post("/api/products-with-stock", async (req, res) => {
+    try {
+      const { initialStock, branchId, ...productData } = req.body;
+      const product = await storage.createProduct(productData);
+      if (initialStock && initialStock > 0 && branchId) {
+        await storage.upsertInventory({ productId: product.id, branchId: Number(branchId), quantity: Number(initialStock) });
+        await storage.createInventoryMovement({
+          productId: product.id, branchId: Number(branchId), type: "purchase",
+          quantity: Number(initialStock), referenceType: "manual", notes: "Initial stock on product creation",
+        });
+      }
+      res.json(product);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Get active shift for employee
+  app.get("/api/shifts/active/:employeeId", async (req, res) => {
+    try {
+      const shifts = await storage.getShifts(undefined);
+      const active = shifts.find((s: any) => s.employeeId === Number(req.params.employeeId) && s.status === "open");
+      res.json(active || null);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Get store settings (main branch)
+  app.get("/api/store-settings", async (_req, res) => {
+    try {
+      const branches = await storage.getBranches();
+      const mainBranch = branches.find((b: any) => b.isMain) || branches[0];
+      res.json(mainBranch || { name: "Barmagly Smart POS", address: "", phone: "", email: "", logo: "" });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Update store settings (update main branch)
+  app.put("/api/store-settings", async (req, res) => {
+    try {
+      const branches = await storage.getBranches();
+      const mainBranch = branches.find((b: any) => b.isMain) || branches[0];
+      if (!mainBranch) return res.status(404).json({ error: "No branch found" });
+      const updated = await storage.updateBranch(mainBranch.id, req.body);
+      res.json(updated);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 

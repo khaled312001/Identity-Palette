@@ -49,7 +49,7 @@ function PercentBar({ percent, color, height = 8 }: { percent: number; color: st
 
 export default function ReportsScreen() {
   const insets = useSafeAreaInsets();
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, rtlRow, rtlTextAlign, rtlText } = useLanguage();
   const { isCashier } = useAuth();
   const [screenDims, setScreenDims] = useState(Dimensions.get("window"));
   useEffect(() => {
@@ -143,9 +143,9 @@ export default function ReportsScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top + topPad, justifyContent: "center", alignItems: "center" }]}>
         <Ionicons name="lock-closed" size={64} color={Colors.textMuted} />
-        <Text style={{ color: Colors.text, fontSize: 20, fontWeight: "700", marginTop: 16 }}>Access Restricted</Text>
-        <Text style={{ color: Colors.textMuted, fontSize: 14, marginTop: 8, textAlign: "center", paddingHorizontal: 40 }}>
-          Reports are available for managers and administrators only.
+        <Text style={[{ color: Colors.text, fontSize: 20, fontWeight: "700", marginTop: 16 }, rtlTextAlign, rtlText]}>{t("accessRestricted")}</Text>
+        <Text style={[{ color: Colors.textMuted, fontSize: 14, marginTop: 8, textAlign: "center", paddingHorizontal: 40 }, rtlText]}>
+          {t("reportsForManagers")}
         </Text>
       </View>
     );
@@ -171,69 +171,69 @@ export default function ReportsScreen() {
 
   const renderOverview = () => (
     <>
-      <GlassCard style={{ flexDirection: "row", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-        <Pressable onPress={() => handleExport("/api/reports/sales-export")} style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.success + "20", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
+      <GlassCard style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+        <Pressable onPress={() => handleExport("/api/reports/sales-export")} style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 6, backgroundColor: Colors.success + "20", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
           <Ionicons name="download" size={14} color={Colors.success} />
-          <Text style={{ color: Colors.success, fontSize: 12, fontWeight: "600" }}>{t("exportSalesCSV")}</Text>
+          <Text style={[{ color: Colors.success, fontSize: 12, fontWeight: "600" }, rtlText]}>{t("exportSalesCSV")}</Text>
         </Pressable>
-        <Pressable onPress={() => handleExport("/api/reports/inventory-export")} style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.info + "20", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
+        <Pressable onPress={() => handleExport("/api/reports/inventory-export")} style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 6, backgroundColor: Colors.info + "20", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
           <Ionicons name="download" size={14} color={Colors.info} />
-          <Text style={{ color: Colors.info, fontSize: 12, fontWeight: "600" }}>{t("exportInventoryCSV")}</Text>
+          <Text style={[{ color: Colors.info, fontSize: 12, fontWeight: "600" }, rtlText]}>{t("exportInventoryCSV")}</Text>
         </Pressable>
-        <Pressable onPress={() => handleExport("/api/reports/profit-export")} style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.accent + "20", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
+        <Pressable onPress={() => handleExport("/api/reports/profit-export")} style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 6, backgroundColor: Colors.accent + "20", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
           <Ionicons name="download" size={14} color={Colors.accent} />
-          <Text style={{ color: Colors.accent, fontSize: 12, fontWeight: "600" }}>{t("exportProfitCSV")}</Text>
+          <Text style={[{ color: Colors.accent, fontSize: 12, fontWeight: "600" }, rtlText]}>{t("exportProfitCSV")}</Text>
         </Pressable>
-        <Pressable onPress={() => handleExport("/api/reports/employee-performance-export")} style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.secondary + "20", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
+        <Pressable onPress={() => handleExport("/api/reports/employee-performance-export")} style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 6, backgroundColor: Colors.secondary + "20", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
           <Ionicons name="download" size={14} color={Colors.secondary} />
-          <Text style={{ color: Colors.secondary, fontSize: 12, fontWeight: "600" }}>{t("exportPerformanceCSV")}</Text>
+          <Text style={[{ color: Colors.secondary, fontSize: 12, fontWeight: "600" }, rtlText]}>{t("exportPerformanceCSV")}</Text>
         </Pressable>
       </GlassCard>
-      <View style={styles.statGrid}>
+      <View style={[styles.statGrid, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <GlassCard style={styles.statCardHalf}>
           <View style={[styles.statIconWrap, { backgroundColor: Colors.accent + "20" }]}>
             <Ionicons name="today" size={20} color={Colors.accent} />
           </View>
-          <Text style={styles.statLabel}>{t("todayRevenue")}</Text>
-          <Text style={styles.statValue}>${Number(todayRevenue).toFixed(2)}</Text>
-          <Text style={styles.statSub}>{todaySalesCount} transactions</Text>
+          <Text style={[styles.statLabel, rtlTextAlign, rtlText]}>{t("todayRevenue")}</Text>
+          <Text style={[styles.statValue, rtlTextAlign]}>${Number(todayRevenue).toFixed(2)}</Text>
+          <Text style={[styles.statSub, rtlTextAlign, rtlText]}>{todaySalesCount} {t("transactions")}</Text>
         </GlassCard>
         <GlassCard style={styles.statCardHalf}>
           <View style={[styles.statIconWrap, { backgroundColor: Colors.info + "20" }]}>
             <Ionicons name="calendar" size={20} color={Colors.info} />
           </View>
-          <Text style={styles.statLabel}>{t("monthRevenue")}</Text>
-          <Text style={styles.statValue}>${Number(weekRevenue).toFixed(2)}</Text>
+          <Text style={[styles.statLabel, rtlTextAlign, rtlText]}>{t("monthRevenue")}</Text>
+          <Text style={[styles.statValue, rtlTextAlign]}>${Number(weekRevenue).toFixed(2)}</Text>
         </GlassCard>
       </View>
-      <View style={styles.statGrid}>
+      <View style={[styles.statGrid, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <GlassCard style={styles.statCardHalf}>
           <View style={[styles.statIconWrap, { backgroundColor: Colors.secondary + "20" }]}>
             <Ionicons name="trending-up" size={20} color={Colors.secondary} />
           </View>
-          <Text style={styles.statLabel}>{t("monthRevenue")}</Text>
-          <Text style={styles.statValue}>${Number(monthRevenue).toFixed(2)}</Text>
+          <Text style={[styles.statLabel, rtlTextAlign, rtlText]}>{t("monthRevenue")}</Text>
+          <Text style={[styles.statValue, rtlTextAlign]}>${Number(monthRevenue).toFixed(2)}</Text>
         </GlassCard>
         <GlassCard style={styles.statCardHalf}>
           <View style={[styles.statIconWrap, { backgroundColor: totalProfit >= 0 ? Colors.success + "20" : Colors.danger + "20" }]}>
             <Ionicons name="wallet" size={20} color={totalProfit >= 0 ? Colors.success : Colors.danger} />
           </View>
-          <Text style={styles.statLabel}>Net Profit</Text>
-          <Text style={[styles.statValue, { color: totalProfit >= 0 ? Colors.success : Colors.danger }]}>
+          <Text style={[styles.statLabel, rtlTextAlign, rtlText]}>{t("netProfit")}</Text>
+          <Text style={[styles.statValue, { color: totalProfit >= 0 ? Colors.success : Colors.danger }, rtlTextAlign]}>
             ${Number(totalProfit).toFixed(2)}
           </Text>
         </GlassCard>
       </View>
 
-      <Text style={styles.sectionTitle}>Revenue vs Expenses</Text>
+      <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("revenueVsExpenses")}</Text>
       <GlassCard>
         <View style={styles.revExpRow}>
           <View style={styles.revExpItem}>
-            <View style={styles.revExpHeader}>
+            <View style={[styles.revExpHeader, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
               <View style={[styles.revExpDot, { backgroundColor: Colors.accent }]} />
-              <Text style={styles.revExpLabel}>Revenue</Text>
+              <Text style={[styles.revExpLabel, rtlText]}>{t("revenue")}</Text>
             </View>
-            <Text style={styles.revExpValue}>${Number(totalRevenue).toFixed(2)}</Text>
+            <Text style={[styles.revExpValue, rtlTextAlign]}>${Number(totalRevenue).toFixed(2)}</Text>
             <View style={[styles.barTrack, { height: 12, marginTop: 6 }]}>
               <LinearGradient
                 colors={[Colors.gradientStart, Colors.accent]}
@@ -244,11 +244,11 @@ export default function ReportsScreen() {
             </View>
           </View>
           <View style={styles.revExpItem}>
-            <View style={styles.revExpHeader}>
+            <View style={[styles.revExpHeader, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
               <View style={[styles.revExpDot, { backgroundColor: Colors.danger }]} />
-              <Text style={styles.revExpLabel}>Expenses</Text>
+              <Text style={[styles.revExpLabel, rtlText]}>{t("expenses")}</Text>
             </View>
-            <Text style={styles.revExpValue}>${Number(totalExpenses).toFixed(2)}</Text>
+            <Text style={[styles.revExpValue, rtlTextAlign]}>${Number(totalExpenses).toFixed(2)}</Text>
             <View style={[styles.barTrack, { height: 12, marginTop: 6 }]}>
               <View style={[styles.barFill, { width: `${(totalExpenses / revenueExpenseMax) * 100}%`, backgroundColor: Colors.danger, height: 12 }]} />
             </View>
@@ -256,19 +256,19 @@ export default function ReportsScreen() {
         </View>
       </GlassCard>
 
-      <Text style={styles.sectionTitle}>{t("topProducts")}</Text>
+      <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("topProducts")}</Text>
       {topProducts.length > 0 ? (
         <GlassCard>
           {topProducts.slice(0, 5).map((product: any, index: number) => (
-            <View key={index} style={[styles.topProductRow, index < Math.min(topProducts.length, 5) - 1 && styles.topProductBorder]}>
+            <View key={index} style={[styles.topProductRow, { flexDirection: isRTL ? "row-reverse" : "row" }, index < Math.min(topProducts.length, 5) - 1 && styles.topProductBorder]}>
               <View style={styles.topProductRank}>
                 <Text style={styles.topProductRankText}>{index + 1}</Text>
               </View>
               <View style={styles.topProductInfo}>
-                <Text style={styles.topProductName} numberOfLines={1}>{product.name}</Text>
-                <View style={styles.topProductMeta}>
+                <Text style={[styles.topProductName, rtlTextAlign, rtlText]} numberOfLines={1}>{product.name}</Text>
+                <View style={[styles.topProductMeta, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
                   <Text style={styles.topProductRevenue}>${Number(product.revenue || 0).toFixed(2)}</Text>
-                  <Text style={styles.topProductQty}>{product.totalSold || 0} sold</Text>
+                  <Text style={[styles.topProductQty, rtlText]}>{product.totalSold || 0} {t("sold")}</Text>
                 </View>
                 <PercentBar percent={(product.revenue / topProductMax) * 100} color={Colors.accent} height={6} />
               </View>
@@ -279,12 +279,12 @@ export default function ReportsScreen() {
         <GlassCard>
           <View style={styles.empty}>
             <Ionicons name="bar-chart-outline" size={32} color={Colors.textMuted} />
-            <Text style={styles.emptyText}>No product data yet</Text>
+            <Text style={[styles.emptyText, rtlText]}>{t("noProductData")}</Text>
           </View>
         </GlassCard>
       )}
 
-      <Text style={styles.sectionTitle}>Payment Methods</Text>
+      <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("paymentMethods")}</Text>
       {salesByPaymentMethod.length > 0 ? (
         <GlassCard>
           {salesByPaymentMethod.map((method: any, index: number) => {
@@ -302,16 +302,16 @@ export default function ReportsScreen() {
             };
             const icon = methodIcons[method.method?.toLowerCase()] || "ellipse";
             return (
-              <View key={index} style={[styles.paymentRow, index < salesByPaymentMethod.length - 1 && styles.topProductBorder]}>
+              <View key={index} style={[styles.paymentRow, { flexDirection: isRTL ? "row-reverse" : "row" }, index < salesByPaymentMethod.length - 1 && styles.topProductBorder]}>
                 <View style={[styles.paymentIcon, { backgroundColor: color + "20" }]}>
                   <Ionicons name={icon as any} size={18} color={color} />
                 </View>
                 <View style={styles.paymentInfo}>
-                  <View style={styles.paymentHeader}>
-                    <Text style={styles.paymentName}>{method.method || "Unknown"}</Text>
+                  <View style={[styles.paymentHeader, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+                    <Text style={[styles.paymentName, rtlText]}>{method.method || "Unknown"}</Text>
                     <Text style={styles.paymentPct}>{pct.toFixed(0)}%</Text>
                   </View>
-                  <Text style={styles.paymentAmount}>${Number(method.total || 0).toFixed(2)} ({method.count || 0} sales)</Text>
+                  <Text style={[styles.paymentAmount, rtlTextAlign, rtlText]}>${Number(method.total || 0).toFixed(2)} ({method.count || 0} {t("salesCount")})</Text>
                   <PercentBar percent={pct} color={color} height={6} />
                 </View>
               </View>
@@ -322,74 +322,74 @@ export default function ReportsScreen() {
         <GlassCard>
           <View style={styles.empty}>
             <Ionicons name="pie-chart-outline" size={32} color={Colors.textMuted} />
-            <Text style={styles.emptyText}>No payment data yet</Text>
+            <Text style={[styles.emptyText, rtlText]}>{t("noPaymentData")}</Text>
           </View>
         </GlassCard>
       )}
 
-      <Text style={styles.sectionTitle}>Quick Stats</Text>
-      <View style={styles.quickStatsGrid}>
+      <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("quickStats")}</Text>
+      <View style={[styles.quickStatsGrid, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <GlassCard style={styles.quickStatCard}>
           <Ionicons name="pricetag" size={20} color={Colors.accent} />
           <Text style={styles.quickStatValue}>${Number(avgOrderValue).toFixed(2)}</Text>
-          <Text style={styles.quickStatLabel}>Avg Order</Text>
+          <Text style={[styles.quickStatLabel, rtlText]}>{t("avgOrder")}</Text>
         </GlassCard>
         <GlassCard style={styles.quickStatCard}>
           <Ionicons name="people" size={20} color={Colors.info} />
           <Text style={styles.quickStatValue}>{Number(totalCustomers).toFixed(0)}</Text>
-          <Text style={styles.quickStatLabel}>Customers</Text>
+          <Text style={[styles.quickStatLabel, rtlText]}>{t("customers")}</Text>
         </GlassCard>
         <GlassCard style={styles.quickStatCard}>
           <Ionicons name="cube" size={20} color={Colors.secondary} />
           <Text style={styles.quickStatValue}>{Number(totalProducts).toFixed(0)}</Text>
-          <Text style={styles.quickStatLabel}>Products</Text>
+          <Text style={[styles.quickStatLabel, rtlText]}>{t("products")}</Text>
         </GlassCard>
         <GlassCard style={styles.quickStatCard}>
           <Ionicons name="alert-circle" size={20} color={Colors.danger} />
           <Text style={styles.quickStatValue}>{Number(lowStockItems).toFixed(0)}</Text>
-          <Text style={styles.quickStatLabel}>Low Stock</Text>
+          <Text style={[styles.quickStatLabel, rtlText]}>{t("lowStock")}</Text>
         </GlassCard>
       </View>
 
-      <Text style={styles.sectionTitle}>{t("smartInsights")}</Text>
+      <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("smartInsights")}</Text>
       {predictions ? (
         <GlassCard>
           <View style={{ gap: 12 }}>
-            <View style={{ flexDirection: "row", gap: 12 }}>
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12 }}>
               <View style={{ flex: 1, backgroundColor: Colors.accent + "10", borderRadius: 12, padding: 12 }}>
-                <Text style={{ color: Colors.textMuted, fontSize: 11 }}>{t("projectedMonthly")}</Text>
-                <Text style={{ color: Colors.accent, fontSize: 18, fontWeight: "700" }}>${Number(predictions.projectedMonthlyRevenue || 0).toFixed(0)}</Text>
+                <Text style={[{ color: Colors.textMuted, fontSize: 11 }, rtlTextAlign, rtlText]}>{t("projectedMonthly")}</Text>
+                <Text style={[{ color: Colors.accent, fontSize: 18, fontWeight: "700" }, rtlTextAlign]}>${Number(predictions.projectedMonthlyRevenue || 0).toFixed(0)}</Text>
               </View>
               <View style={{ flex: 1, backgroundColor: Colors.success + "10", borderRadius: 12, padding: 12 }}>
-                <Text style={{ color: Colors.textMuted, fontSize: 11 }}>{t("projectedYearly")}</Text>
-                <Text style={{ color: Colors.success, fontSize: 18, fontWeight: "700" }}>${Number(predictions.projectedYearlyRevenue || 0).toFixed(0)}</Text>
+                <Text style={[{ color: Colors.textMuted, fontSize: 11 }, rtlTextAlign, rtlText]}>{t("projectedYearly")}</Text>
+                <Text style={[{ color: Colors.success, fontSize: 18, fontWeight: "700" }, rtlTextAlign]}>${Number(predictions.projectedYearlyRevenue || 0).toFixed(0)}</Text>
               </View>
             </View>
-            <View style={{ flexDirection: "row", gap: 12 }}>
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12 }}>
               <View style={{ flex: 1, backgroundColor: Colors.info + "10", borderRadius: 12, padding: 12 }}>
-                <Text style={{ color: Colors.textMuted, fontSize: 11 }}>{t("dailyAverage")}</Text>
-                <Text style={{ color: Colors.info, fontSize: 18, fontWeight: "700" }}>${Number(predictions.avgDailyRevenue || 0).toFixed(2)}</Text>
+                <Text style={[{ color: Colors.textMuted, fontSize: 11 }, rtlTextAlign, rtlText]}>{t("dailyAverage")}</Text>
+                <Text style={[{ color: Colors.info, fontSize: 18, fontWeight: "700" }, rtlTextAlign]}>${Number(predictions.avgDailyRevenue || 0).toFixed(2)}</Text>
               </View>
               <View style={{ flex: 1, backgroundColor: Colors.warning + "10", borderRadius: 12, padding: 12 }}>
-                <Text style={{ color: Colors.textMuted, fontSize: 11 }}>{t("slowMoving")}</Text>
-                <Text style={{ color: Colors.warning, fontSize: 18, fontWeight: "700" }}>{predictions.slowMovingCount || 0}</Text>
+                <Text style={[{ color: Colors.textMuted, fontSize: 11 }, rtlTextAlign, rtlText]}>{t("slowMoving")}</Text>
+                <Text style={[{ color: Colors.warning, fontSize: 18, fontWeight: "700" }, rtlTextAlign]}>{predictions.slowMovingCount || 0}</Text>
               </View>
             </View>
             {(predictions.insights || []).map((insight: string, i: number) => (
-              <View key={i} style={{ flexDirection: "row", gap: 8, alignItems: "flex-start" }}>
+              <View key={i} style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8, alignItems: isRTL ? "flex-end" : "flex-start" }}>
                 <Ionicons name="bulb" size={16} color={Colors.warning} style={{ marginTop: 2 }} />
-                <Text style={{ color: Colors.textSecondary, fontSize: 13, flex: 1 }}>{insight}</Text>
+                <Text style={[{ color: Colors.textSecondary, fontSize: 13, flex: 1 }, rtlTextAlign, rtlText]}>{insight}</Text>
               </View>
             ))}
             {(predictions.stockAlerts || []).length > 0 && (
               <View style={{ marginTop: 4 }}>
-                <Text style={{ color: Colors.danger, fontSize: 13, fontWeight: "700", marginBottom: 6 }}>{t("stockAlerts")}</Text>
+                <Text style={[{ color: Colors.danger, fontSize: 13, fontWeight: "700", marginBottom: 6 }, rtlTextAlign, rtlText]}>{t("stockAlerts")}</Text>
                 {(predictions.stockAlerts || []).slice(0, 5).map((alert: any, i: number) => (
-                  <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 4 }}>
+                  <View key={i} style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 8, paddingVertical: 4 }}>
                     <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: alert.urgency === "critical" ? Colors.danger : Colors.warning }} />
-                    <Text style={{ color: Colors.text, fontSize: 12, flex: 1 }}>{alert.productName}</Text>
-                    <Text style={{ color: Colors.textMuted, fontSize: 11 }}>Stock: {alert.currentStock}</Text>
-                    <Text style={{ color: Colors.accent, fontSize: 11, fontWeight: "600" }}>{alert.recommendation}</Text>
+                    <Text style={[{ color: Colors.text, fontSize: 12, flex: 1 }, rtlTextAlign, rtlText]}>{alert.productName}</Text>
+                    <Text style={[{ color: Colors.textMuted, fontSize: 11 }, rtlText]}>{t("stock")}: {alert.currentStock}</Text>
+                    <Text style={[{ color: Colors.accent, fontSize: 11, fontWeight: "600" }, rtlText]}>{alert.recommendation}</Text>
                   </View>
                 ))}
               </View>
@@ -400,7 +400,7 @@ export default function ReportsScreen() {
         <GlassCard>
           <View style={styles.empty}>
             <Ionicons name="bulb-outline" size={32} color={Colors.textMuted} />
-            <Text style={styles.emptyText}>{t("loadingPredictions")}</Text>
+            <Text style={[styles.emptyText, rtlText]}>{t("loadingPredictions")}</Text>
           </View>
         </GlassCard>
       )}
@@ -418,21 +418,21 @@ export default function ReportsScreen() {
 
     return (
       <GlassCard style={styles.saleCard}>
-        <View style={styles.saleTop}>
-          <View style={styles.saleReceiptWrap}>
+        <View style={[styles.saleTop, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+          <View style={[styles.saleReceiptWrap, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
             <Ionicons name="receipt-outline" size={16} color={Colors.accent} />
-            <Text style={styles.saleReceipt}>{item.receiptNumber}</Text>
+            <Text style={[styles.saleReceipt, rtlText]}>{item.receiptNumber}</Text>
           </View>
           <Text style={styles.saleAmount}>${Number(item.totalAmount).toFixed(2)}</Text>
         </View>
-        <View style={styles.saleBottom}>
-          <Text style={styles.saleDate}>{new Date(item.createdAt).toLocaleDateString()} {new Date(item.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</Text>
-          <View style={styles.saleBadges}>
+        <View style={[styles.saleBottom, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+          <Text style={[styles.saleDate, rtlText]}>{new Date(item.createdAt).toLocaleDateString()} {new Date(item.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</Text>
+          <View style={[styles.saleBadges, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
             <View style={[styles.badge, { backgroundColor: badgeColor + "20" }]}>
-              <Text style={[styles.badgeText, { color: badgeColor }]}>{item.paymentMethod}</Text>
+              <Text style={[styles.badgeText, { color: badgeColor }, rtlText]}>{item.paymentMethod}</Text>
             </View>
             <View style={[styles.badge, { backgroundColor: statusColor + "20" }]}>
-              <Text style={[styles.badgeText, { color: statusColor }]}>{item.status}</Text>
+              <Text style={[styles.badgeText, { color: statusColor }, rtlText]}>{item.status === "completed" ? t("completed") : item.status === "pending" ? t("pending") : item.status}</Text>
             </View>
           </View>
         </View>
@@ -442,13 +442,13 @@ export default function ReportsScreen() {
 
   const renderSales = () => (
     <>
-      <Text style={styles.sectionTitle}>Date Filter</Text>
+      <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("dateFilter")}</Text>
       <GlassCard>
-        <View style={{ flexDirection: "row", gap: 10 }}>
+        <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 10 }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: Colors.textMuted, fontSize: 11, marginBottom: 4 }}>From</Text>
+            <Text style={[{ color: Colors.textMuted, fontSize: 11, marginBottom: 4 }, rtlTextAlign, rtlText]}>{t("from")}</Text>
             <TextInput
-              style={{ backgroundColor: Colors.surfaceLight, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: Colors.text, fontSize: 14, borderWidth: 1, borderColor: Colors.cardBorder }}
+              style={[{ backgroundColor: Colors.surfaceLight, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: Colors.text, fontSize: 14, borderWidth: 1, borderColor: Colors.cardBorder }, rtlTextAlign, rtlText]}
               placeholder="YYYY-MM-DD"
               placeholderTextColor={Colors.textMuted}
               value={dateFrom}
@@ -456,9 +456,9 @@ export default function ReportsScreen() {
             />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: Colors.textMuted, fontSize: 11, marginBottom: 4 }}>To</Text>
+            <Text style={[{ color: Colors.textMuted, fontSize: 11, marginBottom: 4 }, rtlTextAlign, rtlText]}>{t("to")}</Text>
             <TextInput
-              style={{ backgroundColor: Colors.surfaceLight, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: Colors.text, fontSize: 14, borderWidth: 1, borderColor: Colors.cardBorder }}
+              style={[{ backgroundColor: Colors.surfaceLight, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: Colors.text, fontSize: 14, borderWidth: 1, borderColor: Colors.cardBorder }, rtlTextAlign, rtlText]}
               placeholder="YYYY-MM-DD"
               placeholderTextColor={Colors.textMuted}
               value={dateTo}
@@ -468,17 +468,17 @@ export default function ReportsScreen() {
         </View>
         {(dateFrom || dateTo) && (
           <View style={{ marginTop: 10 }}>
-            <Text style={{ color: Colors.accent, fontSize: 13, fontWeight: "600" }}>
-              {filteredSales.length} sales found in range
+            <Text style={[{ color: Colors.accent, fontSize: 13, fontWeight: "600" }, rtlTextAlign, rtlText]}>
+              {filteredSales.length} {t("salesFoundInRange")}
             </Text>
             <Pressable onPress={() => { setDateFrom(""); setDateTo(""); }} style={{ marginTop: 6 }}>
-              <Text style={{ color: Colors.danger, fontSize: 12 }}>Clear Filter</Text>
+              <Text style={[{ color: Colors.danger, fontSize: 12 }, rtlTextAlign, rtlText]}>{t("clearFilter")}</Text>
             </Pressable>
           </View>
         )}
       </GlassCard>
 
-      <Text style={styles.sectionTitle}>{t("recentSales")}</Text>
+      <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("recentSales")}</Text>
       <FlatList
         data={(dateFrom || dateTo) ? filteredSales : salesData}
         keyExtractor={(item: any) => String(item.id)}
@@ -488,7 +488,7 @@ export default function ReportsScreen() {
           <GlassCard>
             <View style={styles.empty}>
               <Ionicons name="receipt-outline" size={40} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>{t("noSalesData")}</Text>
+              <Text style={[styles.emptyText, rtlText]}>{t("noSalesData")}</Text>
             </View>
           </GlassCard>
         }
@@ -498,7 +498,7 @@ export default function ReportsScreen() {
 
   const renderInventory = () => (
     <>
-      <Text style={styles.sectionTitle}>{t("stockAlerts")}</Text>
+      <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("stockAlerts")}</Text>
       {lowStock.length > 0 ? (
         <FlatList
           data={lowStock}
@@ -510,22 +510,22 @@ export default function ReportsScreen() {
             const threshold = item.lowStockThreshold ?? 10;
             const pct = threshold > 0 ? Math.min((qty / threshold) * 100, 100) : 0;
             return (
-              <GlassCard style={styles.stockAlertCard}>
-                <View style={styles.stockAlertLeft}>
+              <GlassCard style={[styles.stockAlertCard, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+                <View style={[styles.stockAlertLeft, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
                   <View style={[styles.stockAlertIcon, { backgroundColor: Colors.danger + "20" }]}>
                     <Ionicons name="warning" size={20} color={Colors.danger} />
                   </View>
                   <View style={styles.stockAlertInfo}>
-                    <Text style={styles.stockAlertName} numberOfLines={1}>{product?.name || `Product #${item.productId}`}</Text>
-                    <Text style={styles.stockAlertMeta}>Threshold: {threshold}</Text>
+                    <Text style={[styles.stockAlertName, rtlTextAlign, rtlText]} numberOfLines={1}>{product?.name || `Product #${item.productId}`}</Text>
+                    <Text style={[styles.stockAlertMeta, rtlTextAlign, rtlText]}>{t("threshold")}: {threshold}</Text>
                     <PercentBar percent={pct} color={qty <= 5 ? Colors.danger : Colors.warning} height={4} />
                   </View>
                 </View>
-                <View style={styles.stockAlertRight}>
+                <View style={[styles.stockAlertRight, { marginLeft: isRTL ? 0 : 12, marginRight: isRTL ? 12 : 0 }]}>
                   <Text style={[styles.stockAlertQty, { color: qty <= 5 ? Colors.danger : Colors.warning }]}>
                     {qty}
                   </Text>
-                  <Text style={styles.stockAlertUnit}>left</Text>
+                  <Text style={[styles.stockAlertUnit, rtlText]}>{t("left")}</Text>
                 </View>
               </GlassCard>
             );
@@ -535,12 +535,12 @@ export default function ReportsScreen() {
         <GlassCard>
           <View style={styles.empty}>
             <Ionicons name="checkmark-circle" size={40} color={Colors.success} />
-            <Text style={styles.emptyText}>All stock levels are healthy</Text>
+            <Text style={[styles.emptyText, rtlText]}>{t("allStockHealthy")}</Text>
           </View>
         </GlassCard>
       )}
 
-      <Text style={styles.sectionTitle}>{t("recentMovements")}</Text>
+      <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("recentMovements")}</Text>
       {inventoryMovements.length > 0 ? (
         <FlatList
           data={inventoryMovements.slice(0, 15)}
@@ -551,13 +551,13 @@ export default function ReportsScreen() {
             const typeIcons: Record<string, string> = { sale: "cart", return: "swap-horizontal", adjustment: "construct", transfer: "repeat", purchase: "cube", count: "clipboard" };
             const color = typeColors[item.type] || Colors.textMuted;
             return (
-              <GlassCard style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10 }}>
+              <GlassCard style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 10, paddingVertical: 10 }}>
                 <View style={[styles.paymentIcon, { backgroundColor: color + "20" }]}>
                   <Ionicons name={(typeIcons[item.type] || "ellipse") as any} size={16} color={color} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: Colors.text, fontSize: 13, fontWeight: "600" }}>{item.notes || `${item.type} movement`}</Text>
-                  <Text style={{ color: Colors.textMuted, fontSize: 11 }}>{new Date(item.createdAt).toLocaleString()}</Text>
+                  <Text style={[{ color: Colors.text, fontSize: 13, fontWeight: "600" }, rtlTextAlign, rtlText]}>{item.notes || `${item.type} movement`}</Text>
+                  <Text style={[{ color: Colors.textMuted, fontSize: 11 }, rtlTextAlign, rtlText]}>{new Date(item.createdAt).toLocaleString()}</Text>
                 </View>
                 <Text style={{ color: item.quantity > 0 ? Colors.success : Colors.danger, fontSize: 14, fontWeight: "700" }}>
                   {item.quantity > 0 ? "+" : ""}{item.quantity}
@@ -570,32 +570,32 @@ export default function ReportsScreen() {
         <GlassCard>
           <View style={styles.empty}>
             <Ionicons name="swap-vertical-outline" size={32} color={Colors.textMuted} />
-            <Text style={styles.emptyText}>{t("noMovements")}</Text>
+            <Text style={[styles.emptyText, rtlText]}>{t("noMovements")}</Text>
           </View>
         </GlassCard>
       )}
 
-      <Text style={styles.sectionTitle}>{t("fullInventory")}</Text>
+      <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("fullInventory")}</Text>
       <FlatList
         data={allProducts}
         keyExtractor={(item: any) => String(item.id)}
         scrollEnabled={!!allProducts.length}
         renderItem={({ item }: { item: any }) => (
-          <GlassCard style={styles.inventoryCard}>
-            <View style={styles.inventoryLeft}>
+          <GlassCard style={[styles.inventoryCard, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+            <View style={[styles.inventoryLeft, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
               <View style={[styles.inventoryIcon, { backgroundColor: Colors.accent + "15" }]}>
                 <Ionicons name="cube-outline" size={18} color={Colors.accent} />
               </View>
               <View style={styles.inventoryInfo}>
-                <Text style={styles.inventoryName} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.inventoryPrice}>${Number(item.price || 0).toFixed(2)}</Text>
+                <Text style={[styles.inventoryName, rtlTextAlign, rtlText]} numberOfLines={1}>{item.name}</Text>
+                <Text style={[styles.inventoryPrice, rtlTextAlign]}>${Number(item.price || 0).toFixed(2)}</Text>
               </View>
             </View>
-            <View style={styles.inventoryRight}>
+            <View style={[styles.inventoryRight, { marginLeft: isRTL ? 0 : 12, marginRight: isRTL ? 12 : 0 }]}>
               <Text style={[styles.inventoryQty, { color: (item.stockQuantity ?? 0) <= 5 ? Colors.danger : (item.stockQuantity ?? 0) <= 15 ? Colors.warning : Colors.success }]}>
                 {item.stockQuantity ?? 0}
               </Text>
-              <Text style={styles.inventoryUnit}>in stock</Text>
+              <Text style={[styles.inventoryUnit, rtlText]}>{t("inStock")}</Text>
             </View>
           </GlassCard>
         )}
@@ -603,7 +603,7 @@ export default function ReportsScreen() {
           <GlassCard>
             <View style={styles.empty}>
               <Ionicons name="cube-outline" size={40} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>No products in inventory</Text>
+              <Text style={[styles.emptyText, rtlText]}>{t("noProductsInInventory")}</Text>
             </View>
           </GlassCard>
         }
@@ -632,7 +632,7 @@ export default function ReportsScreen() {
     };
     return (
       <>
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
+        <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("recentActivity")}</Text>
         <FlatList
           data={activityLog}
           keyExtractor={(item: any) => String(item.id)}
@@ -640,18 +640,18 @@ export default function ReportsScreen() {
           renderItem={({ item }: { item: any }) => {
             const color = getActionColor(item.action);
             return (
-              <GlassCard style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12 }}>
+              <GlassCard style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 12, paddingVertical: 12 }}>
                 <View style={[styles.paymentIcon, { backgroundColor: color + "20" }]}>
                   <Ionicons name={getActionIcon(item.action) as any} size={18} color={color} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: Colors.text, fontSize: 14, fontWeight: "600" }}>{item.details || item.action}</Text>
-                  <Text style={{ color: Colors.textMuted, fontSize: 11, marginTop: 2 }}>
+                  <Text style={[{ color: Colors.text, fontSize: 14, fontWeight: "600" }, rtlTextAlign, rtlText]}>{item.details || item.action}</Text>
+                  <Text style={[{ color: Colors.textMuted, fontSize: 11, marginTop: 2 }, rtlTextAlign, rtlText]}>
                     {new Date(item.createdAt).toLocaleString()} | {item.action.replace(/_/g, " ")}
                   </Text>
                 </View>
                 <View style={[styles.badge, { backgroundColor: color + "20" }]}>
-                  <Text style={[styles.badgeText, { color }]}>{item.action.replace(/_/g, " ")}</Text>
+                  <Text style={[styles.badgeText, { color }, rtlText]}>{item.action.replace(/_/g, " ")}</Text>
                 </View>
               </GlassCard>
             );
@@ -660,7 +660,7 @@ export default function ReportsScreen() {
             <GlassCard>
               <View style={styles.empty}>
                 <Ionicons name="list-outline" size={40} color={Colors.textMuted} />
-                <Text style={styles.emptyText}>No activity recorded yet</Text>
+                <Text style={[styles.emptyText, rtlText]}>{t("noActivityRecorded")}</Text>
               </View>
             </GlassCard>
           }
@@ -671,33 +671,33 @@ export default function ReportsScreen() {
 
   const renderReturns = () => (
     <>
-      <View style={styles.statGrid}>
+      <View style={[styles.statGrid, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <GlassCard style={styles.statCardHalf}>
           <View style={[styles.statIconWrap, { backgroundColor: Colors.warning + "20" }]}>
             <Ionicons name="swap-horizontal" size={20} color={Colors.warning} />
           </View>
-          <Text style={styles.statLabel}>{t("totalReturns")}</Text>
-          <Text style={styles.statValue}>{returnsReport?.totalReturns || 0}</Text>
+          <Text style={[styles.statLabel, rtlTextAlign, rtlText]}>{t("totalReturns")}</Text>
+          <Text style={[styles.statValue, rtlTextAlign]}>{returnsReport?.totalReturns || 0}</Text>
         </GlassCard>
         <GlassCard style={styles.statCardHalf}>
           <View style={[styles.statIconWrap, { backgroundColor: Colors.danger + "20" }]}>
             <Ionicons name="cash" size={20} color={Colors.danger} />
           </View>
-          <Text style={styles.statLabel}>{t("totalRefunds")}</Text>
-          <Text style={styles.statValue}>${Number(returnsReport?.totalRefundAmount || 0).toFixed(2)}</Text>
+          <Text style={[styles.statLabel, rtlTextAlign, rtlText]}>{t("totalRefunds")}</Text>
+          <Text style={[styles.statValue, rtlTextAlign]}>${Number(returnsReport?.totalRefundAmount || 0).toFixed(2)}</Text>
         </GlassCard>
       </View>
 
-      <Text style={styles.sectionTitle}>{t("recentReturns")}</Text>
+      <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("recentReturns")}</Text>
       {(returnsReport?.recentReturns || []).length > 0 ? (
         (returnsReport.recentReturns || []).map((ret: any) => (
-          <GlassCard key={ret.id} style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12 }}>
+          <GlassCard key={ret.id} style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 12, paddingVertical: 12 }}>
             <View style={[styles.paymentIcon, { backgroundColor: Colors.warning + "20" }]}>
               <Ionicons name="swap-horizontal" size={18} color={Colors.warning} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: Colors.text, fontSize: 14, fontWeight: "600" }}>Return #{ret.id} - Sale #{ret.originalSaleId}</Text>
-              <Text style={{ color: Colors.textMuted, fontSize: 11, marginTop: 2 }}>
+              <Text style={[{ color: Colors.text, fontSize: 14, fontWeight: "600" }, rtlTextAlign, rtlText]}>Return #{ret.id} - Sale #{ret.originalSaleId}</Text>
+              <Text style={[{ color: Colors.textMuted, fontSize: 11, marginTop: 2 }, rtlTextAlign, rtlText]}>
                 {new Date(ret.createdAt).toLocaleString()} | {ret.reason || "No reason"} | {ret.type || "refund"}
               </Text>
             </View>
@@ -708,7 +708,7 @@ export default function ReportsScreen() {
         <GlassCard>
           <View style={styles.empty}>
             <Ionicons name="checkmark-circle" size={40} color={Colors.success} />
-            <Text style={styles.emptyText}>{t("noReturns")}</Text>
+            <Text style={[styles.emptyText, rtlText]}>{t("noReturns")}</Text>
           </View>
         </GlassCard>
       )}
@@ -721,13 +721,13 @@ export default function ReportsScreen() {
 
     return (
       <>
-        <View style={styles.statGrid}>
+        <View style={[styles.statGrid, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
           <GlassCard style={styles.statCardHalf}>
             <View style={[styles.statIconWrap, { backgroundColor: Colors.success + "20" }]}>
               <Ionicons name="trending-up" size={20} color={Colors.success} />
             </View>
-            <Text style={styles.statLabel}>{t("totalProfit")}</Text>
-            <Text style={[styles.statValue, { color: totalProfitAll >= 0 ? Colors.success : Colors.danger }]}>
+            <Text style={[styles.statLabel, rtlTextAlign, rtlText]}>{t("totalProfit")}</Text>
+            <Text style={[styles.statValue, { color: totalProfitAll >= 0 ? Colors.success : Colors.danger }, rtlTextAlign]}>
               ${totalProfitAll.toFixed(2)}
             </Text>
           </GlassCard>
@@ -735,28 +735,28 @@ export default function ReportsScreen() {
             <View style={[styles.statIconWrap, { backgroundColor: Colors.info + "20" }]}>
               <Ionicons name="people" size={20} color={Colors.info} />
             </View>
-            <Text style={styles.statLabel}>{t("activeCashiers")}</Text>
-            <Text style={styles.statValue}>{cashierPerformance.length}</Text>
+            <Text style={[styles.statLabel, rtlTextAlign, rtlText]}>{t("activeCashiers")}</Text>
+            <Text style={[styles.statValue, rtlTextAlign]}>{cashierPerformance.length}</Text>
           </GlassCard>
         </View>
 
-        <Text style={styles.sectionTitle}>{t("cashierPerformance")}</Text>
+        <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("cashierPerformance")}</Text>
         {cashierPerformance.length > 0 ? (
           <GlassCard>
             {cashierPerformance.map((perf: any, index: number) => (
-              <View key={perf.employeeId} style={[styles.topProductRow, index < cashierPerformance.length - 1 && styles.topProductBorder]}>
+              <View key={perf.employeeId} style={[styles.topProductRow, { flexDirection: isRTL ? "row-reverse" : "row" }, index < cashierPerformance.length - 1 && styles.topProductBorder]}>
                 <View style={styles.topProductRank}>
                   <Text style={styles.topProductRankText}>{index + 1}</Text>
                 </View>
                 <View style={styles.topProductInfo}>
-                  <Text style={styles.topProductName}>{perf.employeeName}</Text>
-                  <View style={styles.topProductMeta}>
+                  <Text style={[styles.topProductName, rtlTextAlign, rtlText]}>{perf.employeeName}</Text>
+                  <View style={[styles.topProductMeta, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
                     <Text style={styles.topProductRevenue}>${Number(perf.totalRevenue).toFixed(2)}</Text>
-                    <Text style={styles.topProductQty}>{perf.salesCount} sales | Avg ${Number(perf.avgSaleValue).toFixed(2)}</Text>
+                    <Text style={[styles.topProductQty, rtlText]}>{perf.salesCount} {t("salesCount")} | {t("avg")} ${Number(perf.avgSaleValue).toFixed(2)}</Text>
                   </View>
                 </View>
                 <View style={[styles.badge, { backgroundColor: (perf.role === "admin" ? Colors.danger : perf.role === "manager" ? Colors.warning : Colors.info) + "20" }]}>
-                  <Text style={[styles.badgeText, { color: perf.role === "admin" ? Colors.danger : perf.role === "manager" ? Colors.warning : Colors.info }]}>{perf.role}</Text>
+                  <Text style={[styles.badgeText, { color: perf.role === "admin" ? Colors.danger : perf.role === "manager" ? Colors.warning : Colors.info }, rtlText]}>{perf.role}</Text>
                 </View>
               </View>
             ))}
@@ -765,26 +765,26 @@ export default function ReportsScreen() {
           <GlassCard>
             <View style={styles.empty}>
               <Ionicons name="people-outline" size={32} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>{t("noSalesData")}</Text>
+              <Text style={[styles.emptyText, rtlText]}>{t("noSalesData")}</Text>
             </View>
           </GlassCard>
         )}
 
-        <Text style={styles.sectionTitle}>{t("profitByProduct")}</Text>
+        <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("profitByProduct")}</Text>
         {profitByProduct.length > 0 ? (
           <GlassCard>
             {profitByProduct.slice(0, 10).map((product: any, index: number) => (
-              <View key={product.productId} style={[styles.topProductRow, index < Math.min(profitByProduct.length, 10) - 1 && styles.topProductBorder]}>
+              <View key={product.productId} style={[styles.topProductRow, { flexDirection: isRTL ? "row-reverse" : "row" }, index < Math.min(profitByProduct.length, 10) - 1 && styles.topProductBorder]}>
                 <View style={styles.topProductRank}>
                   <Text style={styles.topProductRankText}>{index + 1}</Text>
                 </View>
                 <View style={styles.topProductInfo}>
-                  <Text style={styles.topProductName} numberOfLines={1}>{product.productName}</Text>
-                  <View style={styles.topProductMeta}>
+                  <Text style={[styles.topProductName, rtlTextAlign, rtlText]} numberOfLines={1}>{product.productName}</Text>
+                  <View style={[styles.topProductMeta, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
                     <Text style={[styles.topProductRevenue, { color: product.profit >= 0 ? Colors.success : Colors.danger }]}>
-                      Profit: ${Number(product.profit).toFixed(2)}
+                      {t("profit")}: ${Number(product.profit).toFixed(2)}
                     </Text>
-                    <Text style={styles.topProductQty}>{product.totalSold} sold | Cost: ${Number(product.costPrice).toFixed(2)}</Text>
+                    <Text style={[styles.topProductQty, rtlText]}>{product.totalSold} {t("sold")} | {t("cost")}: ${Number(product.costPrice).toFixed(2)}</Text>
                   </View>
                   <PercentBar percent={(Math.abs(product.profit) / maxProfit) * 100} color={product.profit >= 0 ? Colors.success : Colors.danger} height={4} />
                 </View>
@@ -795,25 +795,25 @@ export default function ReportsScreen() {
           <GlassCard>
             <View style={styles.empty}>
               <Ionicons name="bar-chart-outline" size={32} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>{t("noProfitData")}</Text>
+              <Text style={[styles.emptyText, rtlText]}>{t("noProfitData")}</Text>
             </View>
           </GlassCard>
         )}
 
-        <Text style={styles.sectionTitle}>{t("slowMovingProducts")}</Text>
+        <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("slowMovingProducts")}</Text>
         {slowMovingProducts.length > 0 ? (
           <GlassCard>
             {slowMovingProducts.slice(0, 8).map((product: any, index: number) => (
-              <View key={product.id} style={[{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 }, index < Math.min(slowMovingProducts.length, 8) - 1 && styles.topProductBorder]}>
+              <View key={product.id} style={[{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 10, paddingVertical: 8 }, index < Math.min(slowMovingProducts.length, 8) - 1 && styles.topProductBorder]}>
                 <View style={[styles.paymentIcon, { backgroundColor: Colors.warning + "20" }]}>
                   <Ionicons name="trending-down" size={16} color={Colors.warning} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: Colors.text, fontSize: 13, fontWeight: "600" }} numberOfLines={1}>{product.name}</Text>
-                  <Text style={{ color: Colors.textMuted, fontSize: 11 }}>Price: ${Number(product.price).toFixed(2)} | Sold: {product.recentSold}</Text>
+                  <Text style={[{ color: Colors.text, fontSize: 13, fontWeight: "600" }, rtlTextAlign, rtlText]} numberOfLines={1}>{product.name}</Text>
+                  <Text style={[{ color: Colors.textMuted, fontSize: 11 }, rtlTextAlign, rtlText]}>{t("price")}: ${Number(product.price).toFixed(2)} | {t("sold")}: {product.recentSold}</Text>
                 </View>
                 <View style={[styles.badge, { backgroundColor: Colors.warning + "20" }]}>
-                  <Text style={[styles.badgeText, { color: Colors.warning }]}>Slow</Text>
+                  <Text style={[styles.badgeText, { color: Colors.warning }, rtlText]}>{t("slow")}</Text>
                 </View>
               </View>
             ))}
@@ -822,7 +822,7 @@ export default function ReportsScreen() {
           <GlassCard>
             <View style={styles.empty}>
               <Ionicons name="checkmark-circle" size={32} color={Colors.success} />
-              <Text style={styles.emptyText}>{t("allProductsSelling")}</Text>
+              <Text style={[styles.emptyText, rtlText]}>{t("allProductsSelling")}</Text>
             </View>
           </GlassCard>
         )}
@@ -836,17 +836,17 @@ export default function ReportsScreen() {
         colors={[Colors.gradientStart, Colors.gradientMid, Colors.gradientEnd]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={styles.header}
+        style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }]}
       >
         <Ionicons name="analytics" size={24} color={Colors.white} />
-        <Text style={styles.headerTitle}>{t("reports")}</Text>
+        <Text style={[styles.headerTitle, rtlText]}>{t("reports")}</Text>
       </LinearGradient>
 
-      <View style={styles.tabRow}>
+      <View style={[styles.tabRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         {(["overview", "sales", "inventory", "returns", "finance", "activity"] as const).map((tabKey) => (
           <Pressable
             key={tabKey}
-            style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]}
+            style={[styles.tabBtn, { flexDirection: isRTL ? "row-reverse" : "row" }, tab === tabKey && styles.tabBtnActive]}
             onPress={() => setTab(tabKey)}
           >
             <Ionicons
@@ -854,7 +854,7 @@ export default function ReportsScreen() {
               size={16}
               color={tab === tabKey ? Colors.textDark : Colors.textSecondary}
             />
-            <Text style={[styles.tabText, tab === tabKey && styles.tabTextActive]}>
+            <Text style={[styles.tabText, tab === tabKey && styles.tabTextActive, rtlText]}>
               {t(tabKey)}
             </Text>
           </Pressable>
@@ -884,7 +884,6 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingVertical: 16,
-    flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
@@ -894,13 +893,11 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
   tabRow: {
-    flexDirection: "row",
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 8,
   },
   tabBtn: {
-    flexDirection: "row",
     alignItems: "center",
     gap: 6,
     paddingHorizontal: 16,
@@ -934,7 +931,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.cardBorder,
   },
   statGrid: {
-    flexDirection: "row",
     gap: 10,
     marginBottom: 2,
   },
@@ -994,7 +990,6 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   revExpHeader: {
-    flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
@@ -1015,7 +1010,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   topProductRow: {
-    flexDirection: "row",
     alignItems: "center",
     paddingVertical: 10,
     gap: 12,
@@ -1046,7 +1040,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   topProductMeta: {
-    flexDirection: "row",
     gap: 12,
     marginTop: 2,
     marginBottom: 6,
@@ -1061,7 +1054,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   paymentRow: {
-    flexDirection: "row",
     alignItems: "center",
     paddingVertical: 10,
     gap: 12,
@@ -1077,7 +1069,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   paymentHeader: {
-    flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
@@ -1099,7 +1090,6 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   quickStatsGrid: {
-    flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
   },
@@ -1124,12 +1114,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   saleTop: {
-    flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
   saleReceiptWrap: {
-    flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
@@ -1144,7 +1132,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   saleBottom: {
-    flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: 8,
@@ -1154,7 +1141,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   saleBadges: {
-    flexDirection: "row",
     gap: 6,
   },
   badge: {
@@ -1168,13 +1154,11 @@ const styles = StyleSheet.create({
     textTransform: "capitalize",
   },
   stockAlertCard: {
-    flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
   },
   stockAlertLeft: {
-    flexDirection: "row",
     alignItems: "center",
     gap: 12,
     flex: 1,
@@ -1202,7 +1186,6 @@ const styles = StyleSheet.create({
   },
   stockAlertRight: {
     alignItems: "center",
-    marginLeft: 12,
   },
   stockAlertQty: {
     fontSize: 20,
@@ -1214,13 +1197,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   inventoryCard: {
-    flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
   },
   inventoryLeft: {
-    flexDirection: "row",
     alignItems: "center",
     gap: 12,
     flex: 1,
@@ -1247,7 +1228,6 @@ const styles = StyleSheet.create({
   },
   inventoryRight: {
     alignItems: "center",
-    marginLeft: 12,
   },
   inventoryQty: {
     fontSize: 18,

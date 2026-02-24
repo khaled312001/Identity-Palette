@@ -16,7 +16,7 @@ export default function CustomersScreen() {
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const { canManage } = useAuth();
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, rtlTextAlign, rtlText } = useLanguage();
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editCustomer, setEditCustomer] = useState<any>(null);
@@ -43,7 +43,7 @@ export default function CustomersScreen() {
       setEditCustomer(null);
       setForm({ name: "", email: "", phone: "", address: "", notes: "" });
     },
-    onError: (e: any) => Alert.alert("Error", e.message),
+    onError: (e: any) => Alert.alert(t("error"), e.message),
   });
 
   const openEdit = (c: any) => {
@@ -53,7 +53,7 @@ export default function CustomersScreen() {
   };
 
   const handleSave = () => {
-    if (!form.name) return Alert.alert("Error", "Name is required");
+    if (!form.name) return Alert.alert(t("error"), t("customerName"));
     saveMutation.mutate({ name: form.name, email: form.email || undefined, phone: form.phone || undefined, address: form.address || undefined, notes: form.notes || undefined });
   };
 
@@ -61,8 +61,8 @@ export default function CustomersScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + topPad, direction: isRTL ? "rtl" : "ltr" }]}>
-      <LinearGradient colors={[Colors.gradientStart, Colors.gradientMid]} style={styles.header}>
-        <Text style={styles.headerTitle}>{t("customers")}</Text>
+      <LinearGradient colors={[Colors.gradientStart, Colors.gradientMid]} style={[styles.header, isRTL && { flexDirection: "row-reverse" }]}>
+        <Text style={[styles.headerTitle, rtlTextAlign]}>{t("customers")}</Text>
         {canManage && (
           <Pressable style={styles.addBtn} onPress={() => { setEditCustomer(null); setForm({ name: "", email: "", phone: "", address: "", notes: "" }); setShowForm(true); }}>
             <Ionicons name="add" size={24} color={Colors.white} />
@@ -71,9 +71,9 @@ export default function CustomersScreen() {
       </LinearGradient>
 
       <View style={styles.searchRow}>
-        <View style={styles.searchBox}>
+        <View style={[styles.searchBox, isRTL && { flexDirection: "row-reverse" }]}>
           <Ionicons name="search" size={18} color={Colors.textMuted} />
-          <TextInput style={styles.searchInput} placeholder={t("search") + "..."} placeholderTextColor={Colors.textMuted} value={search} onChangeText={setSearch} />
+          <TextInput style={[styles.searchInput, isRTL ? { marginRight: 8, marginLeft: 0 } : { marginLeft: 8 }, rtlTextAlign, rtlText]} placeholder={t("search") + "..."} placeholderTextColor={Colors.textMuted} value={search} onChangeText={setSearch} />
         </View>
       </View>
 
@@ -83,16 +83,16 @@ export default function CustomersScreen() {
         contentContainerStyle={styles.list}
         scrollEnabled={!!customers.length}
         renderItem={({ item }: { item: any }) => (
-          <Pressable style={styles.card} onPress={() => { setSelectedCustomer(item); setShowDetail(true); }}>
-            <View style={styles.avatar}>
+          <Pressable style={[styles.card, isRTL && { flexDirection: "row-reverse" }]} onPress={() => { setSelectedCustomer(item); setShowDetail(true); }}>
+            <View style={[styles.avatar, isRTL ? { marginLeft: 12, marginRight: 0 } : { marginRight: 12 }]}>
               <Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text>
             </View>
             <View style={styles.cardInfo}>
-              <Text style={styles.cardName}>{item.name}</Text>
-              <Text style={styles.cardMeta}>{item.phone || item.email || "No contact info"}</Text>
+              <Text style={[styles.cardName, rtlTextAlign]}>{item.name}</Text>
+              <Text style={[styles.cardMeta, rtlTextAlign]}>{item.phone || item.email || t("noContactInfo")}</Text>
             </View>
-            <View style={styles.cardRight}>
-              <View style={styles.loyaltyBadge}>
+            <View style={[styles.cardRight, isRTL && { alignItems: "flex-start" }]}>
+              <View style={[styles.loyaltyBadge, isRTL && { flexDirection: "row-reverse" }]}>
                 <Ionicons name="star" size={12} color={Colors.warning} />
                 <Text style={styles.loyaltyText}>{item.loyaltyPoints || 0}</Text>
               </View>
@@ -100,27 +100,27 @@ export default function CustomersScreen() {
             </View>
           </Pressable>
         )}
-        ListEmptyComponent={<View style={styles.empty}><Ionicons name="people-outline" size={48} color={Colors.textMuted} /><Text style={styles.emptyText}>{t("noCustomers")}</Text></View>}
+        ListEmptyComponent={<View style={styles.empty}><Ionicons name="people-outline" size={48} color={Colors.textMuted} /><Text style={[styles.emptyText, rtlTextAlign]}>{t("noCustomers")}</Text></View>}
       />
 
       <Modal visible={showForm} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{editCustomer ? t("edit") + " " + t("customers") : t("addCustomer")}</Text>
+            <View style={[styles.modalHeader, isRTL && { flexDirection: "row-reverse" }]}>
+              <Text style={[styles.modalTitle, rtlTextAlign]}>{editCustomer ? t("edit") + " " + t("customers") : t("addCustomer")}</Text>
               <Pressable onPress={() => setShowForm(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.label}>{t("customerName")} *</Text>
-              <TextInput style={styles.input} value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} placeholderTextColor={Colors.textMuted} placeholder={t("customerName")} />
-              <Text style={styles.label}>{t("phone")}</Text>
-              <TextInput style={styles.input} value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v })} keyboardType="phone-pad" placeholderTextColor={Colors.textMuted} placeholder="+1234567890" />
-              <Text style={styles.label}>{t("email")}</Text>
-              <TextInput style={styles.input} value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} keyboardType="email-address" placeholderTextColor={Colors.textMuted} placeholder="email@example.com" autoCapitalize="none" />
-              <Text style={styles.label}>{t("address")}</Text>
-              <TextInput style={styles.input} value={form.address} onChangeText={(v) => setForm({ ...form, address: v })} placeholderTextColor={Colors.textMuted} placeholder={t("address")} />
-              <Text style={styles.label}>Notes</Text>
-              <TextInput style={[styles.input, { height: 80, textAlignVertical: "top" }]} value={form.notes} onChangeText={(v) => setForm({ ...form, notes: v })} multiline placeholderTextColor={Colors.textMuted} placeholder="Notes..." />
+              <Text style={[styles.label, rtlTextAlign]}>{t("customerName")} *</Text>
+              <TextInput style={[styles.input, rtlTextAlign, rtlText]} value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} placeholderTextColor={Colors.textMuted} placeholder={t("customerName")} />
+              <Text style={[styles.label, rtlTextAlign]}>{t("phone")}</Text>
+              <TextInput style={[styles.input, rtlTextAlign, rtlText]} value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v })} keyboardType="phone-pad" placeholderTextColor={Colors.textMuted} placeholder="+1234567890" />
+              <Text style={[styles.label, rtlTextAlign]}>{t("email")}</Text>
+              <TextInput style={[styles.input, rtlTextAlign, rtlText]} value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} keyboardType="email-address" placeholderTextColor={Colors.textMuted} placeholder="email@example.com" autoCapitalize="none" />
+              <Text style={[styles.label, rtlTextAlign]}>{t("address")}</Text>
+              <TextInput style={[styles.input, rtlTextAlign, rtlText]} value={form.address} onChangeText={(v) => setForm({ ...form, address: v })} placeholderTextColor={Colors.textMuted} placeholder={t("address")} />
+              <Text style={[styles.label, rtlTextAlign]}>{t("notes")}</Text>
+              <TextInput style={[styles.input, { height: 80, textAlignVertical: "top" }, rtlTextAlign, rtlText]} value={form.notes} onChangeText={(v) => setForm({ ...form, notes: v })} multiline placeholderTextColor={Colors.textMuted} placeholder={t("notes")} />
               <Pressable style={styles.saveBtn} onPress={handleSave}>
                 <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={styles.saveBtnGradient}>
                   <Text style={styles.saveBtnText}>{editCustomer ? t("save") : t("addCustomer")}</Text>
@@ -134,8 +134,8 @@ export default function CustomersScreen() {
       <Modal visible={showDetail} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxHeight: "90%" }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Customer Details</Text>
+            <View style={[styles.modalHeader, isRTL && { flexDirection: "row-reverse" }]}>
+              <Text style={[styles.modalTitle, rtlTextAlign]}>{t("customerDetails")}</Text>
               <Pressable onPress={() => setShowDetail(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
             </View>
             
@@ -150,9 +150,9 @@ export default function CustomersScreen() {
                   {selectedCustomer.email && <Text style={{ color: Colors.textMuted, fontSize: 13, marginTop: 2 }}>{selectedCustomer.email}</Text>}
                 </View>
 
-                <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
+                <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8, marginBottom: 16 }}>
                   <View style={{ flex: 1, backgroundColor: Colors.surfaceLight, borderRadius: 14, padding: 14, alignItems: "center" }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 4 }}>
+                    <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 4, marginBottom: 4 }}>
                       <Ionicons name="star" size={16} color={Colors.warning} />
                       <Text style={{ color: Colors.warning, fontSize: 20, fontWeight: "800" }}>{selectedCustomer.loyaltyPoints || 0}</Text>
                     </View>
@@ -160,60 +160,60 @@ export default function CustomersScreen() {
                   </View>
                   <View style={{ flex: 1, backgroundColor: Colors.surfaceLight, borderRadius: 14, padding: 14, alignItems: "center" }}>
                     <Text style={{ color: Colors.accent, fontSize: 20, fontWeight: "800" }}>${Number(selectedCustomer.totalSpent || 0).toFixed(0)}</Text>
-                    <Text style={{ color: Colors.textMuted, fontSize: 11 }}>Total Spent</Text>
+                    <Text style={{ color: Colors.textMuted, fontSize: 11 }}>{t("totalSpent")}</Text>
                   </View>
                   <View style={{ flex: 1, backgroundColor: Colors.surfaceLight, borderRadius: 14, padding: 14, alignItems: "center" }}>
                     <Text style={{ color: Colors.info, fontSize: 20, fontWeight: "800" }}>{selectedCustomer.visitCount || 0}</Text>
-                    <Text style={{ color: Colors.textMuted, fontSize: 11 }}>Visits</Text>
+                    <Text style={{ color: Colors.textMuted, fontSize: 11 }}>{t("visits")}</Text>
                   </View>
                 </View>
 
                 {selectedCustomer.address && (
                   <View style={{ backgroundColor: Colors.surfaceLight, borderRadius: 12, padding: 12, marginBottom: 12 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                    <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
                       <Ionicons name="location-outline" size={14} color={Colors.textMuted} />
-                      <Text style={{ color: Colors.textSecondary, fontSize: 12, fontWeight: "600" }}>ADDRESS</Text>
+                      <Text style={[{ color: Colors.textSecondary, fontSize: 12, fontWeight: "600" }, rtlTextAlign]}>{t("address").toUpperCase()}</Text>
                     </View>
-                    <Text style={{ color: Colors.text, fontSize: 14 }}>{selectedCustomer.address}</Text>
+                    <Text style={[{ color: Colors.text, fontSize: 14 }, rtlTextAlign]}>{selectedCustomer.address}</Text>
                   </View>
                 )}
 
                 {selectedCustomer.notes && (
                   <View style={{ backgroundColor: Colors.surfaceLight, borderRadius: 12, padding: 12, marginBottom: 12 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                    <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
                       <Ionicons name="document-text-outline" size={14} color={Colors.textMuted} />
-                      <Text style={{ color: Colors.textSecondary, fontSize: 12, fontWeight: "600" }}>NOTES</Text>
+                      <Text style={[{ color: Colors.textSecondary, fontSize: 12, fontWeight: "600" }, rtlTextAlign]}>{t("notes").toUpperCase()}</Text>
                     </View>
-                    <Text style={{ color: Colors.text, fontSize: 14 }}>{selectedCustomer.notes}</Text>
+                    <Text style={[{ color: Colors.text, fontSize: 14 }, rtlTextAlign]}>{selectedCustomer.notes}</Text>
                   </View>
                 )}
 
                 {canManage && (
-                  <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
+                  <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8, marginBottom: 16 }}>
                     <Pressable style={{ flex: 1, borderRadius: 12, overflow: "hidden" }} onPress={() => { setShowDetail(false); openEdit(selectedCustomer); }}>
-                      <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 12, gap: 6 }}>
+                      <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", justifyContent: "center", paddingVertical: 12, gap: 6 }}>
                         <Ionicons name="create-outline" size={18} color={Colors.white} />
-                        <Text style={{ color: Colors.white, fontSize: 14, fontWeight: "600" }}>Edit</Text>
+                        <Text style={{ color: Colors.white, fontSize: 14, fontWeight: "600" }}>{t("edit")}</Text>
                       </LinearGradient>
                     </Pressable>
                   </View>
                 )}
 
-                <Text style={{ color: Colors.textSecondary, fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Purchase History</Text>
+                <Text style={[{ color: Colors.textSecondary, fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }, rtlTextAlign]}>{t("purchaseHistory")}</Text>
                 
                 {customerSales.length === 0 ? (
                   <View style={{ alignItems: "center", paddingVertical: 24 }}>
                     <Ionicons name="receipt-outline" size={36} color={Colors.textMuted} />
-                    <Text style={{ color: Colors.textMuted, fontSize: 13, marginTop: 8 }}>No purchases yet</Text>
+                    <Text style={{ color: Colors.textMuted, fontSize: 13, marginTop: 8 }}>{t("noPurchases")}</Text>
                   </View>
                 ) : (
                   customerSales.map((sale: any) => (
                     <View key={sale.id} style={{ backgroundColor: Colors.surfaceLight, borderRadius: 12, padding: 12, marginBottom: 8 }}>
-                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                        <Text style={{ color: Colors.text, fontSize: 14, fontWeight: "600" }}>Sale #{sale.id}</Text>
+                      <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center" }}>
+                        <Text style={[{ color: Colors.text, fontSize: 14, fontWeight: "600" }, rtlTextAlign]}>Sale #{sale.id}</Text>
                         <Text style={{ color: Colors.accent, fontSize: 14, fontWeight: "700" }}>${Number(sale.totalAmount || 0).toFixed(2)}</Text>
                       </View>
-                      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
+                      <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", marginTop: 4 }}>
                         <Text style={{ color: Colors.textMuted, fontSize: 12 }}>
                           {sale.createdAt ? new Date(sale.createdAt).toLocaleDateString() : "N/A"}
                         </Text>
@@ -242,10 +242,10 @@ const styles = StyleSheet.create({
   addBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.15)", justifyContent: "center", alignItems: "center" },
   searchRow: { paddingHorizontal: 12, paddingVertical: 10 },
   searchBox: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.inputBg, borderRadius: 12, paddingHorizontal: 12, height: 42, borderWidth: 1, borderColor: Colors.inputBorder },
-  searchInput: { flex: 1, color: Colors.text, marginLeft: 8, fontSize: 15 },
+  searchInput: { flex: 1, color: Colors.text, fontSize: 15 },
   list: { paddingHorizontal: 12 },
   card: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.surface, borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: Colors.cardBorder },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.gradientMid, justifyContent: "center", alignItems: "center", marginRight: 12 },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.gradientMid, justifyContent: "center", alignItems: "center" },
   avatarText: { color: Colors.white, fontSize: 18, fontWeight: "800" },
   cardInfo: { flex: 1 },
   cardName: { color: Colors.text, fontSize: 15, fontWeight: "600" },

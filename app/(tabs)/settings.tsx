@@ -11,7 +11,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
-import { apiRequest, getQueryFn } from "@/lib/query-client";
+import { apiRequest, getQueryFn, getApiUrl } from "@/lib/query-client";
 
 function SettingRow({ icon, label, value, onPress, color, rtl }: { icon: string; label: string; value?: string; onPress?: () => void; color?: string; rtl?: boolean }) {
   return (
@@ -1765,7 +1765,7 @@ export default function SettingsScreen() {
               <Pressable onPress={pickStoreLogo} style={{ alignItems: "center", marginBottom: 16, padding: 20, borderRadius: 12, borderWidth: 1, borderStyle: "dashed", borderColor: Colors.cardBorder, backgroundColor: Colors.surfaceLight }}>
                 {storeLogo ? (
                   <View style={{ alignItems: "center" }}>
-                    <Image source={{ uri: storeLogo }} style={{ width: 80, height: 80, borderRadius: 12 }} />
+                    <Image source={{ uri: storeLogo.startsWith("http") ? storeLogo : storeLogo.startsWith("/objects") ? `${getApiUrl()}${storeLogo}` : storeLogo }} style={{ width: 80, height: 80, borderRadius: 12 }} />
                     <Text style={{ color: Colors.accent, fontSize: 13, marginTop: 8 }}>{t("changeImage")}</Text>
                   </View>
                 ) : (

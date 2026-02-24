@@ -177,12 +177,31 @@ export const shifts = pgTable("shifts", {
   branchId: integer("branch_id").references(() => branches.id),
   startTime: timestamp("start_time").defaultNow(),
   endTime: timestamp("end_time"),
+  expectedDurationHours: decimal("expected_duration_hours", { precision: 4, scale: 1 }).default("8"),
   openingCash: decimal("opening_cash", { precision: 10, scale: 2 }).default("0"),
   closingCash: decimal("closing_cash", { precision: 10, scale: 2 }),
   totalSales: decimal("total_sales", { precision: 12, scale: 2 }).default("0"),
   totalTransactions: integer("total_transactions").default(0),
+  totalReturns: integer("total_returns").default(0),
+  totalDiscounts: decimal("total_discounts", { precision: 10, scale: 2 }).default("0"),
   status: text("status").default("open"),
   notes: text("notes"),
+  breakMinutes: integer("break_minutes").default(0),
+  overtimeMinutes: integer("overtime_minutes").default(0),
+});
+
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  recipientId: integer("recipient_id").references(() => employees.id).notNull(),
+  senderId: integer("sender_id").references(() => employees.id),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  entityType: text("entity_type"),
+  entityId: integer("entity_id"),
+  isRead: boolean("is_read").default(false),
+  priority: text("priority").default("normal"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const expenses = pgTable("expenses", {

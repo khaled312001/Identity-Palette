@@ -72,6 +72,7 @@ export default function ProductsScreen() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/products/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/products"] }),
+    onError: (e: any) => Alert.alert(t("error"), e.message),
   });
 
   const createCategoryMutation = useMutation({
@@ -88,6 +89,7 @@ export default function ProductsScreen() {
   const deleteCategoryMutation = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/categories/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/categories"] }),
+    onError: (e: any) => Alert.alert(t("error"), e.message),
   });
 
   const resetForm = () => { setForm({ name: "", price: "", sku: "", barcode: "", categoryId: "", costPrice: "", unit: "piece", expiryDate: "" }); setProductImage(null); setInitialStock(""); };
@@ -261,10 +263,12 @@ export default function ProductsScreen() {
               <View style={[styles.productRight, isRTL && { alignItems: "flex-start" }]}>
                 <Text style={styles.productPrice}>${Number(item.price).toFixed(2)}</Text>
                 {canManage && (
-                  <Pressable onPress={() => { Alert.alert(t("delete"), `${t("delete")} ${item.name}?`, [
-                    { text: t("cancel") },
-                    { text: t("delete"), style: "destructive", onPress: () => deleteMutation.mutate(item.id) },
-                  ]); }}>
+                  <Pressable onPress={() => {
+                    Alert.alert(t("delete"), `${t("delete")} ${item.name}?`, [
+                      { text: t("cancel") },
+                      { text: t("delete"), style: "destructive", onPress: () => deleteMutation.mutate(item.id) },
+                    ]);
+                  }}>
                     <Ionicons name="trash-outline" size={18} color={Colors.danger} />
                   </Pressable>
                 )}

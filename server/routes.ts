@@ -593,6 +593,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  app.get("/api/fix-schema-and-seed", async (_req, res) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+
+      console.log("[API-SEED] Fixing schema...");
+      const tables = ['branches', 'products', 'employees', 'sales', 'inventory', 'customers', 'suppliers'];
+      for (const table of tables) {
+        try {
+          await db.execute(sql.raw(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS tenant_id integer`));
+          console.log(`[API-SEED] Table ${table} fixed`);
+        } catch (e: any) {
+          console.log(`[API-SEED] Table ${table} skip: ${e.message}`);
+        }
+      }
+
+      const { seedAllDemoData } = await import("./seedAllDemoData");
+      await seedAllDemoData();
+      res.json({ success: true, message: "Schema fixed and comprehensive demo data seeded." });
+    } catch (e: any) {
+      console.error("Manual fix & seed error:", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/force-full-seed", async (_req, res) => {
+    try {
+      const { seedAllDemoData } = await import("./seedAllDemoData");
+      await seedAllDemoData();
+      res.json({ success: true, message: "Comprehensive demo data seeded successfully" });
+    } catch (e: any) {
+      console.error("Manual seed error:", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Activity Log
   app.get("/api/activity-log", async (req, res) => {
     try {

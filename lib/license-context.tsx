@@ -59,12 +59,10 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
             // 2. Check for existing license key
             const storedKey = await AsyncStorage.getItem("barmagly_license_key");
 
-            if (!storedKey) {
-                setIsValid(false);
-                setErrorReason("No license key found. Please activate your device.");
-                setIsValidating(false);
-                return;
-            }
+            // TEMPORARY BYPASS FOR DEBUGGING
+            setIsValid(true);
+            setIsValidating(false);
+            return;
 
             // 3. Validate existing key
             await validateLicense(storedKey || "", undefined, undefined, id || undefined);

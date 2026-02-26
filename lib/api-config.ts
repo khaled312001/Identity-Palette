@@ -16,9 +16,9 @@ export function getApiUrl(): string {
 
     // Fallback for local development
     if (Platform.OS === 'web') {
-        return "http://localhost:5000";
+        return "http://localhost:5001";
     }
 
     // Fallback for physical devices (updated with user's specific local IP if known, otherwise localhost)
-    return "http://localhost:5000";
+    return "http://localhost:5001";
 }

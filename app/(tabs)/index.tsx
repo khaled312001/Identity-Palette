@@ -48,6 +48,10 @@ export default function POSScreen() {
   const [nfcStatus, setNfcStatus] = useState<"waiting" | "reading" | "success" | "error">("waiting");
   const [nfcPulse, setNfcPulse] = useState(0);
   const [incomingCall, setIncomingCall] = useState<any>(null);
+  const [showInvoiceHistory, setShowInvoiceHistory] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [showReprintReceipt, setShowReprintReceipt] = useState(false);
+  const [reprintQrDataUrl, setReprintQrDataUrl] = useState<string | null>(null);
 
   const { data: categories = [] } = useQuery<any[]>({
     queryKey: ["/api/categories"],
@@ -68,6 +72,73 @@ export default function POSScreen() {
     queryKey: ["/api/store-settings"],
     queryFn: getQueryFn({ on401: "throw" }),
   });
+
+  const { data: salesHistory = [] } = useQuery<any[]>({
+    queryKey: ["/api/sales"],
+    queryFn: getQueryFn({ on401: "throw" }),
+    enabled: showInvoiceHistory,
+  });
+
+  const loadInvoiceDetails = async (saleId: number) => {
+    try {
+      const res = await apiRequest("GET", `/api/sales/${saleId}`);
+      const data = await res.json();
+      setSelectedInvoice(data);
+      if (Platform.OS === "web") {
+        try {
+          const QRCode = require("qrcode");
+          const url = await QRCode.toDataURL(`barmagly:receipt:${data.receiptNumber || data.id}`, { width: 200, margin: 1, color: { dark: "#0A0E27", light: "#FFFFFF" } });
+          setReprintQrDataUrl(url);
+        } catch {}
+      }
+      setShowReprintReceipt(true);
+    } catch {
+      Alert.alert(t("error"), t("saleNotFound"));
+    }
+  };
+
+  const printReceipt = () => {
+    if (!selectedInvoice) return;
+    if (Platform.OS !== "web") {
+      const inv = selectedInvoice;
+      const itemsText = (inv.items || []).map((item: any) =>
+        `${item.productName || item.name}  x${item.quantity}  CHF ${Number(item.total || (item.unitPrice * item.quantity)).toFixed(2)}`
+      ).join("\n");
+      const receiptText = `${storeSettings?.name || "Barmagly POS"}\n${storeSettings?.address || ""}\n${"─".repeat(30)}\n${t("receiptNumber")}: ${inv.receiptNumber || "#" + inv.id}\n${t("receiptDate")}: ${new Date(inv.createdAt || inv.date).toLocaleString()}\n${"─".repeat(30)}\n${itemsText}\n${"─".repeat(30)}\nTOTAL: CHF ${Number(inv.totalAmount).toFixed(2)}\n${t("paymentMethod")}: ${(inv.paymentMethod || "cash").toUpperCase()}\n${"═".repeat(30)}\n${t("thankYou")}`;
+      Alert.alert(t("printInvoice"), receiptText);
+      return;
+    }
+    if (Platform.OS === "web" && selectedInvoice) {
+      const printWindow = window.open("", "_blank", "width=380,height=600");
+      if (printWindow) {
+        const inv = selectedInvoice;
+        const itemsHtml = (inv.items || []).map((item: any) =>
+          `<tr><td style="text-align:left">${item.productName || item.name}</td><td style="text-align:center">x${item.quantity}</td><td style="text-align:right">CHF ${Number(item.total || (item.unitPrice * item.quantity)).toFixed(2)}</td></tr>`
+        ).join("");
+        printWindow.document.write(`<html><head><title>Receipt ${inv.receiptNumber || inv.id}</title><style>body{font-family:'Courier New',monospace;font-size:12px;width:300px;margin:0 auto;padding:20px}table{width:100%;border-collapse:collapse}td{padding:2px 0}.center{text-align:center}.right{text-align:right}.bold{font-weight:bold}.line{border-top:1px dashed #000;margin:8px 0}.dbl{border-top:2px solid #000;margin:8px 0}</style></head><body>`);
+        printWindow.document.write(`<div class="dbl"></div><p class="center bold" style="font-size:16px">${storeSettings?.name || "Barmagly POS"}</p>`);
+        if (storeSettings?.address) printWindow.document.write(`<p class="center">${storeSettings.address}</p>`);
+        if (storeSettings?.phone) printWindow.document.write(`<p class="center">${storeSettings.phone}</p>`);
+        printWindow.document.write(`<div class="line"></div>`);
+        printWindow.document.write(`<p>${t("receiptDate")}: ${new Date(inv.createdAt || inv.date).toLocaleDateString()} ${new Date(inv.createdAt || inv.date).toLocaleTimeString()}</p>`);
+        printWindow.document.write(`<p>${t("receiptNumber")}: ${inv.receiptNumber || "#" + inv.id}</p>`);
+        printWindow.document.write(`<div class="line"></div>`);
+        printWindow.document.write(`<table>${itemsHtml}</table>`);
+        printWindow.document.write(`<div class="line"></div>`);
+        printWindow.document.write(`<table><tr><td>${t("subtotal")}:</td><td class="right">CHF ${Number(inv.subtotal || inv.totalAmount).toFixed(2)}</td></tr>`);
+        if (Number(inv.discount) > 0) printWindow.document.write(`<tr><td>${t("discount")}:</td><td class="right">-CHF ${Number(inv.discount).toFixed(2)}</td></tr>`);
+        printWindow.document.write(`<tr><td>${t("tax")}:</td><td class="right">CHF ${Number(inv.tax || 0).toFixed(2)}</td></tr></table>`);
+        printWindow.document.write(`<div class="dbl"></div>`);
+        printWindow.document.write(`<table><tr><td class="bold" style="font-size:14px">TOTAL:</td><td class="right bold" style="font-size:14px">CHF ${Number(inv.totalAmount).toFixed(2)}</td></tr></table>`);
+        printWindow.document.write(`<div class="dbl"></div>`);
+        printWindow.document.write(`<p>${t("paymentMethod")}: ${(inv.paymentMethod || "cash").toUpperCase()}</p>`);
+        printWindow.document.write(`<p class="center bold" style="margin-top:16px">${t("thankYou")}</p>`);
+        printWindow.document.write(`<div class="dbl"></div></body></html>`);
+        printWindow.document.close();
+        printWindow.print();
+      }
+    }
+  };
 
   useEffect(() => {
     apiRequest("POST", "/api/seed").catch(() => { });
@@ -324,6 +395,9 @@ export default function POSScreen() {
           <View style={[styles.headerContent, isRTL && { flexDirection: "row-reverse" }]}>
             <Text style={[styles.headerTitle, rtlTextAlign]}>Barmagly POS</Text>
             <View style={[styles.headerRight, isRTL && { flexDirection: "row-reverse" }]}>
+              <Pressable onPress={() => setShowInvoiceHistory(true)} style={{ padding: 4 }}>
+                <Ionicons name="receipt-outline" size={22} color={Colors.white} />
+              </Pressable>
               {employee && <Text style={[styles.employeeName, rtlTextAlign]}>{employee.name}</Text>}
             </View>
           </View>
@@ -949,6 +1023,187 @@ export default function POSScreen() {
                 <LinearGradient colors={[Colors.success, "#059669"]} style={styles.completeBtnGradient}>
                   <Text style={styles.completeBtnText}>{t("apply")}</Text>
                 </LinearGradient>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showInvoiceHistory} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: "85%" }]}>
+            <View style={[styles.modalHeader, isRTL && { flexDirection: "row-reverse" }]}>
+              <Text style={[styles.modalTitle, rtlTextAlign]}>{t("previousInvoices")}</Text>
+              <Pressable onPress={() => setShowInvoiceHistory(false)}>
+                <Ionicons name="close" size={24} color={Colors.text} />
+              </Pressable>
+            </View>
+            <FlatList
+              data={salesHistory}
+              keyExtractor={(item: any) => String(item.id)}
+              scrollEnabled={!!salesHistory.length}
+              renderItem={({ item }: { item: any }) => {
+                const saleDate = new Date(item.createdAt || item.date);
+                return (
+                  <Pressable
+                    style={[{
+                      flexDirection: isRTL ? "row-reverse" : "row",
+                      alignItems: "center",
+                      backgroundColor: Colors.surfaceLight,
+                      borderRadius: 12,
+                      padding: 14,
+                      marginBottom: 8,
+                      borderWidth: 1,
+                      borderColor: Colors.cardBorder,
+                    }]}
+                    onPress={() => loadInvoiceDetails(item.id)}
+                  >
+                    <View style={{
+                      width: 42, height: 42, borderRadius: 12,
+                      backgroundColor: "rgba(47,211,198,0.12)",
+                      justifyContent: "center", alignItems: "center",
+                      marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? 12 : 0,
+                    }}>
+                      <Ionicons name="receipt" size={20} color={Colors.accent} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[{ color: Colors.text, fontSize: 14, fontWeight: "700" }, rtlTextAlign]}>
+                        {item.receiptNumber || `#${item.id}`}
+                      </Text>
+                      <Text style={[{ color: Colors.textMuted, fontSize: 11, marginTop: 2 }, rtlTextAlign]}>
+                        {saleDate.toLocaleDateString()} • {saleDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </Text>
+                      <Text style={[{ color: Colors.textMuted, fontSize: 11, marginTop: 1 }, rtlTextAlign]}>
+                        {(item.paymentMethod || "cash").toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: isRTL ? "flex-start" : "flex-end" }}>
+                      <Text style={{ color: Colors.accent, fontSize: 16, fontWeight: "800" }}>
+                        CHF {Number(item.totalAmount).toFixed(2)}
+                      </Text>
+                      <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 4, marginTop: 4 }}>
+                        <Ionicons name="eye-outline" size={14} color={Colors.info} />
+                        <Text style={{ color: Colors.info, fontSize: 11, fontWeight: "600" }}>{t("viewInvoice")}</Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                );
+              }}
+              ListEmptyComponent={
+                <View style={{ alignItems: "center", paddingVertical: 40 }}>
+                  <Ionicons name="receipt-outline" size={48} color={Colors.textMuted} />
+                  <Text style={{ color: Colors.textMuted, fontSize: 15, marginTop: 12, fontWeight: "600" }}>{t("noInvoices")}</Text>
+                  <Text style={{ color: Colors.textMuted, fontSize: 12, marginTop: 4 }}>{t("noInvoicesDesc")}</Text>
+                </View>
+              }
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showReprintReceipt} animationType="fade" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={{ backgroundColor: Colors.surface, borderRadius: 16, width: "94%", maxWidth: 380, maxHeight: "90%", overflow: "hidden" }}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {selectedInvoice && (
+                <View style={{ backgroundColor: "#FFFFFF", padding: 20, margin: 12, borderRadius: 4 }}>
+                  <Text style={{ textAlign: "center", color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace", letterSpacing: 1 }}>{"=".repeat(36)}</Text>
+
+                  {storeSettings?.logo && (
+                    <View style={{ alignItems: "center", marginVertical: 8 }}>
+                      <Image source={{ uri: storeSettings.logo.startsWith("http") ? storeSettings.logo : `${getApiUrl()}${storeSettings.logo}` }} style={{ width: 50, height: 50, borderRadius: 6 }} resizeMode="contain" />
+                    </View>
+                  )}
+
+                  <Text style={{ textAlign: "center", color: "#000", fontSize: 16, fontWeight: "800", marginTop: 4 }}>{storeSettings?.name || "Barmagly POS"}</Text>
+                  {storeSettings?.address && <Text style={{ textAlign: "center", color: "#333", fontSize: 10, marginTop: 2, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>{storeSettings.address}</Text>}
+                  {storeSettings?.phone && <Text style={{ textAlign: "center", color: "#333", fontSize: 10, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>{storeSettings.phone}</Text>}
+
+                  <Text style={{ textAlign: "center", color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace", marginTop: 6, letterSpacing: 1 }}>{"─".repeat(36)}</Text>
+
+                  <View style={{ marginVertical: 6 }}>
+                    <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>{t("receiptDate")}: {new Date(selectedInvoice.createdAt || selectedInvoice.date).toLocaleDateString()}, {new Date(selectedInvoice.createdAt || selectedInvoice.date).toLocaleTimeString()}</Text>
+                    <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>{t("receiptNumber")}: {selectedInvoice.receiptNumber || `#${selectedInvoice.id}`}</Text>
+                  </View>
+
+                  <Text style={{ textAlign: "center", color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace", letterSpacing: 1 }}>{"─".repeat(36)}</Text>
+
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 6, marginBottom: 4 }}>
+                    <Text style={{ color: "#000", fontSize: 11, fontWeight: "700", fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace", flex: 2 }}>Item</Text>
+                    <Text style={{ color: "#000", fontSize: 11, fontWeight: "700", fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace", width: 40, textAlign: "center" }}>Qty</Text>
+                    <Text style={{ color: "#000", fontSize: 11, fontWeight: "700", fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace", width: 65, textAlign: "right" }}>Total</Text>
+                  </View>
+
+                  <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace", letterSpacing: 1 }}>{"─".repeat(36)}</Text>
+
+                  {selectedInvoice.items?.map((item: any, idx: number) => (
+                    <View key={idx} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 }}>
+                      <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace", flex: 2 }} numberOfLines={1}>{item.productName || item.name}</Text>
+                      <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace", width: 40, textAlign: "center" }}>x{item.quantity}</Text>
+                      <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace", width: 65, textAlign: "right" }}>CHF {Number(item.total || (item.unitPrice * item.quantity)).toFixed(2)}</Text>
+                    </View>
+                  ))}
+
+                  <Text style={{ textAlign: "center", color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace", marginTop: 4, letterSpacing: 1 }}>{"─".repeat(36)}</Text>
+
+                  <View style={{ marginTop: 6 }}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 2 }}>
+                      <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>{t("subtotal")}:</Text>
+                      <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>CHF {Number(selectedInvoice.subtotal || selectedInvoice.totalAmount).toFixed(2)}</Text>
+                    </View>
+                    {Number(selectedInvoice.discount) > 0 && (
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 2 }}>
+                        <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>{t("discount")}:</Text>
+                        <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>-CHF {Number(selectedInvoice.discount).toFixed(2)}</Text>
+                      </View>
+                    )}
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 2 }}>
+                      <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>{t("tax")}:</Text>
+                      <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>CHF {Number(selectedInvoice.tax || 0).toFixed(2)}</Text>
+                    </View>
+
+                    <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace", letterSpacing: 1 }}>{"=".repeat(36)}</Text>
+
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
+                      <Text style={{ color: "#000", fontSize: 15, fontWeight: "900", fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>TOTAL:</Text>
+                      <Text style={{ color: "#000", fontSize: 15, fontWeight: "900", fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>CHF {Number(selectedInvoice.totalAmount).toFixed(2)}</Text>
+                    </View>
+
+                    <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace", letterSpacing: 1 }}>{"=".repeat(36)}</Text>
+
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 2, marginTop: 4 }}>
+                      <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>{t("paymentMethod")}:</Text>
+                      <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace", textTransform: "uppercase" }}>{selectedInvoice.paymentMethod || "cash"}</Text>
+                    </View>
+                  </View>
+
+                  {reprintQrDataUrl && Platform.OS === "web" && (
+                    <View style={{ alignItems: "center", marginTop: 12 }}>
+                      <Image source={{ uri: reprintQrDataUrl }} style={{ width: 80, height: 80 }} />
+                    </View>
+                  )}
+
+                  <View style={{ alignItems: "center", marginTop: 14 }}>
+                    <Text style={{ color: "#000", fontSize: 13, fontWeight: "700", textAlign: "center" }}>{t("thankYou")}</Text>
+                    <Text style={{ color: "#999", fontSize: 9, textAlign: "center", marginTop: 6, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>{t("poweredBy")}</Text>
+                    <Text style={{ textAlign: "center", color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace", marginTop: 6, letterSpacing: 1 }}>{"=".repeat(36)}</Text>
+                  </View>
+                </View>
+              )}
+            </ScrollView>
+
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", margin: 12, marginTop: 0, gap: 8 }}>
+              <Pressable style={{ flex: 1, borderRadius: 14, overflow: "hidden" }} onPress={printReceipt}>
+                <LinearGradient colors={[Colors.info, "#2563EB"]} style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", justifyContent: "center", paddingVertical: 14, gap: 8 }}>
+                  <Ionicons name="print" size={20} color={Colors.white} />
+                  <Text style={{ color: Colors.white, fontSize: 15, fontWeight: "700" }}>{t("printInvoice")}</Text>
+                </LinearGradient>
+              </Pressable>
+              <Pressable style={{ flex: 1, borderRadius: 14, overflow: "hidden" }} onPress={() => { setShowReprintReceipt(false); setSelectedInvoice(null); setReprintQrDataUrl(null); }}>
+                <View style={{ backgroundColor: Colors.surfaceLight, flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", justifyContent: "center", paddingVertical: 14, gap: 8, borderRadius: 14 }}>
+                  <Ionicons name="close" size={20} color={Colors.text} />
+                  <Text style={{ color: Colors.text, fontSize: 15, fontWeight: "700" }}>{t("close")}</Text>
+                </View>
               </Pressable>
             </View>
           </View>

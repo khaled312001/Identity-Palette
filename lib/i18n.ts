@@ -444,6 +444,15 @@ const en = {
   thankYou: "Thank you for your purchase!",
   visitUs: "Visit us at",
 
+  // Previous Invoices
+  previousInvoices: "Previous Invoices",
+  invoiceHistory: "Invoice History",
+  reprint: "Reprint",
+  viewInvoice: "View Invoice",
+  noInvoices: "No invoices yet",
+  noInvoicesDesc: "Completed sales will appear here",
+  printInvoice: "Print Invoice",
+
   // Settings validation messages
   namePinRequired: "Name and PIN required",
   companyNameRequired: "Company name required",
@@ -969,6 +978,15 @@ const ar: typeof en = {
   servedBy: "خدمك",
   thankYou: "شكراً لتسوقكم!",
   visitUs: "زورونا على",
+
+  // Previous Invoices
+  previousInvoices: "الفواتير السابقة",
+  invoiceHistory: "سجل الفواتير",
+  reprint: "إعادة طباعة",
+  viewInvoice: "عرض الفاتورة",
+  noInvoices: "لا توجد فواتير بعد",
+  noInvoicesDesc: "ستظهر المبيعات المكتملة هنا",
+  printInvoice: "طباعة الفاتورة",
 
   // Settings validation messages
   namePinRequired: "الاسم ورمز PIN مطلوبان",

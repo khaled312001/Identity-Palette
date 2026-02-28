@@ -367,6 +367,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/products", async (req, res) => {
     try { res.json(await storage.getProducts(req.query.search as string)); } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
+
+  // Download Products Excel Template (must be before :id route)
+  app.get("/api/products/template", (req, res) => {
+    const templateData = [
+      { Name: "Sample Product 1", Price: "9.99", CostPrice: "5.00", SKU: "SKU001", Barcode: "1234567890", Unit: "piece", NameArabic: "منتج 1" },
+      { Name: "Sample Product 2", Price: "15.50", CostPrice: "8.00", SKU: "SKU002", Barcode: "0987654321", Unit: "kg", NameArabic: "منتج 2" },
+    ];
+    const ws = xlsx.utils.json_to_sheet(templateData);
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, "Products");
+    const buf = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
+    res.setHeader("Content-Disposition", "attachment; filename=products_template.xlsx");
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.send(buf);
+  });
+
+  // Bulk Import Products (must be before :id route)
+  app.post("/api/products/import", async (req: any, res) => {
+    try {
+      const { fileBase64, tenantId, branchId } = req.body;
+      const buffer = Buffer.from(fileBase64, "base64");
+      const workbook = xlsx.read(buffer, { type: "buffer" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const data = xlsx.utils.sheet_to_json(sheet);
+
+      const productsToInsert = data.map((item: any) => ({
+        tenantId: Number(tenantId),
+        name: item.Name || item.name,
+        nameAr: item.NameArabic || item.name_ar,
+        sku: item.SKU || item.sku || undefined,
+        barcode: String(item.Barcode || item.barcode || ""),
+        price: String(item.Price || item.price || "0"),
+        costPrice: String(item.CostPrice || item.cost_price || "0"),
+        unit: item.Unit || item.unit || "piece",
+        isActive: true,
+      }));
+
+      const results = await storage.bulkCreateProducts(productsToInsert as any);
+
+      if (branchId) {
+        for (const prod of results) {
+          await storage.upsertInventory({
+            productId: prod.id,
+            branchId: Number(branchId),
+            quantity: 0
+          });
+        }
+      }
+
+      res.json({ success: true, count: results.length });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   app.get("/api/products/:id", async (req, res) => {
     try {
       const prod = await storage.getProduct(Number(req.params.id));
@@ -416,6 +469,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/customers", async (req, res) => {
     try { res.json(await storage.getCustomers(req.query.search as string)); } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
+
+  // Download Customers Excel Template (must be before :id route)
+  app.get("/api/customers/template", (req, res) => {
+    const templateData = [
+      { Name: "John Doe", Phone: "+41791234567", Email: "john@example.com", Address: "123 Main St" },
+      { Name: "Jane Smith", Phone: "+41799876543", Email: "jane@example.com", Address: "456 Elm Ave" },
+    ];
+    const ws = xlsx.utils.json_to_sheet(templateData);
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, "Customers");
+    const buf = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
+    res.setHeader("Content-Disposition", "attachment; filename=customers_template.xlsx");
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.send(buf);
+  });
+
+  // Bulk Import Customers (must be before :id route)
+  app.post("/api/customers/import", async (req: any, res) => {
+    try {
+      const { fileBase64, tenantId } = req.body;
+      const buffer = Buffer.from(fileBase64, "base64");
+      const workbook = xlsx.read(buffer, { type: "buffer" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const data = xlsx.utils.sheet_to_json(sheet);
+
+      const customersToInsert = data.map((item: any) => ({
+        name: item.Name || item.name,
+        email: item.Email || item.email || undefined,
+        phone: String(item.Phone || item.phone || ""),
+        address: item.Address || item.address || undefined,
+        isActive: true,
+      }));
+
+      const results = await storage.bulkCreateCustomers(customersToInsert as any);
+      res.json({ success: true, count: results.length });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   app.get("/api/customers/:id", async (req, res) => {
     try {
       const cust = await storage.getCustomer(Number(req.params.id));
@@ -1242,98 +1333,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({ ...updatedBranch, storeType });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
-  });
-
-  // Download Products Excel Template
-  app.get("/api/products/template", (req, res) => {
-    const templateData = [
-      { Name: "Sample Product 1", Price: "9.99", CostPrice: "5.00", SKU: "SKU001", Barcode: "1234567890", Unit: "piece", NameArabic: "منتج 1" },
-      { Name: "Sample Product 2", Price: "15.50", CostPrice: "8.00", SKU: "SKU002", Barcode: "0987654321", Unit: "kg", NameArabic: "منتج 2" },
-    ];
-    const ws = xlsx.utils.json_to_sheet(templateData);
-    const wb = xlsx.utils.book_new();
-    xlsx.utils.book_append_sheet(wb, ws, "Products");
-    const buf = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
-    res.setHeader("Content-Disposition", "attachment; filename=products_template.xlsx");
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.send(buf);
-  });
-
-  // Download Customers Excel Template
-  app.get("/api/customers/template", (req, res) => {
-    const templateData = [
-      { Name: "John Doe", Phone: "+41791234567", Email: "john@example.com", Address: "123 Main St" },
-      { Name: "Jane Smith", Phone: "+41799876543", Email: "jane@example.com", Address: "456 Elm Ave" },
-    ];
-    const ws = xlsx.utils.json_to_sheet(templateData);
-    const wb = xlsx.utils.book_new();
-    xlsx.utils.book_append_sheet(wb, ws, "Customers");
-    const buf = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
-    res.setHeader("Content-Disposition", "attachment; filename=customers_template.xlsx");
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.send(buf);
-  });
-
-  // Bulk Import Products
-  app.post("/api/products/import", async (req: any, res) => {
-    try {
-      // For demo, we expect base64 file in body, or we can use multer for multipart
-      // Using base64 for simplicity in this environment
-      const { fileBase64, tenantId, branchId } = req.body;
-      const buffer = Buffer.from(fileBase64, "base64");
-      const workbook = xlsx.read(buffer, { type: "buffer" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const data = xlsx.utils.sheet_to_json(sheet);
-
-      const productsToInsert = data.map((item: any) => ({
-        tenantId: Number(tenantId),
-        name: item.Name || item.name,
-        nameAr: item.NameArabic || item.name_ar,
-        sku: item.SKU || item.sku || undefined,
-        barcode: String(item.Barcode || item.barcode || ""),
-        price: String(item.Price || item.price || "0"),
-        costPrice: String(item.CostPrice || item.cost_price || "0"),
-        unit: item.Unit || item.unit || "piece",
-        isActive: true,
-      }));
-
-      const results = await storage.bulkCreateProducts(productsToInsert as any);
-
-      // If branchId is provided, also create initial inventory
-      if (branchId) {
-        for (const prod of results) {
-          await storage.upsertInventory({
-            productId: prod.id,
-            branchId: Number(branchId),
-            quantity: 0
-          });
-        }
-      }
-
-      res.json({ success: true, count: results.length });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
-  });
-
-  // Bulk Import Customers
-  app.post("/api/customers/import", async (req: any, res) => {
-    try {
-      const { fileBase64, tenantId } = req.body;
-      const buffer = Buffer.from(fileBase64, "base64");
-      const workbook = xlsx.read(buffer, { type: "buffer" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const data = xlsx.utils.sheet_to_json(sheet);
-
-      const customersToInsert = data.map((item: any) => ({
-        name: item.Name || item.name,
-        email: item.Email || item.email || undefined,
-        phone: String(item.Phone || item.phone || ""),
-        address: item.Address || item.address || undefined,
-        isActive: true,
-      }));
-
-      const results = await storage.bulkCreateCustomers(customersToInsert as any);
-      res.json({ success: true, count: results.length });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 

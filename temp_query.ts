@@ -1,0 +1,1 @@
+import { db, pool } from './server/db.js'; import { tenants, licenseKeys } from './shared/schema.js'; import { eq } from 'drizzle-orm'; async function run() { const tenantKey = await db.query.licenseKeys.findFirst({ where: eq(licenseKeys.tenantId, 1)}); console.log('KEY:', tenantKey?.licenseKey); process.exit(0); } run();

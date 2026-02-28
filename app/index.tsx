@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Redirect, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLicense } from "@/lib/license-context";
@@ -9,6 +9,7 @@ export default function IndexScreen() {
     const router = useRouter();
     const { isValid, isValidating } = useLicense();
     const [hasSeenIntro, setHasSeenIntro] = useState<boolean | null>(null);
+    const hasRouted = useRef(false);
 
     useEffect(() => {
         async function checkIntro() {
@@ -23,10 +24,11 @@ export default function IndexScreen() {
     }, []);
 
     useEffect(() => {
-        if (isValidating || hasSeenIntro === null) return;
+        if (isValidating || hasSeenIntro === null || hasRouted.current) return;
 
         // Use setTimeout to ensure the navigation state is ready for replace
         setTimeout(() => {
+            hasRouted.current = true;
             if (!hasSeenIntro) {
                 router.replace("/intro" as any);
                 return;

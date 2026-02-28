@@ -1,24 +1,26 @@
 import { Platform } from 'react-native';
 
-/**
- * Shared logic to determine the API URL for both license validation and general API requests.
- */
 export function getApiUrl(): string {
-    // If explicitly set in environment
-    if (process.env.EXPO_PUBLIC_API_URL) {
-        return process.env.EXPO_PUBLIC_API_URL;
-    }
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
 
-    if (process.env.EXPO_PUBLIC_DOMAIN) {
-        const protocol = process.env.EXPO_PUBLIC_DOMAIN.includes('localhost') ? 'http' : 'https';
-        return `${protocol}://${process.env.EXPO_PUBLIC_DOMAIN}`;
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const origin = window.location.origin;
+    if (origin && !origin.includes('localhost:8081') && !origin.includes('localhost:8082')) {
+      return origin;
     }
+  }
 
-    // Fallback for local development
-    if (Platform.OS === 'web') {
-        return "http://localhost:5001";
-    }
+  if (process.env.EXPO_PUBLIC_DOMAIN) {
+    const domain = process.env.EXPO_PUBLIC_DOMAIN;
+    const protocol = domain.includes('localhost') ? 'http' : 'https';
+    return `${protocol}://${domain}`;
+  }
 
-    // Fallback for physical devices (updated with user's specific local IP if known, otherwise localhost)
-    return "http://localhost:5001";
+  if (Platform.OS === 'web') {
+    return "http://localhost:5000";
+  }
+
+  return "http://localhost:5000";
 }

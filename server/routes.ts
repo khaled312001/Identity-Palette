@@ -139,6 +139,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // License Validation
+  app.post("/api/license/validate", async (req, res) => {
+    try {
+      const { licenseKey, email, password, deviceId } = req.body;
+
+      if (!licenseKey) {
+        return res.json({ isValid: false, reason: "License key is required" });
+      }
+
+      const license = await storage.getLicenseByKey(licenseKey);
+      if (!license) {
+        return res.json({ isValid: false, reason: "Invalid license key" });
+      }
+
+      if (license.status !== "active") {
+        return res.json({ isValid: false, reason: `License is ${license.status}` });
+      }
+
+      if (license.expiresAt && new Date(license.expiresAt) < new Date()) {
+        return res.json({ isValid: false, reason: "License has expired" });
+      }
+
+      const tenant = await storage.getTenant(license.tenantId);
+      if (!tenant) {
+        return res.json({ isValid: false, reason: "Tenant not found" });
+      }
+
+      if (tenant.status !== "active") {
+        return res.json({ isValid: false, reason: `Store account is ${tenant.status}` });
+      }
+
+      if (email || password) {
+        if (!email || !password) {
+          return res.json({ isValid: false, reason: "Both email and password are required" });
+        }
+        if (tenant.ownerEmail.toLowerCase() !== email.toLowerCase()) {
+          return res.json({ isValid: false, reason: "Email does not match this license" });
+        }
+        if (!tenant.passwordHash) {
+          return res.json({ isValid: false, reason: "Account credentials not configured" });
+        }
+        const passwordValid = await bcrypt.compare(password, tenant.passwordHash);
+        if (!passwordValid) {
+          return res.json({ isValid: false, reason: "Invalid password" });
+        }
+      }
+
+      const isNewActivation = !!email;
+      if (isNewActivation) {
+        const currentCount = license.currentActivations || 0;
+        const maxCount = license.maxActivations || 3;
+        if (currentCount >= maxCount) {
+          return res.json({ isValid: false, reason: `Maximum activations reached (${maxCount}). Contact support to add more.` });
+        }
+      }
+
+      const subs = await storage.getTenantSubscriptions(tenant.id);
+      const activeSub = subs.find((s: any) => s.status === "active");
+
+      await storage.updateLicenseKey(license.id, {
+        lastValidatedAt: new Date(),
+        deviceInfo: deviceId || license.deviceInfo,
+        currentActivations: (license.currentActivations || 0) + (isNewActivation ? 1 : 0),
+      });
+
+      const subInfo = activeSub ? {
+        active: true,
+        plan: activeSub.planName,
+        daysRemaining: activeSub.endDate ? Math.max(0, Math.ceil((new Date(activeSub.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 365,
+        requiresUpgrade: false,
+      } : {
+        active: false,
+        plan: "No active plan",
+        daysRemaining: 0,
+        requiresUpgrade: true,
+      };
+
+      res.json({
+        isValid: true,
+        tenant: {
+          id: tenant.id,
+          name: tenant.businessName,
+          logo: tenant.logo,
+        },
+        subscription: subInfo,
+      });
+    } catch (e: any) {
+      console.error("License validation error:", e);
+      res.status(500).json({ isValid: false, reason: "Server error during validation" });
+    }
+  });
+
   // Dashboard
   app.get("/api/dashboard", async (_req: Request, res: Response) => {
     try {

@@ -19,51 +19,15 @@ import { useRouter, useSegments } from "expo-router";
 
 function RootLayoutNav() {
   const { isValid, isValidating } = useLicense();
-  const segments = useSegments();
-  const router = useRouter();
-  const [hasSeenIntro, setHasSeenIntro] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    async function checkIntro() {
-      try {
-        const seen = await AsyncStorage.getItem("hasSeenIntro");
-        setHasSeenIntro(seen === "true");
-      } catch (e) {
-        setHasSeenIntro(false);
-      }
-    }
-    checkIntro();
-  }, []);
 
   // Keep splash screen while validating
   useEffect(() => {
-    if (!isValidating && hasSeenIntro !== null) {
+    if (!isValidating) {
       SplashScreen.hideAsync();
     }
-  }, [isValidating, hasSeenIntro]);
+  }, [isValidating]);
 
-  // Route guarding
-  useEffect(() => {
-    if (isValidating || hasSeenIntro === null) return;
-
-    const inIntro = segments[0] === "intro";
-    const inLicenseGate = segments[0] === "license-gate";
-
-    if (!hasSeenIntro && !inIntro) {
-      router.replace("/intro");
-      return;
-    }
-
-    if (hasSeenIntro) {
-      if (isValid === false && !inLicenseGate && !inIntro) {
-        router.replace("/license-gate");
-      } else if (isValid === true && (inLicenseGate || inIntro)) {
-        router.replace("/login");
-      }
-    }
-  }, [isValid, isValidating, segments, hasSeenIntro]);
-
-  if (isValidating || hasSeenIntro === null) {
+  if (isValidating) {
     return null; // Return nothing while splash screen is visible
   }
 

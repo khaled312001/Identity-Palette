@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLicense } from '@/lib/license-context';
 import { Colors } from '@/constants/colors';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 export default function LicenseGate() {
     const { isValidating, isValid, validateLicense, errorReason, deviceId } = useLicense();
@@ -11,6 +12,7 @@ export default function LicenseGate() {
     const [password, setPassword] = useState('');
     const [key, setKey] = useState('');
     const [loading, setLoading] = useState(false);
+    const router = useRouter();
 
     const handleValidate = async () => {
         if (!email.trim() || !password.trim() || !key.trim()) return;
@@ -18,6 +20,12 @@ export default function LicenseGate() {
         await validateLicense(key.trim(), email.trim(), password.trim());
         setLoading(false);
     };
+
+    useEffect(() => {
+        if (isValid && !isValidating) {
+            router.replace('/login');
+        }
+    }, [isValid, isValidating, router]);
 
     if (isValidating) {
         return (
@@ -28,12 +36,12 @@ export default function LicenseGate() {
         );
     }
 
-    // If valid, the router will handle redirect in _layout.tsx, but just in case:
+    // Wait for effect to route
     if (isValid) {
         return (
             <View style={styles.container}>
                 <Ionicons name="shield-checkmark" size={64} color={Colors.success} />
-                <Text style={styles.successText}>Store Activated</Text>
+                <Text style={styles.successText}>Store Activated. Redirecting...</Text>
             </View>
         );
     }

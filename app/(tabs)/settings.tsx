@@ -6,6 +6,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors } from "@/constants/colors";
@@ -112,6 +113,14 @@ export default function SettingsScreen() {
   const [showPaymentGateway, setShowPaymentGateway] = useState(false);
   const [pgTestResult, setPgTestResult] = useState<any>(null);
   const [pgTesting, setPgTesting] = useState(false);
+
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [importType, setImportType] = useState<"products" | "customers">("products");
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResult, setImportResult] = useState<any>(null);
+  const [showCallerIdTest, setShowCallerIdTest] = useState(false);
+  const [testPhoneNumber, setTestPhoneNumber] = useState("0551234567");
+  const [callerIdStatus, setCallerIdStatus] = useState<"idle" | "testing" | "done">("idle");
 
   const { data: employees = [] } = useQuery<any[]>({ queryKey: ["/api/employees"], queryFn: getQueryFn({ on401: "throw" }) });
   const { data: suppliers = [] } = useQuery<any[]>({ queryKey: ["/api/suppliers"], queryFn: getQueryFn({ on401: "throw" }) });
@@ -509,6 +518,8 @@ export default function SettingsScreen() {
             <SettingRow icon="document-text" label={t("purchaseOrders")} value={`${purchaseOrders.length} ${t("orders")}`} onPress={() => setShowPurchaseOrders(true)} color={Colors.info} rtl={isRTL} />
             <SettingRow icon="list" label={t("activityLog")} value={`${activityLog.length} ${t("entries")}`} onPress={() => setShowActivityLog(true)} color={Colors.secondary} rtl={isRTL} />
             <SettingRow icon="swap-horizontal" label={t("returnsRefunds")} value={`${returns.length} ${t("returns")}`} onPress={() => setShowReturnsManager(true)} color={Colors.danger} rtl={isRTL} />
+            {isAdmin && <SettingRow icon="cloud-upload" label={t("bulkImport") || "Bulk Import"} value={t("importData") || "Import Products & Customers"} onPress={() => { setImportResult(null); setShowBulkImport(true); }} color="#F59E0B" rtl={isRTL} />}
+            {isAdmin && <SettingRow icon="call" label={t("callerID") || "Caller ID"} value={t("testCallerID") || "Test & Simulate Calls"} onPress={() => { setCallerIdStatus("idle"); setShowCallerIdTest(true); }} color="#EC4899" rtl={isRTL} />}
           </>
         )}
         <SettingRow icon="cash" label={t("cashDrawer")} value={activeShift ? t("activeShift") : t("noActiveShift")} onPress={() => setShowCashDrawer(true)} color={Colors.success} rtl={isRTL} />
@@ -1988,6 +1999,272 @@ export default function SettingsScreen() {
                 ))}
               </View>
 
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Bulk Import Modal */}
+      <Modal visible={showBulkImport} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={[styles.modalHeader, isRTL && { flexDirection: "row-reverse" }]}>
+              <Text style={[styles.modalTitle, rtlTextAlign]}>{t("bulkImport" as any) || "Bulk Import"}</Text>
+              <Pressable onPress={() => setShowBulkImport(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Tab Selector */}
+              <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8, marginBottom: 20 }}>
+                <Pressable
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: importType === "products" ? Colors.accent : Colors.surfaceLight, alignItems: "center" }}
+                  onPress={() => { setImportType("products"); setImportResult(null); }}
+                >
+                  <Ionicons name="cube" size={20} color={importType === "products" ? Colors.textDark : Colors.textMuted} />
+                  <Text style={{ color: importType === "products" ? Colors.textDark : Colors.textSecondary, fontSize: 13, fontWeight: "600", marginTop: 4 }}>{t("products")}</Text>
+                </Pressable>
+                <Pressable
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: importType === "customers" ? Colors.accent : Colors.surfaceLight, alignItems: "center" }}
+                  onPress={() => { setImportType("customers"); setImportResult(null); }}
+                >
+                  <Ionicons name="people" size={20} color={importType === "customers" ? Colors.textDark : Colors.textMuted} />
+                  <Text style={{ color: importType === "customers" ? Colors.textDark : Colors.textSecondary, fontSize: 13, fontWeight: "600", marginTop: 4 }}>{t("customers")}</Text>
+                </Pressable>
+              </View>
+
+              {/* Instructions */}
+              <View style={{ backgroundColor: Colors.surfaceLight, borderRadius: 12, padding: 14, marginBottom: 16 }}>
+                <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <Ionicons name="information-circle" size={18} color={Colors.info} />
+                  <Text style={{ color: Colors.text, fontSize: 14, fontWeight: "600" }}>{t("excelFormat" as any) || "Excel Format"}</Text>
+                </View>
+                {importType === "products" ? (
+                  <Text style={{ color: Colors.textMuted, fontSize: 12, lineHeight: 18 }}>
+                    {t("productImportHelp" as any) || "Excel columns: Name, Price, CostPrice, SKU, Barcode, Unit, NameArabic"}
+                  </Text>
+                ) : (
+                  <Text style={{ color: Colors.textMuted, fontSize: 12, lineHeight: 18 }}>
+                    {t("customerImportHelp" as any) || "Excel columns: Name, Phone, Email, Address"}
+                  </Text>
+                )}
+              </View>
+
+              {/* Download Template Button */}
+              <Pressable
+                style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: Colors.surfaceLight, borderRadius: 12, paddingVertical: 12, marginBottom: 16, borderWidth: 1, borderColor: Colors.accent + "40" }}
+                onPress={() => {
+                  const templateUrl = `${getApiUrl()}/api/${importType}/template`;
+                  if (Platform.OS === "web") {
+                    window.open(templateUrl, "_blank");
+                  } else {
+                    Alert.alert(t("downloadTemplate" as any) || "Download Template", templateUrl);
+                  }
+                }}
+              >
+                <Ionicons name="download-outline" size={20} color={Colors.accent} />
+                <Text style={{ color: Colors.accent, fontSize: 14, fontWeight: "600" }}>{t("downloadTemplate" as any) || "Download Template"}</Text>
+              </Pressable>
+
+              {/* Upload Button */}
+              <Pressable
+                style={{ borderWidth: 2, borderStyle: "dashed", borderColor: importLoading ? Colors.textMuted : Colors.accent, borderRadius: 16, padding: 30, alignItems: "center", marginBottom: 16, backgroundColor: Colors.surfaceLight }}
+                onPress={async () => {
+                  try {
+                    setImportLoading(true);
+                    setImportResult(null);
+
+                    if (Platform.OS === "web") {
+                      // Web: use file input
+                      const input = document.createElement("input");
+                      input.type = "file";
+                      input.accept = ".xlsx,.xls,.csv";
+                      input.onchange = async (e: any) => {
+                        const file = e.target.files[0];
+                        if (!file) { setImportLoading(false); return; }
+                        const reader = new FileReader();
+                        reader.onload = async (ev) => {
+                          try {
+                            const base64 = (ev.target?.result as string).split(",")[1];
+                            const endpoint = importType === "products" ? "/api/products/import" : "/api/customers/import";
+                            const body: any = { fileBase64: base64, tenantId: 1 };
+                            if (importType === "products") body.branchId = 1;
+                            const res = await apiRequest("POST", endpoint, body);
+                            const data = await res.json();
+                            setImportResult(data);
+                            if (data.success) {
+                              qc.invalidateQueries({ queryKey: importType === "products" ? ["/api/products"] : ["/api/customers"] });
+                            }
+                          } catch (err: any) {
+                            setImportResult({ error: err.message });
+                          } finally {
+                            setImportLoading(false);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      };
+                      input.click();
+                    } else {
+                      // Native: use document picker
+                      const result = await DocumentPicker.getDocumentAsync({
+                        type: ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"],
+                        copyToCacheDirectory: true,
+                      });
+                      if (!result.canceled && result.assets[0]) {
+                        const fileUri = result.assets[0].uri;
+                        const response = await fetch(fileUri);
+                        const blob = await response.blob();
+                        const reader = new FileReader();
+                        reader.onloadend = async () => {
+                          try {
+                            const base64 = (reader.result as string).split(",")[1];
+                            const endpoint = importType === "products" ? "/api/products/import" : "/api/customers/import";
+                            const body: any = { fileBase64: base64, tenantId: 1 };
+                            if (importType === "products") body.branchId = 1;
+                            const res = await apiRequest("POST", endpoint, body);
+                            const data = await res.json();
+                            setImportResult(data);
+                            if (data.success) {
+                              qc.invalidateQueries({ queryKey: importType === "products" ? ["/api/products"] : ["/api/customers"] });
+                            }
+                          } catch (err: any) {
+                            setImportResult({ error: err.message });
+                          } finally {
+                            setImportLoading(false);
+                          }
+                        };
+                        reader.readAsDataURL(blob);
+                      } else {
+                        setImportLoading(false);
+                      }
+                    }
+                  } catch (err: any) {
+                    setImportResult({ error: err.message });
+                    setImportLoading(false);
+                  }
+                }}
+                disabled={importLoading}
+              >
+                <Ionicons name={importLoading ? "hourglass" : "cloud-upload"} size={40} color={importLoading ? Colors.textMuted : Colors.accent} />
+                <Text style={{ color: importLoading ? Colors.textMuted : Colors.accent, fontSize: 16, fontWeight: "700", marginTop: 8 }}>
+                  {importLoading ? (t("uploading" as any) || "Uploading...") : (t("selectExcelFile" as any) || "Select Excel File")}
+                </Text>
+                <Text style={{ color: Colors.textMuted, fontSize: 12, marginTop: 4 }}>.xlsx, .xls, .csv</Text>
+              </Pressable>
+
+              {/* Import Result */}
+              {importResult && (
+                <View style={{
+                  backgroundColor: importResult.success ? Colors.success + "15" : Colors.danger + "15",
+                  borderRadius: 12, padding: 14, borderWidth: 1,
+                  borderColor: importResult.success ? Colors.success + "30" : Colors.danger + "30"
+                }}>
+                  <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 8 }}>
+                    <Ionicons
+                      name={importResult.success ? "checkmark-circle" : "alert-circle"}
+                      size={22}
+                      color={importResult.success ? Colors.success : Colors.danger}
+                    />
+                    <Text style={{ color: importResult.success ? Colors.success : Colors.danger, fontSize: 15, fontWeight: "700" }}>
+                      {importResult.success
+                        ? `${t("imported" as any) || "Imported"} ${importResult.count} ${importType === "products" ? t("products") : t("customers")}`
+                        : importResult.error || t("error")}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Caller ID Test Modal */}
+      <Modal visible={showCallerIdTest} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={[styles.modalHeader, isRTL && { flexDirection: "row-reverse" }]}>
+              <Text style={[styles.modalTitle, rtlTextAlign]}>{t("callerID" as any) || "Caller ID"}</Text>
+              <Pressable onPress={() => setShowCallerIdTest(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Status Indicator */}
+              <View style={{ alignItems: "center", marginBottom: 24 }}>
+                <View style={{
+                  width: 80, height: 80, borderRadius: 40,
+                  backgroundColor: callerIdStatus === "done" ? Colors.success + "20" : "#EC4899" + "20",
+                  justifyContent: "center", alignItems: "center", marginBottom: 12
+                }}>
+                  <Ionicons
+                    name={callerIdStatus === "done" ? "checkmark-circle" : "call"}
+                    size={40}
+                    color={callerIdStatus === "done" ? Colors.success : "#EC4899"}
+                  />
+                </View>
+                <Text style={{ color: Colors.text, fontSize: 18, fontWeight: "700" }}>
+                  {callerIdStatus === "done" ? (t("callSimulated" as any) || "Call Simulated!") : (t("simulateCall" as any) || "Simulate Call")}
+                </Text>
+                <Text style={{ color: Colors.textMuted, fontSize: 13, marginTop: 4, textAlign: "center" }}>
+                  {t("callerIdDescription" as any) || "Test the Caller ID notification on the POS screen"}
+                </Text>
+              </View>
+
+              {/* Phone Number Input */}
+              <Text style={[styles.label, rtlTextAlign]}>{t("phoneNumber" as any) || "Phone Number"}</Text>
+              <TextInput
+                style={[styles.input, { fontSize: 18, textAlign: "center", fontWeight: "700" }]}
+                value={testPhoneNumber}
+                onChangeText={setTestPhoneNumber}
+                placeholder="0551234567"
+                placeholderTextColor={Colors.textMuted}
+                keyboardType="phone-pad"
+              />
+
+              {/* Quick Numbers */}
+              <Text style={[styles.label, rtlTextAlign, { marginTop: 16 }]}>{t("quickTest" as any) || "Quick Test Numbers"}</Text>
+              <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: 8 }}>
+                {["0551234567", "0509876543", "0521112233", "+41791234567"].map((num) => (
+                  <Pressable
+                    key={num}
+                    style={{
+                      paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+                      backgroundColor: testPhoneNumber === num ? Colors.accent : Colors.surfaceLight
+                    }}
+                    onPress={() => setTestPhoneNumber(num)}
+                  >
+                    <Text style={{ color: testPhoneNumber === num ? Colors.textDark : Colors.textSecondary, fontSize: 13, fontWeight: "600" }}>{num}</Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {/* Simulate Button */}
+              <Pressable
+                style={{ borderRadius: 14, overflow: "hidden", marginTop: 24, marginBottom: 16 }}
+                onPress={async () => {
+                  try {
+                    setCallerIdStatus("testing");
+                    await apiRequest("POST", "/api/caller-id/simulate", { phoneNumber: testPhoneNumber });
+                    setCallerIdStatus("done");
+                    setTimeout(() => setCallerIdStatus("idle"), 3000);
+                  } catch (err: any) {
+                    Alert.alert(t("error"), err.message);
+                    setCallerIdStatus("idle");
+                  }
+                }}
+                disabled={callerIdStatus === "testing"}
+              >
+                <LinearGradient colors={["#EC4899", "#9333EA"]} style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", justifyContent: "center", paddingVertical: 16, gap: 10 }}>
+                  <Ionicons name={callerIdStatus === "testing" ? "hourglass" : "call"} size={22} color={Colors.white} />
+                  <Text style={{ color: Colors.white, fontSize: 16, fontWeight: "700" }}>
+                    {callerIdStatus === "testing" ? (t("simulating" as any) || "Simulating...") : (t("simulateIncomingCall" as any) || "Simulate Incoming Call")}
+                  </Text>
+                </LinearGradient>
+              </Pressable>
+
+              {/* Info Note */}
+              <View style={{ flexDirection: isRTL ? "row-reverse" : "row", backgroundColor: Colors.info + "10", borderRadius: 12, padding: 12, gap: 8, alignItems: "flex-start" }}>
+                <Ionicons name="information-circle" size={18} color={Colors.info} />
+                <Text style={{ color: Colors.textSecondary, fontSize: 12, flex: 1 }}>
+                  {t("callerIdNote" as any) || "When you simulate a call, a notification banner will appear on the POS screen showing the caller info. If the phone number matches a customer, their name will be displayed."}
+                </Text>
+              </View>
             </ScrollView>
           </View>
         </View>

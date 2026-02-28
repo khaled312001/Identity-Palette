@@ -1245,6 +1245,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  // Download Products Excel Template
+  app.get("/api/products/template", (req, res) => {
+    const templateData = [
+      { Name: "Sample Product 1", Price: "9.99", CostPrice: "5.00", SKU: "SKU001", Barcode: "1234567890", Unit: "piece", NameArabic: "منتج 1" },
+      { Name: "Sample Product 2", Price: "15.50", CostPrice: "8.00", SKU: "SKU002", Barcode: "0987654321", Unit: "kg", NameArabic: "منتج 2" },
+    ];
+    const ws = xlsx.utils.json_to_sheet(templateData);
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, "Products");
+    const buf = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
+    res.setHeader("Content-Disposition", "attachment; filename=products_template.xlsx");
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.send(buf);
+  });
+
+  // Download Customers Excel Template
+  app.get("/api/customers/template", (req, res) => {
+    const templateData = [
+      { Name: "John Doe", Phone: "+41791234567", Email: "john@example.com", Address: "123 Main St" },
+      { Name: "Jane Smith", Phone: "+41799876543", Email: "jane@example.com", Address: "456 Elm Ave" },
+    ];
+    const ws = xlsx.utils.json_to_sheet(templateData);
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, "Customers");
+    const buf = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
+    res.setHeader("Content-Disposition", "attachment; filename=customers_template.xlsx");
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.send(buf);
+  });
+
   // Bulk Import Products
   app.post("/api/products/import", async (req: any, res) => {
     try {

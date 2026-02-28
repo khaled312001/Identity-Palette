@@ -4,6 +4,7 @@ import {
   Modal, Alert, ScrollView, Platform, Dimensions, Image,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -232,11 +233,64 @@ export default function ProductsScreen() {
           {canManage && (
             <Pressable
               style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.cardBorder, justifyContent: "center", alignItems: "center" }}
-              onPress={() => {
-                Alert.alert(t("bulkImport") || "Bulk Import", "Select Excel file to import products", [
-                  { text: t("cancel") },
-                  { text: t("selectFile"), onPress: () => { } }
-                ]);
+              onPress={async () => {
+                try {
+                  if (Platform.OS === "web") {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = ".xlsx,.xls,.csv";
+                    input.onchange = async (e: any) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = async (ev) => {
+                        try {
+                          const base64 = (ev.target?.result as string).split(",")[1];
+                          const res = await apiRequest("POST", "/api/products/import", { fileBase64: base64, tenantId: 1, branchId: 1 });
+                          const data = await res.json();
+                          if (data.success) {
+                            Alert.alert(t("success"), `${(t as any)("imported") || "Imported"} ${data.count} ${t("products")}`);
+                            qc.invalidateQueries({ queryKey: ["/api/products"] });
+                          } else {
+                            Alert.alert(t("error"), data.error || "Import failed");
+                          }
+                        } catch (err: any) {
+                          Alert.alert(t("error"), err.message);
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    };
+                    input.click();
+                  } else {
+                    const result = await DocumentPicker.getDocumentAsync({
+                      type: ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"],
+                      copyToCacheDirectory: true,
+                    });
+                    if (!result.canceled && result.assets[0]) {
+                      const response = await fetch(result.assets[0].uri);
+                      const blob = await response.blob();
+                      const reader = new FileReader();
+                      reader.onloadend = async () => {
+                        try {
+                          const base64 = (reader.result as string).split(",")[1];
+                          const res = await apiRequest("POST", "/api/products/import", { fileBase64: base64, tenantId: 1, branchId: 1 });
+                          const data = await res.json();
+                          if (data.success) {
+                            Alert.alert(t("success"), `${(t as any)("imported") || "Imported"} ${data.count} ${t("products")}`);
+                            qc.invalidateQueries({ queryKey: ["/api/products"] });
+                          } else {
+                            Alert.alert(t("error"), data.error || "Import failed");
+                          }
+                        } catch (err: any) {
+                          Alert.alert(t("error"), err.message);
+                        }
+                      };
+                      reader.readAsDataURL(blob);
+                    }
+                  }
+                } catch (err: any) {
+                  Alert.alert(t("error"), err.message);
+                }
               }}
             >
               <Ionicons name="cloud-upload-outline" size={20} color={Colors.accent} />

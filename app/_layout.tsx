@@ -1,7 +1,8 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack, Redirect } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -20,35 +21,55 @@ function RootLayoutNav() {
   const { isValid, isValidating } = useLicense();
   const segments = useSegments();
   const router = useRouter();
+  const [hasSeenIntro, setHasSeenIntro] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    async function checkIntro() {
+      try {
+        const seen = await AsyncStorage.getItem("hasSeenIntro");
+        setHasSeenIntro(seen === "true");
+      } catch (e) {
+        setHasSeenIntro(false);
+      }
+    }
+    checkIntro();
+  }, []);
 
   // Keep splash screen while validating
   useEffect(() => {
-    if (!isValidating) {
+    if (!isValidating && hasSeenIntro !== null) {
       SplashScreen.hideAsync();
     }
-  }, [isValidating]);
+  }, [isValidating, hasSeenIntro]);
 
   // Route guarding
   useEffect(() => {
-    if (isValidating) return;
+    if (isValidating || hasSeenIntro === null) return;
 
+    const inIntro = segments[0] === "intro";
     const inLicenseGate = segments[0] === "license-gate";
 
-    if (isValid === false && !inLicenseGate) {
-      // Redirect to license-gate if license is invalid
-      router.replace("/license-gate");
-    } else if (isValid === true && inLicenseGate) {
-      // If licensed and somehow sitting on license-gate, push to login
-      router.replace("/login");
+    if (!hasSeenIntro && !inIntro) {
+      router.replace("/intro");
+      return;
     }
-  }, [isValid, isValidating, segments]);
 
-  if (isValidating) {
+    if (hasSeenIntro) {
+      if (isValid === false && !inLicenseGate && !inIntro) {
+        router.replace("/license-gate");
+      } else if (isValid === true && (inLicenseGate || inIntro)) {
+        router.replace("/login");
+      }
+    }
+  }, [isValid, isValidating, segments, hasSeenIntro]);
+
+  if (isValidating || hasSeenIntro === null) {
     return null; // Return nothing while splash screen is visible
   }
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="intro" options={{ headerShown: false }} />
       <Stack.Screen name="license-gate" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />

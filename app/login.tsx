@@ -11,6 +11,7 @@ import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useLanguage } from "@/lib/language-context";
 import { useLicense } from "@/lib/license-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface Employee {
   id: number;
@@ -214,9 +215,20 @@ export default function LoginScreen() {
                 />
               )}
 
-              <Pressable onPress={logoutLicense} style={{ marginTop: 20 }}>
+              <Pressable
+                onPress={async () => {
+                  try {
+                    await AsyncStorage.removeItem("hasSeenIntro");
+                    await logoutLicense();
+                    router.replace("/");
+                  } catch (e) {
+                    console.error("Reset failed", e);
+                  }
+                }}
+                style={{ marginTop: 20 }}
+              >
                 <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, textDecorationLine: "underline" }}>
-                  {t("deactivateDevice") || "Deactivate Device (Testing)"}
+                  Reset App Flow (Testing)
                 </Text>
               </Pressable>
             </View>

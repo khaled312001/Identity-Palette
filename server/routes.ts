@@ -143,12 +143,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/license/validate", async (req, res) => {
     try {
       const { licenseKey, email, password, deviceId } = req.body;
+      console.log("[VALIDATE] Incoming request details:", { licenseKey, email: email ? email.substring(0, 2) + "***" : undefined, deviceId });
 
       if (!licenseKey) {
         return res.json({ isValid: false, reason: "License key is required" });
       }
 
       const license = await storage.getLicenseByKey(licenseKey);
+      console.log("[VALIDATE] getLicenseByKey result for", licenseKey, ":", !!license);
       if (!license) {
         return res.json({ isValid: false, reason: "Invalid license key" });
       }

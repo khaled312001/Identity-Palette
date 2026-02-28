@@ -6,7 +6,7 @@ import { relations } from "drizzle-orm";
 
 export const branches = pgTable("branches", {
   id: serial("id").primaryKey(),
-  tenantId: integer("tenant_id").references(() => tenants.id), // Added for multi-tenancy
+  tenantId: integer("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }), // Added for multi-tenancy
   name: text("name").notNull(),
   address: text("address"),
   phone: text("phone"),
@@ -27,7 +27,7 @@ export const employees = pgTable("employees", {
   phone: text("phone"),
   pin: text("pin").notNull(),
   role: text("role").notNull().default("cashier"),
-  branchId: integer("branch_id").references(() => branches.id),
+  branchId: integer("branch_id").references(() => branches.id, { onDelete: 'cascade' }),
   isActive: boolean("is_active").default(true),
   hourlyRate: decimal("hourly_rate", { precision: 10, scale: 2 }),
   commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).default("0"),
@@ -52,13 +52,13 @@ export const categories = pgTable("categories", {
 
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
-  tenantId: integer("tenant_id").references(() => tenants.id), // Added for multi-tenancy
+  tenantId: integer("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }), // Added for multi-tenancy
   name: text("name").notNull(),
   nameAr: text("name_ar"),
   description: text("description"),
   sku: text("sku").unique(),
   barcode: text("barcode"),
-  categoryId: integer("category_id").references(() => categories.id),
+  categoryId: integer("category_id").references(() => categories.id, { onDelete: 'cascade' }),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   costPrice: decimal("cost_price", { precision: 10, scale: 2 }),
   image: text("image"),
@@ -75,8 +75,8 @@ export const products = pgTable("products", {
 
 export const inventory = pgTable("inventory", {
   id: serial("id").primaryKey(),
-  productId: integer("product_id").references(() => products.id).notNull(),
-  branchId: integer("branch_id").references(() => branches.id).notNull(),
+  productId: integer("product_id").references(() => products.id, { onDelete: 'cascade' }).notNull(),
+  branchId: integer("branch_id").references(() => branches.id, { onDelete: 'cascade' }).notNull(),
   quantity: integer("quantity").default(0),
   lowStockThreshold: integer("low_stock_threshold").default(10),
   reorderPoint: integer("reorder_point").default(5),
@@ -104,9 +104,9 @@ export const customers = pgTable("customers", {
 export const sales = pgTable("sales", {
   id: serial("id").primaryKey(),
   receiptNumber: text("receipt_number").notNull().unique(),
-  branchId: integer("branch_id").references(() => branches.id),
-  employeeId: integer("employee_id").references(() => employees.id),
-  customerId: integer("customer_id").references(() => customers.id),
+  branchId: integer("branch_id").references(() => branches.id, { onDelete: 'cascade' }),
+  employeeId: integer("employee_id").references(() => employees.id, { onDelete: 'cascade' }),
+  customerId: integer("customer_id").references(() => customers.id, { onDelete: 'cascade' }),
   subtotal: decimal("subtotal", { precision: 12, scale: 2 }).notNull(),
   taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).default("0"),
   discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default("0"),
@@ -125,8 +125,8 @@ export const sales = pgTable("sales", {
 
 export const saleItems = pgTable("sale_items", {
   id: serial("id").primaryKey(),
-  saleId: integer("sale_id").references(() => sales.id).notNull(),
-  productId: integer("product_id").references(() => products.id).notNull(),
+  saleId: integer("sale_id").references(() => sales.id, { onDelete: 'cascade' }).notNull(),
+  productId: integer("product_id").references(() => products.id, { onDelete: 'cascade' }).notNull(),
   productName: text("product_name").notNull(),
   quantity: integer("quantity").notNull(),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
@@ -153,8 +153,8 @@ export const suppliers = pgTable("suppliers", {
 export const purchaseOrders = pgTable("purchase_orders", {
   id: serial("id").primaryKey(),
   orderNumber: text("order_number").notNull().unique(),
-  supplierId: integer("supplier_id").references(() => suppliers.id).notNull(),
-  branchId: integer("branch_id").references(() => branches.id),
+  supplierId: integer("supplier_id").references(() => suppliers.id, { onDelete: 'cascade' }).notNull(),
+  branchId: integer("branch_id").references(() => branches.id, { onDelete: 'cascade' }),
   status: text("status").default("pending"),
   totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).default("0"),
   notes: text("notes"),
@@ -165,8 +165,8 @@ export const purchaseOrders = pgTable("purchase_orders", {
 
 export const purchaseOrderItems = pgTable("purchase_order_items", {
   id: serial("id").primaryKey(),
-  purchaseOrderId: integer("purchase_order_id").references(() => purchaseOrders.id).notNull(),
-  productId: integer("product_id").references(() => products.id).notNull(),
+  purchaseOrderId: integer("purchase_order_id").references(() => purchaseOrders.id, { onDelete: 'cascade' }).notNull(),
+  productId: integer("product_id").references(() => products.id, { onDelete: 'cascade' }).notNull(),
   quantity: integer("quantity").notNull(),
   unitCost: decimal("unit_cost", { precision: 10, scale: 2 }).notNull(),
   receivedQuantity: integer("received_quantity").default(0),
@@ -175,8 +175,8 @@ export const purchaseOrderItems = pgTable("purchase_order_items", {
 
 export const shifts = pgTable("shifts", {
   id: serial("id").primaryKey(),
-  employeeId: integer("employee_id").references(() => employees.id).notNull(),
-  branchId: integer("branch_id").references(() => branches.id),
+  employeeId: integer("employee_id").references(() => employees.id, { onDelete: 'cascade' }).notNull(),
+  branchId: integer("branch_id").references(() => branches.id, { onDelete: 'cascade' }),
   startTime: timestamp("start_time").defaultNow(),
   endTime: timestamp("end_time"),
   expectedDurationHours: decimal("expected_duration_hours", { precision: 4, scale: 1 }).default("8"),
@@ -194,8 +194,8 @@ export const shifts = pgTable("shifts", {
 
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
-  recipientId: integer("recipient_id").references(() => employees.id).notNull(),
-  senderId: integer("sender_id").references(() => employees.id),
+  recipientId: integer("recipient_id").references(() => employees.id, { onDelete: 'cascade' }).notNull(),
+  senderId: integer("sender_id").references(() => employees.id, { onDelete: 'cascade' }),
   type: text("type").notNull(),
   title: text("title").notNull(),
   message: text("message").notNull(),
@@ -208,18 +208,18 @@ export const notifications = pgTable("notifications", {
 
 export const expenses = pgTable("expenses", {
   id: serial("id").primaryKey(),
-  branchId: integer("branch_id").references(() => branches.id),
+  branchId: integer("branch_id").references(() => branches.id, { onDelete: 'cascade' }),
   category: text("category").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
   date: timestamp("date").defaultNow(),
-  employeeId: integer("employee_id").references(() => employees.id),
+  employeeId: integer("employee_id").references(() => employees.id, { onDelete: 'cascade' }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const tables = pgTable("tables", {
   id: serial("id").primaryKey(),
-  branchId: integer("branch_id").references(() => branches.id),
+  branchId: integer("branch_id").references(() => branches.id, { onDelete: 'cascade' }),
   name: text("name").notNull(),
   capacity: integer("capacity").default(4),
   status: text("status").default("available"),
@@ -231,8 +231,8 @@ export const tables = pgTable("tables", {
 
 export const kitchenOrders = pgTable("kitchen_orders", {
   id: serial("id").primaryKey(),
-  saleId: integer("sale_id").references(() => sales.id).notNull(),
-  branchId: integer("branch_id").references(() => branches.id),
+  saleId: integer("sale_id").references(() => sales.id, { onDelete: 'cascade' }).notNull(),
+  branchId: integer("branch_id").references(() => branches.id, { onDelete: 'cascade' }),
   tableNumber: text("table_number"),
   status: text("status").default("pending"),
   items: jsonb("items").$type<{ name: string; quantity: number; notes: string; status: string }[]>().default([]),
@@ -254,8 +254,8 @@ export const subscriptionPlans = pgTable("subscription_plans", {
 
 export const subscriptions = pgTable("subscriptions", {
   id: serial("id").primaryKey(),
-  customerId: integer("customer_id").references(() => customers.id).notNull(),
-  planId: integer("plan_id").references(() => subscriptionPlans.id).notNull(),
+  customerId: integer("customer_id").references(() => customers.id, { onDelete: 'cascade' }).notNull(),
+  planId: integer("plan_id").references(() => subscriptionPlans.id, { onDelete: 'cascade' }).notNull(),
   status: text("status").default("active"),
   startDate: timestamp("start_date").defaultNow(),
   endDate: timestamp("end_date"),
@@ -265,7 +265,7 @@ export const subscriptions = pgTable("subscriptions", {
 
 export const activityLog = pgTable("activity_log", {
   id: serial("id").primaryKey(),
-  employeeId: integer("employee_id").references(() => employees.id).notNull(),
+  employeeId: integer("employee_id").references(() => employees.id, { onDelete: 'cascade' }).notNull(),
   action: text("action").notNull(),
   entityType: text("entity_type"),
   entityId: integer("entity_id"),
@@ -276,23 +276,23 @@ export const activityLog = pgTable("activity_log", {
 
 export const returns = pgTable("returns", {
   id: serial("id").primaryKey(),
-  originalSaleId: integer("original_sale_id").references(() => sales.id).notNull(),
-  employeeId: integer("employee_id").references(() => employees.id),
+  originalSaleId: integer("original_sale_id").references(() => sales.id, { onDelete: 'cascade' }).notNull(),
+  employeeId: integer("employee_id").references(() => employees.id, { onDelete: 'cascade' }),
   reason: text("reason"),
   type: text("type").default("refund"),
   totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull(),
   returnGraceDays: integer("return_grace_days").default(30),
   refundMethod: text("refund_method"),
-  approvedBy: integer("approved_by").references(() => employees.id),
-  branchId: integer("branch_id").references(() => branches.id),
+  approvedBy: integer("approved_by").references(() => employees.id, { onDelete: 'cascade' }),
+  branchId: integer("branch_id").references(() => branches.id, { onDelete: 'cascade' }),
   status: text("status").default("completed"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const returnItems = pgTable("return_items", {
   id: serial("id").primaryKey(),
-  returnId: integer("return_id").references(() => returns.id).notNull(),
-  productId: integer("product_id").references(() => products.id).notNull(),
+  returnId: integer("return_id").references(() => returns.id, { onDelete: 'cascade' }).notNull(),
+  productId: integer("product_id").references(() => products.id, { onDelete: 'cascade' }).notNull(),
   productName: text("product_name").notNull(),
   quantity: integer("quantity").notNull(),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
@@ -313,22 +313,22 @@ export const syncQueue = pgTable("sync_queue", {
 
 export const cashDrawerOperations = pgTable("cash_drawer_operations", {
   id: serial("id").primaryKey(),
-  shiftId: integer("shift_id").references(() => shifts.id).notNull(),
-  employeeId: integer("employee_id").references(() => employees.id).notNull(),
+  shiftId: integer("shift_id").references(() => shifts.id, { onDelete: 'cascade' }).notNull(),
+  employeeId: integer("employee_id").references(() => employees.id, { onDelete: 'cascade' }).notNull(),
   type: text("type").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   expectedAmount: decimal("expected_amount", { precision: 10, scale: 2 }),
   actualAmount: decimal("actual_amount", { precision: 10, scale: 2 }),
   difference: decimal("difference", { precision: 10, scale: 2 }),
   reason: text("reason"),
-  approvedBy: integer("approved_by").references(() => employees.id),
+  approvedBy: integer("approved_by").references(() => employees.id, { onDelete: 'cascade' }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const warehouses = pgTable("warehouses", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  branchId: integer("branch_id").references(() => branches.id).notNull(),
+  branchId: integer("branch_id").references(() => branches.id, { onDelete: 'cascade' }).notNull(),
   address: text("address"),
   isDefault: boolean("is_default").default(false),
   isActive: boolean("is_active").default(true),
@@ -337,11 +337,11 @@ export const warehouses = pgTable("warehouses", {
 
 export const warehouseTransfers = pgTable("warehouse_transfers", {
   id: serial("id").primaryKey(),
-  fromWarehouseId: integer("from_warehouse_id").references(() => warehouses.id).notNull(),
-  toWarehouseId: integer("to_warehouse_id").references(() => warehouses.id).notNull(),
-  productId: integer("product_id").references(() => products.id).notNull(),
+  fromWarehouseId: integer("from_warehouse_id").references(() => warehouses.id, { onDelete: 'cascade' }).notNull(),
+  toWarehouseId: integer("to_warehouse_id").references(() => warehouses.id, { onDelete: 'cascade' }).notNull(),
+  productId: integer("product_id").references(() => products.id, { onDelete: 'cascade' }).notNull(),
   quantity: integer("quantity").notNull(),
-  employeeId: integer("employee_id").references(() => employees.id),
+  employeeId: integer("employee_id").references(() => employees.id, { onDelete: 'cascade' }),
   status: text("status").default("completed"),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -349,13 +349,13 @@ export const warehouseTransfers = pgTable("warehouse_transfers", {
 
 export const productBatches = pgTable("product_batches", {
   id: serial("id").primaryKey(),
-  productId: integer("product_id").references(() => products.id).notNull(),
+  productId: integer("product_id").references(() => products.id, { onDelete: 'cascade' }).notNull(),
   batchNumber: text("batch_number").notNull(),
   quantity: integer("quantity").default(0),
   expiryDate: timestamp("expiry_date"),
   costPrice: decimal("cost_price", { precision: 10, scale: 2 }),
-  branchId: integer("branch_id").references(() => branches.id),
-  supplierId: integer("supplier_id").references(() => suppliers.id),
+  branchId: integer("branch_id").references(() => branches.id, { onDelete: 'cascade' }),
+  supplierId: integer("supplier_id").references(() => suppliers.id, { onDelete: 'cascade' }),
   receivedDate: timestamp("received_date").defaultNow(),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
@@ -363,8 +363,8 @@ export const productBatches = pgTable("product_batches", {
 
 export const inventoryMovements = pgTable("inventory_movements", {
   id: serial("id").primaryKey(),
-  productId: integer("product_id").references(() => products.id).notNull(),
-  branchId: integer("branch_id").references(() => branches.id),
+  productId: integer("product_id").references(() => products.id, { onDelete: 'cascade' }).notNull(),
+  branchId: integer("branch_id").references(() => branches.id, { onDelete: 'cascade' }),
   type: text("type").notNull(),
   quantity: integer("quantity").notNull(),
   previousQuantity: integer("previous_quantity"),
@@ -372,17 +372,17 @@ export const inventoryMovements = pgTable("inventory_movements", {
   referenceType: text("reference_type"),
   referenceId: integer("reference_id"),
   batchNumber: text("batch_number"),
-  employeeId: integer("employee_id").references(() => employees.id),
+  employeeId: integer("employee_id").references(() => employees.id, { onDelete: 'cascade' }),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const stockCounts = pgTable("stock_counts", {
   id: serial("id").primaryKey(),
-  branchId: integer("branch_id").references(() => branches.id).notNull(),
-  employeeId: integer("employee_id").references(() => employees.id).notNull(),
+  branchId: integer("branch_id").references(() => branches.id, { onDelete: 'cascade' }).notNull(),
+  employeeId: integer("employee_id").references(() => employees.id, { onDelete: 'cascade' }).notNull(),
   status: text("status").default("in_progress"),
-  approvedBy: integer("approved_by").references(() => employees.id),
+  approvedBy: integer("approved_by").references(() => employees.id, { onDelete: 'cascade' }),
   totalItems: integer("total_items").default(0),
   discrepancies: integer("discrepancies").default(0),
   notes: text("notes"),
@@ -392,8 +392,8 @@ export const stockCounts = pgTable("stock_counts", {
 
 export const stockCountItems = pgTable("stock_count_items", {
   id: serial("id").primaryKey(),
-  stockCountId: integer("stock_count_id").references(() => stockCounts.id).notNull(),
-  productId: integer("product_id").references(() => products.id).notNull(),
+  stockCountId: integer("stock_count_id").references(() => stockCounts.id, { onDelete: 'cascade' }).notNull(),
+  productId: integer("product_id").references(() => products.id, { onDelete: 'cascade' }).notNull(),
   systemQuantity: integer("system_quantity").notNull(),
   actualQuantity: integer("actual_quantity"),
   difference: integer("difference"),
@@ -402,7 +402,7 @@ export const stockCountItems = pgTable("stock_count_items", {
 
 export const supplierContracts = pgTable("supplier_contracts", {
   id: serial("id").primaryKey(),
-  supplierId: integer("supplier_id").references(() => suppliers.id).notNull(),
+  supplierId: integer("supplier_id").references(() => suppliers.id, { onDelete: 'cascade' }).notNull(),
   discountRate: decimal("discount_rate", { precision: 5, scale: 2 }).default("0"),
   paymentTerms: text("payment_terms"),
   minOrderAmount: decimal("min_order_amount", { precision: 10, scale: 2 }),
@@ -415,8 +415,8 @@ export const supplierContracts = pgTable("supplier_contracts", {
 
 export const employeeCommissions = pgTable("employee_commissions", {
   id: serial("id").primaryKey(),
-  employeeId: integer("employee_id").references(() => employees.id).notNull(),
-  saleId: integer("sale_id").references(() => sales.id).notNull(),
+  employeeId: integer("employee_id").references(() => employees.id, { onDelete: 'cascade' }).notNull(),
+  saleId: integer("sale_id").references(() => sales.id, { onDelete: 'cascade' }).notNull(),
   commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull(),
   commissionAmount: decimal("commission_amount", { precision: 10, scale: 2 }).notNull(),
   status: text("status").default("pending"),
@@ -457,7 +457,7 @@ export const tenants = pgTable("tenants", {
 
 export const tenantSubscriptions = pgTable("tenant_subscriptions", {
   id: serial("id").primaryKey(),
-  tenantId: integer("tenant_id").references(() => tenants.id).notNull(),
+  tenantId: integer("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
   planType: text("plan_type").notNull().default("trial"), // trial, monthly, yearly
   planName: text("plan_name").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).default("0"),
@@ -479,8 +479,8 @@ export const tenantSubscriptions = pgTable("tenant_subscriptions", {
 export const licenseKeys = pgTable("license_keys", {
   id: serial("id").primaryKey(),
   licenseKey: text("license_key").notNull().unique(),
-  tenantId: integer("tenant_id").references(() => tenants.id).notNull(),
-  subscriptionId: integer("subscription_id").references(() => tenantSubscriptions.id),
+  tenantId: integer("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  subscriptionId: integer("subscription_id").references(() => tenantSubscriptions.id, { onDelete: 'cascade' }),
   status: text("status").default("active"), // active, expired, revoked, pending
   activatedAt: timestamp("activated_at"),
   expiresAt: timestamp("expires_at"),
@@ -495,7 +495,7 @@ export const licenseKeys = pgTable("license_keys", {
 
 export const tenantNotifications = pgTable("tenant_notifications", {
   id: serial("id").primaryKey(),
-  tenantId: integer("tenant_id").references(() => tenants.id),
+  tenantId: integer("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }),
   type: text("type").notNull(), // warning, promotion, info, expiry_alert, upgrade_offer
   title: text("title").notNull(),
   message: text("message").notNull(),
@@ -505,7 +505,7 @@ export const tenantNotifications = pgTable("tenant_notifications", {
   actionUrl: text("action_url"),
   actionLabel: text("action_label"),
   expiresAt: timestamp("expires_at"),
-  sentBy: integer("sent_by").references(() => superAdmins.id),
+  sentBy: integer("sent_by").references(() => superAdmins.id, { onDelete: 'cascade' }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

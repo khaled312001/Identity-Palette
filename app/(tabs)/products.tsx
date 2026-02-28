@@ -58,6 +58,13 @@ export default function ProductsScreen() {
     queryFn: getQueryFn({ on401: "throw" }),
   });
 
+  const { data: storeSettings } = useQuery<any>({
+    queryKey: ["/api/store-settings"],
+    queryFn: getQueryFn({ on401: "throw" }),
+  });
+
+  const isRestaurant = storeSettings?.storeType === "restaurant";
+
   const createMutation = useMutation({
     mutationFn: (data: any) => apiRequest(editProduct ? "PUT" : "POST", editProduct ? `/api/products/${editProduct.id}` : "/api/products", data),
     onSuccess: () => {
@@ -222,6 +229,19 @@ export default function ProductsScreen() {
             <Ionicons name="search" size={18} color={Colors.textMuted} />
             <TextInput style={[styles.searchInput, isRTL ? { marginRight: 8, marginLeft: 0, textAlign: "right" } : {}]} placeholder={t("search") + "..."} placeholderTextColor={Colors.textMuted} value={search} onChangeText={setSearch} />
           </View>
+          {canManage && (
+            <Pressable
+              style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.cardBorder, justifyContent: "center", alignItems: "center" }}
+              onPress={() => {
+                Alert.alert(t("bulkImport") || "Bulk Import", "Select Excel file to import products", [
+                  { text: t("cancel") },
+                  { text: t("selectFile"), onPress: () => { } }
+                ]);
+              }}
+            >
+              <Ionicons name="cloud-upload-outline" size={20} color={Colors.accent} />
+            </Pressable>
+          )}
         </View>
       )}
 
@@ -401,7 +421,7 @@ export default function ProductsScreen() {
                   </Pressable>
                 ))}
               </ScrollView>
-              {!editProduct && (
+              {!editProduct && !isRestaurant && (
                 <View>
                   <Text style={[styles.label, rtlTextAlign]}>{t("initialStock")}</Text>
                   <TextInput style={[styles.input, rtlTextAlign]} value={initialStock} onChangeText={setInitialStock} keyboardType="number-pad" placeholderTextColor={Colors.textMuted} placeholder={t("enterInitialStock")} />

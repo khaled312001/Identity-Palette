@@ -2,6 +2,7 @@ import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { registerSuperAdminRoutes } from "./superAdminRoutes";
+import { callerIdService } from "./callerIdService";
 import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync, getStripePublishableKey, getUncachableStripeClient, getStripeSecretKey } from "./stripeClient";
 import { WebhookHandlers } from "./webhookHandlers";
@@ -533,6 +534,9 @@ function setupPaymentGatewayRoutes(app: express.Application) {
 
   registerSuperAdminRoutes(app);
   const server = await registerRoutes(app);
+
+  // Initialize Caller ID Service with WebSocket Support
+  await callerIdService.init(server);
 
   setupErrorHandler(app);
 

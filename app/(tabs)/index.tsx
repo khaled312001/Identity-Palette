@@ -47,6 +47,7 @@ export default function POSScreen() {
   const [cardError, setCardError] = useState("");
   const [nfcStatus, setNfcStatus] = useState<"waiting" | "reading" | "success" | "error">("waiting");
   const [nfcPulse, setNfcPulse] = useState(0);
+  const [incomingCall, setIncomingCall] = useState<any>(null);
 
   const { data: categories = [] } = useQuery<any[]>({
     queryKey: ["/api/categories"],
@@ -69,8 +70,32 @@ export default function POSScreen() {
   });
 
   useEffect(() => {
-    apiRequest("POST", "/api/seed").catch(() => {});
+    apiRequest("POST", "/api/seed").catch(() => { });
   }, []);
+
+  useEffect(() => {
+    const wsUrl = `${getApiUrl().replace("http", "ws")}/api/ws/caller-id`;
+    let ws: WebSocket;
+
+    try {
+      ws = new WebSocket(wsUrl);
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "incoming_call") {
+            const customer = customers.find((c: any) => c.phone === data.phoneNumber);
+            setIncomingCall({ ...data, customer });
+            if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          }
+        } catch (e) {
+          console.error("WS Message Error:", e);
+        }
+      };
+      return () => ws.close();
+    } catch (e) {
+      console.error("WS Connection Error:", e);
+    }
+  }, [customers]);
 
   const filteredProducts = selectedCategory
     ? products.filter((p: any) => p.categoryId === selectedCategory)
@@ -304,6 +329,47 @@ export default function POSScreen() {
           </View>
         </LinearGradient>
       </View>
+
+      {incomingCall && (
+        <View style={styles.callNotification}>
+          <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={[styles.callGradient, isRTL && { flexDirection: "row-reverse" }]}>
+            <View style={styles.callIconWrap}>
+              <Ionicons name="call" size={24} color={Colors.white} />
+            </View>
+            <View style={[styles.callInfo, isRTL && { alignItems: "flex-end" }]}>
+              <Text style={styles.callTitle}>{t("incomingCall" as any) || "Incoming Call"}</Text>
+              <Text style={styles.callNumber}>{incomingCall.phoneNumber}</Text>
+              {incomingCall.customer ? (
+                <Text style={styles.callCustomer}>{incomingCall.customer.name}</Text>
+              ) : (
+                <Text style={styles.callCustomer}>{t("newCustomer" as any) || "New Customer"}</Text>
+              )}
+            </View>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <Pressable
+                style={[styles.callActionBtn, { backgroundColor: Colors.success }]}
+                onPress={() => {
+                  if (incomingCall.customer) {
+                    cart.setCustomerId(incomingCall.customer.id);
+                  } else {
+                    // Navigate to customers or open add customer modal
+                    setShowCustomerPicker(true);
+                  }
+                  setIncomingCall(null);
+                }}
+              >
+                <Ionicons name="checkmark" size={20} color={Colors.white} />
+              </Pressable>
+              <Pressable
+                style={[styles.callActionBtn, { backgroundColor: Colors.danger }]}
+                onPress={() => setIncomingCall(null)}
+              >
+                <Ionicons name="close" size={20} color={Colors.white} />
+              </Pressable>
+            </View>
+          </LinearGradient>
+        </View>
+      )}
 
       <View style={[styles.mainContent, { flexDirection: isTablet ? (isRTL ? "row-reverse" : "row") : "column" }]}>
         <View style={[styles.productsSection, isTablet && styles.productsSectionTablet]}>
@@ -574,20 +640,20 @@ export default function POSScreen() {
                   <Text style={[styles.nfcPayTitle, rtlTextAlign]}>{t("tapToPay")}</Text>
                   <Text style={[styles.nfcPaySubtitle, rtlTextAlign]}>{t("holdCardNear")}</Text>
                   <Text style={styles.nfcPayAmount}>CHF {cart.total.toFixed(2)}</Text>
-                  <View style={[styles.nfcStatusBadge, 
-                    nfcStatus === "success" && { backgroundColor: "rgba(16,185,129,0.15)" },
-                    nfcStatus === "error" && { backgroundColor: "rgba(239,68,68,0.15)" },
-                    nfcStatus === "reading" && { backgroundColor: "rgba(59,130,246,0.15)" },
+                  <View style={[styles.nfcStatusBadge,
+                  nfcStatus === "success" && { backgroundColor: "rgba(16,185,129,0.15)" },
+                  nfcStatus === "error" && { backgroundColor: "rgba(239,68,68,0.15)" },
+                  nfcStatus === "reading" && { backgroundColor: "rgba(59,130,246,0.15)" },
                   ]}>
-                    <Ionicons 
-                      name={nfcStatus === "success" ? "checkmark-circle" : nfcStatus === "error" ? "close-circle" : nfcStatus === "reading" ? "sync" : "radio-outline"} 
-                      size={16} 
-                      color={nfcStatus === "success" ? Colors.success : nfcStatus === "error" ? Colors.error : nfcStatus === "reading" ? "#3B82F6" : Colors.accent} 
+                    <Ionicons
+                      name={nfcStatus === "success" ? "checkmark-circle" : nfcStatus === "error" ? "close-circle" : nfcStatus === "reading" ? "sync" : "radio-outline"}
+                      size={16}
+                      color={nfcStatus === "success" ? Colors.success : nfcStatus === "error" ? Colors.danger : nfcStatus === "reading" ? "#3B82F6" : Colors.accent}
                     />
-                    <Text style={[styles.nfcStatusText, 
-                      nfcStatus === "success" && { color: Colors.success },
-                      nfcStatus === "error" && { color: Colors.error },
-                      nfcStatus === "reading" && { color: "#3B82F6" },
+                    <Text style={[styles.nfcStatusText,
+                    nfcStatus === "success" && { color: Colors.success },
+                    nfcStatus === "error" && { color: Colors.danger },
+                    nfcStatus === "reading" && { color: "#3B82F6" },
                     ]}>
                       {nfcStatus === "success" ? t("paymentSuccess") : nfcStatus === "error" ? t("paymentFailed") : nfcStatus === "reading" ? t("processingPayment") : t("nfcReady")}
                     </Text>
@@ -646,7 +712,7 @@ export default function POSScreen() {
                   </View>
                   {cardError ? (
                     <View style={[styles.cardErrorRow, isRTL && { flexDirection: "row-reverse" }]}>
-                      <Ionicons name="alert-circle" size={16} color={Colors.error} />
+                      <Ionicons name="alert-circle" size={16} color={Colors.danger} />
                       <Text style={[styles.cardErrorText, rtlTextAlign]}>{cardError}</Text>
                     </View>
                   ) : null}
@@ -1006,7 +1072,7 @@ const styles = StyleSheet.create({
   cardInput: { flex: 1, color: Colors.text, fontSize: 15, fontWeight: "500", height: 48 },
   cardRow: { flexDirection: "row", gap: 0 },
   cardErrorRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
-  cardErrorText: { color: Colors.error, fontSize: 12, fontWeight: "500", flex: 1 },
+  cardErrorText: { color: Colors.danger, fontSize: 12, fontWeight: "500", flex: 1 },
   cardProcessingRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
   cardProcessingText: { color: Colors.accent, fontSize: 12, fontWeight: "500" },
   cardSecureRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 8, justifyContent: "center" },
@@ -1057,4 +1123,12 @@ const styles = StyleSheet.create({
   discountTypeBtn: { flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: Colors.surfaceLight, alignItems: "center" },
   discountTypeBtnActive: { backgroundColor: Colors.accent },
   discountTypeBtnText: { color: Colors.textSecondary, fontSize: 14, fontWeight: "600" },
+  callNotification: { position: "absolute", top: 100, left: 20, right: 20, zIndex: 1000, borderRadius: 16, overflow: "hidden", elevation: 8, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+  callGradient: { flexDirection: "row", alignItems: "center", padding: 16, gap: 12 },
+  callIconWrap: { width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(255,255,255,0.2)", justifyContent: "center", alignItems: "center" },
+  callInfo: { flex: 1 },
+  callTitle: { color: Colors.white, fontSize: 11, fontWeight: "600", opacity: 0.8 },
+  callNumber: { color: Colors.white, fontSize: 18, fontWeight: "800" },
+  callCustomer: { color: Colors.white, fontSize: 14, fontWeight: "600", marginTop: 2 },
+  callActionBtn: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center" },
 });

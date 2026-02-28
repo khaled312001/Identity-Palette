@@ -1001,6 +1001,29 @@ export const storage = {
     return notif;
   },
 
+  // Tenants & Store Config
+  async getTenants() {
+    return db.select().from(tenants).orderBy(desc(tenants.createdAt));
+  },
+  async getTenant(id: number) {
+    const [t] = await db.select().from(tenants).where(eq(tenants.id, id));
+    return t;
+  },
+  async updateTenant(id: number, data: Partial<InsertTenant>) {
+    const [t] = await db.update(tenants).set({ ...data, updatedAt: new Date() }).where(eq(tenants.id, id)).returning();
+    return t;
+  },
+
+  // Bulk Operations
+  async bulkCreateCustomers(data: InsertCustomer[]) {
+    if (data.length === 0) return [];
+    return db.insert(customers).values(data).returning();
+  },
+  async bulkCreateProducts(data: InsertProduct[]) {
+    if (data.length === 0) return [];
+    return db.insert(products).values(data).returning();
+  },
+
   // System Wide Analytics
   async getSuperAdminDashboardStats() {
     try {

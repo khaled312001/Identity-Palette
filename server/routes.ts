@@ -1,7 +1,9 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "node:http";
+import * as xlsx from "xlsx";
 import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { callerIdService } from "./callerIdService";
 
 const TIMESTAMP_FIELDS = [
   "createdAt", "updatedAt", "expiryDate", "expectedDate", "receivedDate",
@@ -1211,24 +1213,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
-  // Get store settings (main branch)
-  app.get("/api/store-settings", async (_req, res) => {
-    try {
-      const branches = await storage.getBranches();
-      const mainBranch = branches.find((b: any) => b.isMain) || branches[0];
-      res.json(mainBranch || { name: "Barmagly Smart POS", address: "", phone: "", email: "", logo: "" });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
-  });
-
-  // Update store settings (update main branch)
-  app.put("/api/store-settings", async (req, res) => {
+  // Get store settings (main branch + tenant info)
+  app.get("/api/store-settings", async (req: any, res) => {
     try {
       const branches = await storage.getBranches();
       const mainBranch = branches.find((b: any) => b.isMain) || branches[0];
       if (!mainBranch) return res.status(404).json({ error: "No branch found" });
-      const updated = await storage.updateBranch(mainBranch.id, sanitizeDates(req.body));
-      res.json(updated);
+
+      const tenant = await storage.getTenant(mainBranch.tenantId);
+      res.json({
+        ...mainBranch,
+        storeType: tenant?.storeType || "supermarket"
+      });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Update store settings (update main branch + tenant storeType)
+  app.put("/api/store-settings", async (req: any, res) => {
+    try {
+      const { storeType, ...branchData } = sanitizeDates(req.body);
+      const branches = await storage.getBranches();
+      const mainBranch = branches.find((b: any) => b.isMain) || branches[0];
+      if (!mainBranch) return res.status(404).json({ error: "No branch found" });
+
+      const updatedBranch = await storage.updateBranch(mainBranch.id, branchData);
+      if (storeType && mainBranch.tenantId) {
+        await storage.updateTenant(mainBranch.tenantId as number, { storeType });
+      }
+
+      res.json({ ...updatedBranch, storeType });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Bulk Import Products
+  app.post("/api/products/import", async (req: any, res) => {
+    try {
+      // For demo, we expect base64 file in body, or we can use multer for multipart
+      // Using base64 for simplicity in this environment
+      const { fileBase64, tenantId, branchId } = req.body;
+      const buffer = Buffer.from(fileBase64, "base64");
+      const workbook = xlsx.read(buffer, { type: "buffer" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const data = xlsx.utils.sheet_to_json(sheet);
+
+      const productsToInsert = data.map((item: any) => ({
+        tenantId: Number(tenantId),
+        name: item.Name || item.name,
+        nameAr: item.NameArabic || item.name_ar,
+        sku: item.SKU || item.sku || undefined,
+        barcode: String(item.Barcode || item.barcode || ""),
+        price: String(item.Price || item.price || "0"),
+        costPrice: String(item.CostPrice || item.cost_price || "0"),
+        unit: item.Unit || item.unit || "piece",
+        isActive: true,
+      }));
+
+      const results = await storage.bulkCreateProducts(productsToInsert as any);
+
+      // If branchId is provided, also create initial inventory
+      if (branchId) {
+        for (const prod of results) {
+          await storage.upsertInventory({
+            productId: prod.id,
+            branchId: Number(branchId),
+            quantity: 0
+          });
+        }
+      }
+
+      res.json({ success: true, count: results.length });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Bulk Import Customers
+  app.post("/api/customers/import", async (req: any, res) => {
+    try {
+      const { fileBase64, tenantId } = req.body;
+      const buffer = Buffer.from(fileBase64, "base64");
+      const workbook = xlsx.read(buffer, { type: "buffer" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const data = xlsx.utils.sheet_to_json(sheet);
+
+      const customersToInsert = data.map((item: any) => ({
+        name: item.Name || item.name,
+        email: item.Email || item.email || undefined,
+        phone: String(item.Phone || item.phone || ""),
+        address: item.Address || item.address || undefined,
+        isActive: true,
+      }));
+
+      const results = await storage.bulkCreateCustomers(customersToInsert as any);
+      res.json({ success: true, count: results.length });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Simulate Caller ID
+  app.post("/api/caller-id/simulate", async (req, res) => {
+    const { phoneNumber } = req.body;
+    callerIdService.handleIncomingCall(phoneNumber || "0551234567");
+    res.json({ success: true });
   });
 
   const httpServer = createServer(app);

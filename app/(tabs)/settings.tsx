@@ -99,7 +99,7 @@ export default function SettingsScreen() {
   const [printerPaperSize, setPrinterPaperSize] = useState("80mm");
   const [printerAutoPrint, setPrinterAutoPrint] = useState(false);
   const [showStoreSettings, setShowStoreSettings] = useState(false);
-  const [storeForm, setStoreForm] = useState({ name: "", address: "", phone: "", email: "" });
+  const [storeForm, setStoreForm] = useState({ name: "", address: "", phone: "", email: "", storeType: "supermarket" });
   const [storeLogo, setStoreLogo] = useState<string | null>(null);
   const [storeLogoUploading, setStoreLogoUploading] = useState(false);
 
@@ -384,6 +384,7 @@ export default function SettingsScreen() {
       phone: storeForm.phone || undefined,
       email: storeForm.email || undefined,
       logo: logoPath || undefined,
+      storeType: storeForm.storeType || "supermarket",
     });
   };
 
@@ -495,6 +496,7 @@ export default function SettingsScreen() {
                 address: storeSettings?.address || "",
                 phone: storeSettings?.phone || "",
                 email: storeSettings?.email || "",
+                storeType: storeSettings?.storeType || "supermarket",
               });
               setStoreLogo(storeSettings?.logo || null);
               setShowStoreSettings(true);
@@ -1777,16 +1779,36 @@ export default function SettingsScreen() {
               </Pressable>
 
               <Text style={[styles.label, rtlTextAlign]}>{t("storeName")}</Text>
-              <TextInput style={[styles.input, rtlTextAlign]} value={storeForm.name} onChangeText={(v) => setStoreForm({...storeForm, name: v})} placeholderTextColor={Colors.textMuted} placeholder={t("storeName")} />
+              <TextInput style={[styles.input, rtlTextAlign]} value={storeForm.name} onChangeText={(v) => setStoreForm({ ...storeForm, name: v })} placeholderTextColor={Colors.textMuted} placeholder={t("storeName")} />
 
               <Text style={[styles.label, rtlTextAlign]}>{t("storeAddress")}</Text>
-              <TextInput style={[styles.input, rtlTextAlign]} value={storeForm.address} onChangeText={(v) => setStoreForm({...storeForm, address: v})} placeholderTextColor={Colors.textMuted} placeholder={t("storeAddress")} />
+              <TextInput style={[styles.input, rtlTextAlign]} value={storeForm.address} onChangeText={(v) => setStoreForm({ ...storeForm, address: v })} placeholderTextColor={Colors.textMuted} placeholder={t("storeAddress")} />
 
               <Text style={[styles.label, rtlTextAlign]}>{t("storePhone")}</Text>
-              <TextInput style={[styles.input, rtlTextAlign]} value={storeForm.phone} onChangeText={(v) => setStoreForm({...storeForm, phone: v})} placeholderTextColor={Colors.textMuted} placeholder={t("storePhone")} keyboardType="phone-pad" />
+              <TextInput style={[styles.input, rtlTextAlign]} value={storeForm.phone} onChangeText={(v) => setStoreForm({ ...storeForm, phone: v })} placeholderTextColor={Colors.textMuted} placeholder={t("storePhone")} keyboardType="phone-pad" />
 
               <Text style={[styles.label, rtlTextAlign]}>{t("storeEmail")}</Text>
-              <TextInput style={[styles.input, rtlTextAlign]} value={storeForm.email} onChangeText={(v) => setStoreForm({...storeForm, email: v})} placeholderTextColor={Colors.textMuted} placeholder={t("storeEmail")} keyboardType="email-address" />
+              <TextInput style={[styles.input, rtlTextAlign]} value={storeForm.email} onChangeText={(v) => setStoreForm({ ...storeForm, email: v })} placeholderTextColor={Colors.textMuted} placeholder={t("storeEmail")} keyboardType="email-address" />
+
+              <Text style={[styles.label, rtlTextAlign]}>{t("storeType") || "Store Type"}</Text>
+              <View style={styles.roleRow}>
+                {[
+                  { id: "supermarket", label: t("supermarket") || "Supermarket" },
+                  { id: "restaurant", label: t("restaurant") || "Restaurant" },
+                  { id: "pharmacy", label: t("pharmacy") || "Pharmacy" },
+                  { id: "others", label: t("others") || "Others" },
+                ].map((st) => (
+                  <Pressable
+                    key={st.id}
+                    style={[styles.roleChip, storeForm.storeType === st.id && { backgroundColor: Colors.accent }]}
+                    onPress={() => setStoreForm({ ...storeForm, storeType: st.id })}
+                  >
+                    <Text style={[styles.roleChipText, storeForm.storeType === st.id && { color: Colors.textDark }]}>
+                      {st.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
 
               <Pressable style={{ marginTop: 16 }} onPress={handleSaveStoreSettings}>
                 <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={{ paddingVertical: 14, borderRadius: 12, alignItems: "center" }}>

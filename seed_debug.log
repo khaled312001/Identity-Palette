@@ -167,3 +167,16 @@
 [2026-02-28T17:12:02.891Z] Existing tenants count: 3
 [2026-02-28T17:12:47.083Z] seedSuperAdminData started
 [2026-02-28T17:12:47.102Z] Existing tenants count: 3
+[2026-02-28T17:16:28.967Z] seedSuperAdminData started
+[2026-02-28T17:16:28.982Z] Existing tenants count: 4
+[2026-02-28T17:16:28.988Z] Creating default branch for tenant 4
+[2026-02-28T17:16:28.995Z] Creating default admin for tenant 4
+[2026-02-28T17:17:15.934Z] seedSuperAdminData started
+[2026-02-28T17:17:15.950Z] Existing tenants count: 4
+[2026-02-28T17:18:53.017Z] seedSuperAdminData started
+[2026-02-28T17:18:53.036Z] Existing tenants count: 4
+[2026-02-28T17:19:16.153Z] seedSuperAdminData started
+[2026-02-28T17:19:16.172Z] Existing tenants count: 4
+[2026-02-28T17:19:25.894Z] Fetching Super Admin dashboard stats...
+[2026-02-28T17:19:33.728Z] seedSuperAdminData started
+[2026-02-28T17:19:33.744Z] Existing tenants count: 4

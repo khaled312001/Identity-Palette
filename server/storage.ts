@@ -937,6 +937,12 @@ export const storage = {
     const [tenant] = await db.update(tenants).set({ ...data, updatedAt: new Date() }).where(eq(tenants.id, id)).returning();
     return tenant;
   },
+  async deleteTenant(id: number) {
+    await db.delete(licenseKeys).where(eq(licenseKeys.tenantId, id));
+    await db.delete(tenantSubscriptions).where(eq(tenantSubscriptions.tenantId, id));
+    await db.delete(tenantNotifications).where(eq(tenantNotifications.tenantId, id));
+    await db.delete(tenants).where(eq(tenants.id, id));
+  },
 
   // Tenant Subscriptions
   async getTenantSubscriptions(tenantId?: number) {
@@ -1079,7 +1085,7 @@ export const storage = {
       await this.createSuperAdmin({
         name: "Super Admin",
         email: adminEmail,
-        passwordHash: "admin123", // In a real app, this should be hashed
+        passwordHash: "$2b$10$OoKOgYj3UlErVOmwqm4rnOpZLdqpLDF3zBiO4VuXJQa56F0DLlesK",
         role: "super_admin",
         isActive: true,
       });

@@ -264,9 +264,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard
-  app.get("/api/dashboard", async (_req: Request, res: Response) => {
+  app.get("/api/dashboard", async (req: Request, res: Response) => {
     try {
-      const stats = await storage.getDashboardStats();
+      const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      if (!tenantId) return res.status(400).json({ error: "tenantId is required" });
+      const stats = await storage.getDashboardStats(tenantId);
       res.json(stats);
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -274,16 +276,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Multi-branch dashboard stats
-  app.get("/api/dashboard/multi-branch", async (_req: Request, res: Response) => {
+  app.get("/api/dashboard/multi-branch", async (req: Request, res: Response) => {
     try {
-      const allBranches = await storage.getBranches();
-      const allEmployees = await storage.getEmployees();
-      const allInventory = await storage.getInventory();
-      const allSales = await storage.getSales({});
-      const allShifts = await storage.getShifts();
-      const allProducts = await storage.getProducts();
-      const allCategories = await storage.getCategories();
-      const allCustomers = await storage.getCustomers();
+      const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      if (!tenantId) return res.status(400).json({ error: "tenantId is required" });
+
+      const allBranches = await storage.getBranchesByTenant(tenantId);
+      const allEmployees = await storage.getEmployeesByTenant(tenantId);
+      const allInventory = await storage.getInventoryByTenant(tenantId);
+      const allSales = await storage.getSales({ tenantId });
+      const allShifts = await storage.getShifts(tenantId);
+      const allProducts = await storage.getProductsByTenant(tenantId);
+      const allCategories = await storage.getCategories(tenantId);
+      const allCustomers = await storage.getCustomers(undefined, tenantId);
 
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
@@ -416,8 +421,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Branches
-  app.get("/api/branches", async (_req, res) => {
-    try { res.json(await storage.getBranches()); } catch (e: any) { res.status(500).json({ error: e.message }); }
+  app.get("/api/branches", async (req, res) => {
+    try {
+      const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      if (!tenantId) return res.status(400).json({ error: "tenantId is required" });
+      res.json(await storage.getBranchesByTenant(tenantId));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.post("/api/branches", async (req, res) => {
     try { res.json(await storage.createBranch(sanitizeDates(req.body))); } catch (e: any) { res.status(500).json({ error: e.message }); }
@@ -433,10 +442,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/employees", async (req, res) => {
     try {
       const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
-      const emps = tenantId
-        ? await storage.getEmployeesByTenant(tenantId)
-        : await storage.getEmployees();
-      console.log(`[DEBUG] /api/employees: Found ${emps.length} employees (tenantId: ${tenantId || 'all'})`);
+      if (!tenantId) return res.status(400).json({ error: "tenantId is required" });
+      const emps = await storage.getEmployeesByTenant(tenantId);
+      console.log(`[DEBUG] /api/employees: Found ${emps.length} employees (tenantId: ${tenantId})`);
       res.json(emps);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -485,6 +493,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/categories", async (req, res) => {
     try {
       const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      if (!tenantId) return res.status(400).json({ error: "tenantId is required" });
       res.json(await storage.getCategories(tenantId));
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -502,11 +511,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/products", async (req, res) => {
     try {
       const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
-      if (tenantId) {
-        res.json(await storage.getProductsByTenant(tenantId));
-      } else {
-        res.json(await storage.getProducts(req.query.search as string));
-      }
+      if (!tenantId) return res.status(400).json({ error: "tenantId is required" });
+      res.json(await storage.getProductsByTenant(tenantId));
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
@@ -603,14 +609,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(await storage.adjustInventory(productId, branchId, adjustment));
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
-  app.get("/api/inventory/low-stock", async (_req, res) => {
-    try { res.json(await storage.getLowStockItems()); } catch (e: any) { res.status(500).json({ error: e.message }); }
+  app.get("/api/inventory/low-stock", async (req, res) => {
+    try {
+      const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      if (!tenantId) return res.status(400).json({ error: "tenantId is required" });
+      res.json(await storage.getLowStockItems(tenantId));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // Customers
   app.get("/api/customers", async (req, res) => {
     try {
       const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      if (!tenantId) return res.status(400).json({ error: "tenantId is required" });
       res.json(await storage.getCustomers(req.query.search as string, tenantId));
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -797,11 +808,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(await storage.getShifts(tenantId));
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
-  app.get("/api/shifts/stats", async (_req, res) => {
-    try { res.json(await storage.getShiftStats()); } catch (e: any) { res.status(500).json({ error: e.message }); }
+  app.get("/api/shifts/stats", async (req, res) => {
+    try {
+      const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      if (!tenantId) return res.status(400).json({ error: "tenantId is required" });
+      res.json(await storage.getShiftStats(tenantId));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
-  app.get("/api/shifts/active", async (_req, res) => {
-    try { res.json(await storage.getAllActiveShifts()); } catch (e: any) { res.status(500).json({ error: e.message }); }
+  app.get("/api/shifts/active", async (req, res) => {
+    try {
+      const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      if (!tenantId) return res.status(400).json({ error: "tenantId is required" });
+      res.json(await storage.getAllActiveShifts(tenantId));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.post("/api/shifts", async (req, res) => {
     try {

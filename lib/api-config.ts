@@ -16,10 +16,6 @@ export function getApiUrl(): string {
       return window.location.origin;
     }
 
-    if (hostname.includes('.worf.replit.dev') || hostname.includes('.kirk.replit.dev') || hostname.includes('.picard.replit.dev')) {
-      return `https://${hostname}:5000`;
-    }
-
     return window.location.origin;
   }
 

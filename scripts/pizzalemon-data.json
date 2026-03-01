@@ -1,0 +1,302 @@
+{
+  "Pizza": [
+    {
+      "name": "Unknown",
+      "category": "Pizza"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1025"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1024"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1026"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=56"
+    }
+  ],
+  "Döner / Fingerfood": [
+    {
+      "name": "Unknown",
+      "category": "Döner / Fingerfood"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1025"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1024"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1026"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=56"
+    }
+  ],
+  "Pide": [
+    {
+      "name": "Unknown",
+      "category": "Pide"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1025"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1024"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1026"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=56"
+    }
+  ],
+  "Tellergerichte": [
+    {
+      "name": "Unknown",
+      "category": "Tellergerichte"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1025"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1024"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1026"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=56"
+    }
+  ],
+  "Lahmacun": [
+    {
+      "name": "Unknown",
+      "category": "Lahmacun"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1025"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1024"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1026"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=56"
+    }
+  ],
+  "Salat": [
+    {
+      "name": "Unknown",
+      "category": "Salat"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1025"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1024"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1026"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=56"
+    }
+  ],
+  "Dessert": [
+    {
+      "name": "Unknown",
+      "category": "Dessert"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1025"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1024"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1026"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=56"
+    }
+  ],
+  "Softgetränke": [
+    {
+      "name": "Unknown",
+      "category": "Softgetränke"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1025"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1024"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1026"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=56"
+    }
+  ],
+  "Alkoholische Getränke": [
+    {
+      "name": "Unknown",
+      "category": "Alkoholische Getränke"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1025"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1024"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1026"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=56"
+    }
+  ],
+  "Bier": [
+    {
+      "name": "Unknown",
+      "category": "Bier"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1025"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1024"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=1026"
+    },
+    {
+      "name": "",
+      "price": "N/A",
+      "sizes": [],
+      "link": "https://pizzalemon.ch/lemon/index.php?route=product/product&product_id=56"
+    }
+  ]
+}

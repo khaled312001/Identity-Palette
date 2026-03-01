@@ -401,7 +401,7 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     if (!allActiveShifts || allActiveShifts.length === 0) {
-      setActiveShiftsElapsed({});
+      setActiveShiftsElapsed((prev) => Object.keys(prev).length === 0 ? prev : {});
       return;
     }
     const interval = setInterval(() => {
@@ -1976,9 +1976,9 @@ export default function SettingsScreen() {
               <View style={pgStyles.section}>
                 <Text style={[pgStyles.methodsTitle, isRTL && { textAlign: "right" }]}>{t("mobilePaySettings")}</Text>
                 {[
-                  { key: "twint",      icon: "phone-portrait", label: "TWINT"      },
-                  { key: "apple_pay",  icon: "logo-apple",     label: "Apple Pay"  },
-                  { key: "google_pay", icon: "logo-google",    label: "Google Pay" },
+                  { key: "twint", icon: "phone-portrait", label: "TWINT" },
+                  { key: "apple_pay", icon: "logo-apple", label: "Apple Pay" },
+                  { key: "google_pay", icon: "logo-google", label: "Google Pay" },
                 ].map((mp) => (
                   <View key={mp.key} style={[pgStyles.methodRow, isRTL && { flexDirection: "row-reverse" }]}>
                     <View style={[pgStyles.methodIconWrap, { backgroundColor: Colors.textMuted + "20" }]}>

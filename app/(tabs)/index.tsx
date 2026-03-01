@@ -198,7 +198,7 @@ export default function POSScreen() {
 
   const filteredProducts = products.filter((p: any) => {
     const matchesCategory = selectedCategory ? p.categoryId === selectedCategory : true;
-    const matchesSearch = searchQuery ? p.name.toLowerCase().includes(searchQuery.toLowerCase()) : true;
+    const matchesSearch = search ? p.name.toLowerCase().includes(search.toLowerCase()) : true;
     return matchesCategory && matchesSearch;
   });
 

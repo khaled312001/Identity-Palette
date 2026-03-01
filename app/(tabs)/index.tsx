@@ -196,9 +196,11 @@ export default function POSScreen() {
     }
   }, [customers]);
 
-  const filteredProducts = selectedCategory
-    ? products.filter((p: any) => p.categoryId === selectedCategory)
-    : products;
+  const filteredProducts = products.filter((p: any) => {
+    const matchesCategory = selectedCategory ? p.categoryId === selectedCategory : true;
+    const matchesSearch = searchQuery ? p.name.toLowerCase().includes(searchQuery.toLowerCase()) : true;
+    return matchesCategory && matchesSearch;
+  });
 
   const selectedCustomer = customers.find((c: any) => c.id === cart.customerId);
 

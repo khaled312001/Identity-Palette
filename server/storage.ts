@@ -89,8 +89,11 @@ export const storage = {
   },
 
   // Categories
-  async getCategories() {
-    return db.select().from(categories).orderBy(categories.sortOrder);
+  async getCategories(tenantId?: number) {
+    if (tenantId) {
+      return db.select().from(categories).where(and(eq(categories.tenantId, tenantId), eq(categories.isActive, true))).orderBy(categories.sortOrder);
+    }
+    return db.select().from(categories).where(eq(categories.isActive, true)).orderBy(categories.sortOrder);
   },
   async createCategory(data: InsertCategory) {
     const [cat] = await db.insert(categories).values(data).returning();
@@ -185,20 +188,40 @@ export const storage = {
   },
 
   // Customers
-  async getCustomers(search?: string) {
-    if (search) {
-      return db.select().from(customers).where(
-        and(
-          eq(customers.isActive, true),
-          or(
-            ilike(customers.name, `%${search}%`),
-            ilike(customers.phone || "", `%${search}%`),
-            ilike(customers.email || "", `%${search}%`)
-          )
-        )
-      ).orderBy(desc(customers.createdAt));
+  async getCustomers(search?: string, tenantId?: number) {
+    let baseQuery = db.select().from(customers).where(eq(customers.isActive, true));
+
+    if (tenantId) {
+      baseQuery = db.select().from(customers).where(and(eq(customers.tenantId, tenantId), eq(customers.isActive, true)));
     }
-    return db.select().from(customers).where(eq(customers.isActive, true)).orderBy(desc(customers.createdAt));
+
+    if (search) {
+      if (tenantId) {
+        return db.select().from(customers).where(
+          and(
+            eq(customers.tenantId, tenantId),
+            eq(customers.isActive, true),
+            or(
+              ilike(customers.name, `%${search}%`),
+              ilike(customers.phone || "", `%${search}%`),
+              ilike(customers.email || "", `%${search}%`)
+            )
+          )
+        ).orderBy(desc(customers.createdAt));
+      } else {
+        return db.select().from(customers).where(
+          and(
+            eq(customers.isActive, true),
+            or(
+              ilike(customers.name, `%${search}%`),
+              ilike(customers.phone || "", `%${search}%`),
+              ilike(customers.email || "", `%${search}%`)
+            )
+          )
+        ).orderBy(desc(customers.createdAt));
+      }
+    }
+    return baseQuery.orderBy(desc(customers.createdAt));
   },
   async getCustomer(id: number) {
     const [cust] = await db.select().from(customers).where(eq(customers.id, id));
@@ -222,12 +245,28 @@ export const storage = {
   async getCustomerSales(customerId: number) {
     return db.select().from(sales).where(eq(sales.customerId, customerId)).orderBy(desc(sales.createdAt)).limit(50);
   },
-  async getSales(filters?: { branchId?: number; startDate?: Date; endDate?: Date; limit?: number }) {
-    let query = db.select().from(sales).orderBy(desc(sales.createdAt));
-    if (filters?.limit) {
-      return db.select().from(sales).orderBy(desc(sales.createdAt)).limit(filters.limit);
+  async getSales(filters?: { branchId?: number; tenantId?: number; startDate?: Date; endDate?: Date; limit?: number }) {
+    let conditions = [];
+    if (filters?.branchId) conditions.push(eq(sales.branchId, filters.branchId));
+    if (filters?.tenantId) {
+      // Find branches for this tenant to filter sales
+      const tenantBranches = await this.getBranchesByTenant(filters.tenantId);
+      const branchIds = tenantBranches.map(b => b.id);
+      if (branchIds.length > 0) {
+        const { inArray } = await import('drizzle-orm');
+        conditions.push(inArray(sales.branchId, branchIds));
+      } else {
+        // No branches means no sales
+        return [];
+      }
     }
-    return query;
+
+    let query = conditions.length > 0 ? db.select().from(sales).where(and(...conditions)) : db.select().from(sales);
+
+    if (filters?.limit) {
+      return query.orderBy(desc(sales.createdAt)).limit(filters.limit);
+    }
+    return query.orderBy(desc(sales.createdAt));
   },
   async getSale(id: number) {
     const [sale] = await db.select().from(sales).where(eq(sales.id, id));
@@ -250,7 +289,10 @@ export const storage = {
   },
 
   // Suppliers
-  async getSuppliers() {
+  async getSuppliers(tenantId?: number) {
+    if (tenantId) {
+      return db.select().from(suppliers).where(and(eq(suppliers.tenantId, tenantId), eq(suppliers.isActive, true))).orderBy(desc(suppliers.createdAt));
+    }
     return db.select().from(suppliers).where(eq(suppliers.isActive, true)).orderBy(desc(suppliers.createdAt));
   },
   async getSupplier(id: number) {
@@ -304,10 +346,28 @@ export const storage = {
   },
 
   // Shifts
-  async getShifts() {
+  async getShifts(tenantId?: number) {
+    if (tenantId) {
+      const tenantBranches = await this.getBranchesByTenant(tenantId);
+      const branchIds = tenantBranches.map(b => b.id);
+      if (branchIds.length > 0) {
+        const { inArray } = await import('drizzle-orm');
+        return db.select().from(shifts).where(inArray(shifts.branchId, branchIds)).orderBy(desc(shifts.startTime));
+      }
+      return [];
+    }
     return db.select().from(shifts).orderBy(desc(shifts.startTime));
   },
-  async getActiveShiftsGlobal() {
+  async getActiveShiftsGlobal(tenantId?: number) {
+    if (tenantId) {
+      const tenantBranches = await this.getBranchesByTenant(tenantId);
+      const branchIds = tenantBranches.map(b => b.id);
+      if (branchIds.length > 0) {
+        const { inArray } = await import('drizzle-orm');
+        return db.select().from(shifts).where(and(eq(shifts.status, "open"), inArray(shifts.branchId, branchIds))).orderBy(desc(shifts.startTime));
+      }
+      return [];
+    }
     return db.select().from(shifts).where(eq(shifts.status, "open")).orderBy(desc(shifts.startTime));
   },
   async getActiveShift(employeeId: number) {
@@ -333,7 +393,10 @@ export const storage = {
   },
 
   // Expenses
-  async getExpenses() {
+  async getExpenses(tenantId?: number) {
+    if (tenantId) {
+      return db.select().from(expenses).where(eq(expenses.tenantId, tenantId)).orderBy(desc(expenses.createdAt));
+    }
     return db.select().from(expenses).orderBy(desc(expenses.createdAt));
   },
   async createExpense(data: InsertExpense) {
@@ -457,52 +520,171 @@ export const storage = {
   },
 
   // Dashboard Stats
-  async getDashboardStats() {
-    const [salesCount] = await db.select({ count: sql<number>`count(*)` }).from(sales);
-    const [totalRevenueRow] = await db.select({ total: sql<string>`coalesce(sum(total_amount::numeric), 0)` }).from(sales);
-    const [customerCount] = await db.select({ count: sql<number>`count(*)` }).from(customers);
-    const [productCount] = await db.select({ count: sql<number>`count(*)` }).from(products).where(eq(products.isActive, true));
-    const [lowStockCount] = await db.select({ count: sql<number>`count(*)` }).from(inventory).where(sql`quantity <= low_stock_threshold`);
+  async getDashboardStats(tenantId?: number) {
+    let salesCountQuery = db.select({ count: sql<number>`count(*)` }).from(sales);
+    let totalRevenueQuery = db.select({ total: sql<string>`coalesce(sum(total_amount::numeric), 0)` }).from(sales);
+    let customerCountQuery = db.select({ count: sql<number>`count(*)` }).from(customers);
+    let productCountQuery = db.select({ count: sql<number>`count(*)` }).from(products).where(eq(products.isActive, true));
+
+    let lowStockQuery;
+    let todaySalesQuery;
+    let weekSalesQuery;
+    let monthSalesQuery;
+    let totalExpensesQuery = db.select({ total: sql<string>`coalesce(sum(${expenses.amount}::numeric), 0)` }).from(expenses);
+    let todayExpensesQuery;
+    let topProductsQuery;
+    let salesByPaymentMethodQuery;
+    let recentSalesQuery;
+    let profitRowQuery;
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-    const [todaySales] = await db.select({
-      count: sql<number>`count(*)`,
-      total: sql<string>`coalesce(sum(total_amount::numeric), 0)`,
-    }).from(sales).where(gte(sales.createdAt, todayStart));
 
     const weekStart = new Date();
     weekStart.setDate(weekStart.getDate() - 7);
     weekStart.setHours(0, 0, 0, 0);
-    const [weekSales] = await db.select({
-      total: sql<string>`coalesce(sum(total_amount::numeric), 0)`,
-    }).from(sales).where(gte(sales.createdAt, weekStart));
 
     const monthStart = new Date();
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
-    const [monthSales] = await db.select({
-      total: sql<string>`coalesce(sum(total_amount::numeric), 0)`,
-    }).from(sales).where(gte(sales.createdAt, monthStart));
 
-    const [totalExpensesRow] = await db.select({
-      total: sql<string>`coalesce(sum(${expenses.amount}::numeric), 0)`,
-    }).from(expenses);
-    const [todayExpensesRow] = await db.select({
-      total: sql<string>`coalesce(sum(${expenses.amount}::numeric), 0)`,
-    }).from(expenses).where(gte(expenses.date, todayStart));
+    if (tenantId) {
+      const tenantBranches = await this.getBranchesByTenant(tenantId);
+      const branchIds = tenantBranches.map(b => b.id);
+
+      if (branchIds.length > 0) {
+        const { inArray } = await import('drizzle-orm');
+
+        salesCountQuery = db.select({ count: sql<number>`count(*)` }).from(sales).where(inArray(sales.branchId, branchIds));
+        totalRevenueQuery = db.select({ total: sql<string>`coalesce(sum(total_amount::numeric), 0)` }).from(sales).where(inArray(sales.branchId, branchIds));
+
+        // Customers don't have direct branchId, use tenantId
+        customerCountQuery = db.select({ count: sql<number>`count(*)` }).from(customers).where(eq(customers.tenantId, tenantId));
+        productCountQuery = db.select({ count: sql<number>`count(*)` }).from(products).where(and(eq(products.tenantId, tenantId), eq(products.isActive, true)));
+
+        lowStockQuery = db.select({ count: sql<number>`count(*)` }).from(inventory).where(and(sql`quantity <= low_stock_threshold`, inArray(inventory.branchId, branchIds)));
+
+        todaySalesQuery = db.select({
+          count: sql<number>`count(*)`,
+          total: sql<string>`coalesce(sum(total_amount::numeric), 0)`,
+        }).from(sales).where(and(gte(sales.createdAt, todayStart), inArray(sales.branchId, branchIds)));
+
+        weekSalesQuery = db.select({
+          total: sql<string>`coalesce(sum(total_amount::numeric), 0)`,
+        }).from(sales).where(and(gte(sales.createdAt, weekStart), inArray(sales.branchId, branchIds)));
+
+        monthSalesQuery = db.select({
+          total: sql<string>`coalesce(sum(total_amount::numeric), 0)`,
+        }).from(sales).where(and(gte(sales.createdAt, monthStart), inArray(sales.branchId, branchIds)));
+
+        totalExpensesQuery = db.select({ total: sql<string>`coalesce(sum(${expenses.amount}::numeric), 0)` }).from(expenses).where(eq(expenses.tenantId, tenantId));
+
+        todayExpensesQuery = db.select({
+          total: sql<string>`coalesce(sum(${expenses.amount}::numeric), 0)`,
+        }).from(expenses).where(and(gte(expenses.date, todayStart), eq(expenses.tenantId, tenantId)));
+
+        const topLimit = 5;
+        topProductsQuery = db.select({
+          productId: saleItems.productId,
+          name: saleItems.productName,
+          totalSold: sql<number>`sum(${saleItems.quantity})`,
+          revenue: sql<string>`sum(${saleItems.total}::numeric)`,
+        }).from(saleItems)
+          .innerJoin(sales, eq(saleItems.saleId, sales.id))
+          .where(inArray(sales.branchId, branchIds))
+          .groupBy(saleItems.productId, saleItems.productName)
+          .orderBy(sql`sum(${saleItems.quantity}) desc`)
+          .limit(topLimit);
+
+        salesByPaymentMethodQuery = db.select({
+          method: sales.paymentMethod,
+          count: sql<number>`count(*)`,
+          total: sql<string>`coalesce(sum(${sales.totalAmount}::numeric), 0)`,
+        }).from(sales).where(inArray(sales.branchId, branchIds)).groupBy(sales.paymentMethod);
+
+        recentSalesQuery = db.select().from(sales).where(inArray(sales.branchId, branchIds)).orderBy(desc(sales.createdAt)).limit(5);
+
+        profitRowQuery = db.select({
+          totalCost: sql<string>`coalesce(sum(p.cost_price::numeric * si.quantity), 0)`,
+        }).from(saleItems)
+          .innerJoin(products, eq(saleItems.productId, products.id))
+          .innerJoin(sales, eq(saleItems.saleId, sales.id))
+          .where(inArray(sales.branchId, branchIds));
+      } else {
+        // No branches, return all zeros
+        return {
+          totalSales: 0, totalRevenue: 0, totalCustomers: 0, totalProducts: 0,
+          lowStockItems: 0, todaySalesCount: 0, todayRevenue: 0, weekRevenue: 0,
+          monthRevenue: 0, totalExpenses: 0, todayExpenses: 0, avgOrderValue: 0,
+          topProducts: [], salesByPaymentMethod: [], recentSales: [], totalProfit: 0,
+        };
+      }
+    } else {
+      lowStockQuery = db.select({ count: sql<number>`count(*)` }).from(inventory).where(sql`quantity <= low_stock_threshold`);
+
+      todaySalesQuery = db.select({
+        count: sql<number>`count(*)`,
+        total: sql<string>`coalesce(sum(total_amount::numeric), 0)`,
+      }).from(sales).where(gte(sales.createdAt, todayStart));
+
+      weekSalesQuery = db.select({
+        total: sql<string>`coalesce(sum(total_amount::numeric), 0)`,
+      }).from(sales).where(gte(sales.createdAt, weekStart));
+
+      monthSalesQuery = db.select({
+        total: sql<string>`coalesce(sum(total_amount::numeric), 0)`,
+      }).from(sales).where(gte(sales.createdAt, monthStart));
+
+      todayExpensesQuery = db.select({
+        total: sql<string>`coalesce(sum(${expenses.amount}::numeric), 0)`,
+      }).from(expenses).where(gte(expenses.date, todayStart));
+
+      topProductsQuery = db.select({
+        productId: saleItems.productId,
+        name: saleItems.productName,
+        totalSold: sql<number>`sum(${saleItems.quantity})`,
+        revenue: sql<string>`sum(${saleItems.total}::numeric)`,
+      }).from(saleItems).groupBy(saleItems.productId, saleItems.productName).orderBy(sql`sum(${saleItems.quantity}) desc`).limit(5);
+
+      salesByPaymentMethodQuery = db.select({
+        method: sales.paymentMethod,
+        count: sql<number>`count(*)`,
+        total: sql<string>`coalesce(sum(${sales.totalAmount}::numeric), 0)`,
+      }).from(sales).groupBy(sales.paymentMethod);
+
+      recentSalesQuery = db.select().from(sales).orderBy(desc(sales.createdAt)).limit(5);
+
+      profitRowQuery = db.select({
+        totalCost: sql<string>`coalesce(sum(p.cost_price::numeric * si.quantity), 0)`,
+      }).from(sql`sale_items si join products p on si.product_id = p.id`);
+    }
+
+    const [salesCount] = await salesCountQuery;
+    const [totalRevenueRow] = await totalRevenueQuery;
+    const [customerCount] = await customerCountQuery;
+    const [productCount] = await productCountQuery;
+    const [lowStockCount] = await lowStockQuery;
+
+    const [todaySales] = await todaySalesQuery;
+    const [weekSales] = await weekSalesQuery;
+    const [monthSales] = await monthSalesQuery;
+
+    const [totalExpensesRow] = await totalExpensesQuery;
+    const [todayExpensesRow] = await todayExpensesQuery;
+
+    const topProductsResult = await topProductsQuery;
+    const topProducts = topProductsResult.map(r => ({ ...r, totalSold: Number(r.totalSold), revenue: Number(r.revenue) }));
+
+    const salesByPaymentMethodResult = await salesByPaymentMethodQuery;
+    const salesByPaymentMethod = salesByPaymentMethodResult.map(r => ({ method: r.method, count: Number(r.count), total: Number(r.total) }));
+
+    const recentSales = await recentSalesQuery;
+
+    const [profitRow] = await profitRowQuery;
 
     const totalSalesNum = Number(salesCount?.count || 0);
     const totalRevenueNum = Number(totalRevenueRow?.total || 0);
     const avgOrderValue = totalSalesNum > 0 ? totalRevenueNum / totalSalesNum : 0;
-
-    const topProducts = await this.getTopProducts(5);
-    const salesByPaymentMethod = await this.getSalesByPaymentMethod();
-    const recentSales = await this.getSales({ limit: 5 });
-
-    const [profitRow] = await db.select({
-      totalCost: sql<string>`coalesce(sum(p.cost_price::numeric * si.quantity), 0)`,
-    }).from(sql`sale_items si join products p on si.product_id = p.id`);
     const totalCost = Number(profitRow?.totalCost || 0);
 
     return {
@@ -1008,17 +1190,7 @@ export const storage = {
   },
 
   // Tenants & Store Config
-  async getTenants() {
-    return db.select().from(tenants).orderBy(desc(tenants.createdAt));
-  },
-  async getTenant(id: number) {
-    const [t] = await db.select().from(tenants).where(eq(tenants.id, id));
-    return t;
-  },
-  async updateTenant(id: number, data: Partial<InsertTenant>) {
-    const [t] = await db.update(tenants).set({ ...data, updatedAt: new Date() }).where(eq(tenants.id, id)).returning();
-    return t;
-  },
+  // (Removed duplicate getTenants, getTenant, updateTenant to fix TypeScript errors)
 
   // Bulk Operations
   async bulkCreateCustomers(data: InsertCustomer[]) {

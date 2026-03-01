@@ -39,6 +39,7 @@ export const employees = pgTable("employees", {
 
 export const categories = pgTable("categories", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }), // Added for multi-tenancy
   name: text("name").notNull(),
   nameAr: text("name_ar"),
   color: text("color").default("#7C3AED"),
@@ -87,6 +88,7 @@ export const inventory = pgTable("inventory", {
 
 export const customers = pgTable("customers", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }), // Added for multi-tenancy
   name: text("name").notNull(),
   email: text("email"),
   phone: text("phone"),
@@ -138,6 +140,7 @@ export const saleItems = pgTable("sale_items", {
 
 export const suppliers = pgTable("suppliers", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }), // Added for multi-tenancy
   name: text("name").notNull(),
   contactName: text("contact_name"),
   email: text("email"),
@@ -208,6 +211,7 @@ export const notifications = pgTable("notifications", {
 
 export const expenses = pgTable("expenses", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }), // Added for multi-tenancy
   branchId: integer("branch_id").references(() => branches.id, { onDelete: 'cascade' }),
   category: text("category").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),

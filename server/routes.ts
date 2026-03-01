@@ -482,8 +482,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Categories
-  app.get("/api/categories", async (_req, res) => {
-    try { res.json(await storage.getCategories()); } catch (e: any) { res.status(500).json({ error: e.message }); }
+  app.get("/api/categories", async (req, res) => {
+    try {
+      const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      res.json(await storage.getCategories(tenantId));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.post("/api/categories", async (req, res) => {
     try { res.json(await storage.createCategory(sanitizeDates(req.body))); } catch (e: any) { res.status(500).json({ error: e.message }); }
@@ -606,7 +609,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Customers
   app.get("/api/customers", async (req, res) => {
-    try { res.json(await storage.getCustomers(req.query.search as string)); } catch (e: any) { res.status(500).json({ error: e.message }); }
+    try {
+      const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      res.json(await storage.getCustomers(req.query.search as string, tenantId));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // Download Customers Excel Template (must be before :id route)
@@ -670,7 +676,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/sales", async (req, res) => {
     try {
       const limit = req.query.limit ? Number(req.query.limit) : undefined;
-      res.json(await storage.getSales({ limit }));
+      const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      const branchId = req.query.branchId ? Number(req.query.branchId) : undefined;
+      res.json(await storage.getSales({ limit, tenantId, branchId }));
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.get("/api/sales/:id", async (req, res) => {
@@ -751,8 +759,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Suppliers
-  app.get("/api/suppliers", async (_req, res) => {
-    try { res.json(await storage.getSuppliers()); } catch (e: any) { res.status(500).json({ error: e.message }); }
+  app.get("/api/suppliers", async (req, res) => {
+    try {
+      const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      res.json(await storage.getSuppliers(tenantId));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.get("/api/suppliers/:id", async (req, res) => {
     try {
@@ -780,8 +791,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Shifts
-  app.get("/api/shifts", async (_req, res) => {
-    try { res.json(await storage.getShifts()); } catch (e: any) { res.status(500).json({ error: e.message }); }
+  app.get("/api/shifts", async (req, res) => {
+    try {
+      const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      res.json(await storage.getShifts(tenantId));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.get("/api/shifts/stats", async (_req, res) => {
     try { res.json(await storage.getShiftStats()); } catch (e: any) { res.status(500).json({ error: e.message }); }
@@ -860,8 +874,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Expenses
-  app.get("/api/expenses", async (_req, res) => {
-    try { res.json(await storage.getExpenses()); } catch (e: any) { res.status(500).json({ error: e.message }); }
+  app.get("/api/expenses", async (req, res) => {
+    try {
+      const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      res.json(await storage.getExpenses(tenantId));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.post("/api/expenses", async (req, res) => {
     try { res.json(await storage.createExpense(sanitizeDates(req.body))); } catch (e: any) { res.status(500).json({ error: e.message }); }

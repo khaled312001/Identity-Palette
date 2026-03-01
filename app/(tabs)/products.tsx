@@ -53,8 +53,9 @@ export default function ProductsScreen() {
   });
 
   const { data: categories = [] } = useQuery<any[]>({
-    queryKey: ["/api/categories"],
+    queryKey: ["/api/categories", tenantId ? `?tenantId=${tenantId}` : ""],
     queryFn: getQueryFn({ on401: "throw" }),
+    enabled: !!tenantId,
   });
 
   const { data: inventoryData = [] } = useQuery<any[]>({

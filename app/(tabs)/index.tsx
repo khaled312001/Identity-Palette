@@ -22,7 +22,7 @@ export default function POSScreen() {
   const { tenant } = useLicense();
   const qc = useQueryClient();
   const cart = useCart();
-  const { t, isRTL, rtlTextAlign, rtlText, rtlRow } = useLanguage();
+  const { t, isRTL, rtlTextAlign, rtlText, rtlRow, language } = useLanguage();
   const [screenDims, setScreenDims] = useState(Dimensions.get("window"));
   useEffect(() => {
     const sub = Dimensions.addEventListener("change", ({ window }) => setScreenDims(window));
@@ -63,6 +63,10 @@ export default function POSScreen() {
   const [selectedVariant, setSelectedVariant] = useState<any>(null);
   const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
   const [showToppingsStep, setShowToppingsStep] = useState(false);
+  const [phoneInput, setPhoneInput] = useState("");
+  const [customerPhoneLoading, setCustomerPhoneLoading] = useState(false);
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
+  const [newCustomerForm, setNewCustomerForm] = useState({ name: "", phone: "", address: "", email: "" });
 
   const tenantId = tenant?.id;
 
@@ -219,6 +223,7 @@ export default function POSScreen() {
           if (data.type === "incoming_call") {
             const customer = customers.find((c: any) => c.phone === data.phoneNumber);
             setIncomingCall({ ...data, customer });
+            setPhoneInput(data.phoneNumber);
             if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           }
         } catch (e) {
@@ -238,6 +243,44 @@ export default function POSScreen() {
   });
 
   const selectedCustomer = customers.find((c: any) => c.id === cart.customerId);
+
+  const handlePhoneSearch = useCallback((phone: string) => {
+    const trimmed = phone.trim();
+    if (!trimmed) {
+      cart.setCustomerId(null);
+      return;
+    }
+    const found = (customers as any[]).find((c: any) => c.phone === trimmed);
+    if (found) {
+      cart.setCustomerId(found.id);
+    } else {
+      setNewCustomerForm({ name: "", phone: trimmed, address: "", email: "" });
+      setShowNewCustomerForm(true);
+    }
+  }, [customers, cart]);
+
+  const handleCreateCustomer = async () => {
+    if (!newCustomerForm.name.trim()) return;
+    setCustomerPhoneLoading(true);
+    try {
+      const res = await apiRequest("POST", "/api/customers", {
+        tenantId,
+        name: newCustomerForm.name.trim(),
+        phone: newCustomerForm.phone.trim(),
+        email: newCustomerForm.email.trim() || null,
+        address: newCustomerForm.address.trim() || null,
+      });
+      const newCust = await res.json();
+      qc.invalidateQueries({ queryKey: ["/api/customers"] });
+      cart.setCustomerId(newCust.id);
+      setPhoneInput(newCustomerForm.phone.trim());
+      setShowNewCustomerForm(false);
+    } catch (e: any) {
+      Alert.alert(t("error"), e.message || "Failed to create customer");
+    } finally {
+      setCustomerPhoneLoading(false);
+    }
+  };
 
   const generateQR = async (text: string) => {
     try {
@@ -376,6 +419,7 @@ export default function POSScreen() {
     });
     generateQR(`barmagly:receipt:${saleData.receiptNumber || saleData.id}`);
     cart.clearCart();
+    setPhoneInput("");
     setShowCheckout(false);
     setCashReceived("");
     setCardNumber("");
@@ -615,6 +659,63 @@ export default function POSScreen() {
         </LinearGradient>
       </View>
 
+      {/* ── Phone / Customer Bar ── */}
+      <View style={[styles.phoneBar, isRTL && { flexDirection: "row-reverse" }]}>
+        <View style={[styles.phoneBarInputWrap, isRTL && { flexDirection: "row-reverse" }, selectedCustomer && { flex: 0, minWidth: 160, maxWidth: 200 }]}>
+          <Ionicons name="call-outline" size={16} color={selectedCustomer ? Colors.accent : Colors.textMuted} />
+          <TextInput
+            style={[styles.phoneBarInput, isRTL && { textAlign: "right" }]}
+            placeholder={language === "ar" ? "رقم الهاتف..." : language === "de" ? "Telefonnummer..." : "Phone number..."}
+            placeholderTextColor={Colors.textMuted}
+            value={phoneInput}
+            onChangeText={(v) => {
+              setPhoneInput(v);
+              if (!v.trim()) cart.setCustomerId(null);
+            }}
+            onSubmitEditing={() => handlePhoneSearch(phoneInput)}
+            onBlur={() => { if (phoneInput.trim()) handlePhoneSearch(phoneInput); }}
+            keyboardType="phone-pad"
+            returnKeyType="search"
+          />
+          {customerPhoneLoading && (
+            <Ionicons name="sync" size={14} color={Colors.textMuted} />
+          )}
+          {phoneInput ? (
+            <Pressable onPress={() => { setPhoneInput(""); cart.setCustomerId(null); }}>
+              <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+            </Pressable>
+          ) : null}
+        </View>
+
+        {selectedCustomer ? (
+          <Pressable
+            style={[styles.phoneBarCustomer, isRTL && { flexDirection: "row-reverse" }]}
+            onPress={() => setShowCustomerPicker(true)}
+          >
+            <View style={styles.phoneBarAvatar}>
+              <Text style={styles.phoneBarAvatarText}>{selectedCustomer.name.charAt(0).toUpperCase()}</Text>
+            </View>
+            <View style={[styles.phoneBarCustomerInfo, isRTL && { alignItems: "flex-end" }]}>
+              <Text style={styles.phoneBarCustomerName} numberOfLines={1}>{selectedCustomer.name}</Text>
+              <View style={[styles.phoneBarCustomerMeta, isRTL && { flexDirection: "row-reverse" }]}>
+                {selectedCustomer.phone && <Text style={styles.phoneBarMetaText}>{selectedCustomer.phone}</Text>}
+                {selectedCustomer.address && <Text style={styles.phoneBarMetaDot}>·</Text>}
+                {selectedCustomer.address && <Text style={styles.phoneBarMetaText} numberOfLines={1}>{selectedCustomer.address}</Text>}
+              </View>
+              {selectedCustomer.email && <Text style={[styles.phoneBarMetaText, { color: Colors.info }]} numberOfLines={1}>{selectedCustomer.email}</Text>}
+            </View>
+            <Pressable onPress={() => { cart.setCustomerId(null); setPhoneInput(""); }} style={styles.phoneBarClear}>
+              <Ionicons name="close" size={14} color={Colors.textMuted} />
+            </Pressable>
+          </Pressable>
+        ) : (
+          <Pressable style={styles.phoneBarWalkIn} onPress={() => setShowCustomerPicker(true)}>
+            <Ionicons name="person-add-outline" size={14} color={Colors.textMuted} />
+            <Text style={styles.phoneBarWalkInText}>{t("selectCustomer")}</Text>
+          </Pressable>
+        )}
+      </View>
+
       {incomingCall && (
         <View style={styles.callNotification}>
           <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={[styles.callGradient, isRTL && { flexDirection: "row-reverse" }]}>
@@ -637,8 +738,8 @@ export default function POSScreen() {
                   if (incomingCall.customer) {
                     cart.setCustomerId(incomingCall.customer.id);
                   } else {
-                    // Navigate to customers or open add customer modal
-                    setShowCustomerPicker(true);
+                    setNewCustomerForm({ name: "", phone: incomingCall.phoneNumber, address: "", email: "" });
+                    setShowNewCustomerForm(true);
                   }
                   setIncomingCall(null);
                 }}
@@ -771,13 +872,47 @@ export default function POSScreen() {
             </View>
           </View>
 
-          <Pressable style={[styles.customerSelect, isRTL && { flexDirection: "row-reverse" }]} onPress={() => setShowCustomerPicker(true)}>
-            <Ionicons name="person" size={16} color={cart.customerId ? Colors.accent : Colors.textMuted} />
-            <Text style={[styles.customerSelectText, cart.customerId && { color: Colors.accent }, rtlTextAlign]}>
-              {selectedCustomer ? selectedCustomer.name : `${t("selectCustomer")} (${t("walkIn")})`}
-            </Text>
-            <Ionicons name={isRTL ? "chevron-back" : "chevron-down"} size={14} color={Colors.textMuted} />
-          </Pressable>
+          {selectedCustomer ? (
+            <View style={[styles.cartCustomerCard, isRTL && { flexDirection: "row-reverse" }]}>
+              <LinearGradient colors={[Colors.primary, Colors.secondary]} style={styles.cartCustomerAvatar}>
+                <Text style={styles.cartCustomerAvatarText}>{selectedCustomer.name.charAt(0).toUpperCase()}</Text>
+              </LinearGradient>
+              <View style={[styles.cartCustomerBody, isRTL && { alignItems: "flex-end" }]}>
+                <Text style={[styles.cartCustomerName, rtlTextAlign]} numberOfLines={1}>{selectedCustomer.name}</Text>
+                <View style={[styles.cartCustomerRow, isRTL && { flexDirection: "row-reverse" }]}>
+                  {selectedCustomer.phone && (
+                    <View style={[styles.cartCustomerChip, isRTL && { flexDirection: "row-reverse" }]}>
+                      <Ionicons name="call-outline" size={10} color={Colors.accent} />
+                      <Text style={styles.cartCustomerChipText}>{selectedCustomer.phone}</Text>
+                    </View>
+                  )}
+                  {selectedCustomer.email && (
+                    <View style={[styles.cartCustomerChip, isRTL && { flexDirection: "row-reverse" }]}>
+                      <Ionicons name="mail-outline" size={10} color={Colors.info} />
+                      <Text style={styles.cartCustomerChipText}>{selectedCustomer.email}</Text>
+                    </View>
+                  )}
+                </View>
+                {selectedCustomer.address && (
+                  <View style={[styles.cartCustomerChip, { marginTop: 2 }, isRTL && { flexDirection: "row-reverse" }]}>
+                    <Ionicons name="location-outline" size={10} color={Colors.warning} />
+                    <Text style={styles.cartCustomerChipText} numberOfLines={1}>{selectedCustomer.address}</Text>
+                  </View>
+                )}
+              </View>
+              <Pressable onPress={() => { cart.setCustomerId(null); setPhoneInput(""); }} style={styles.cartCustomerClear}>
+                <Ionicons name="close" size={16} color={Colors.textMuted} />
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable style={[styles.customerSelect, isRTL && { flexDirection: "row-reverse" }]} onPress={() => setShowCustomerPicker(true)}>
+              <Ionicons name="person" size={16} color={Colors.textMuted} />
+              <Text style={[styles.customerSelectText, rtlTextAlign]}>
+                {`${t("selectCustomer")} (${t("walkIn")})`}
+              </Text>
+              <Ionicons name={isRTL ? "chevron-back" : "chevron-down"} size={14} color={Colors.textMuted} />
+            </Pressable>
+          )}
 
           <FlatList
             data={cart.items}
@@ -1335,6 +1470,113 @@ export default function POSScreen() {
         </View>
       </Modal>
 
+      {/* ── New Customer Form Modal ── */}
+      <Modal visible={showNewCustomerForm} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: 500 }]}>
+            <View style={[styles.modalHeader, isRTL && { flexDirection: "row-reverse" }]}>
+              <View style={[{ flexDirection: "row", alignItems: "center", gap: 10 }, isRTL && { flexDirection: "row-reverse" }]}>
+                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.primary + "33", justifyContent: "center", alignItems: "center" }}>
+                  <Ionicons name="person-add" size={20} color={Colors.primary} />
+                </View>
+                <Text style={[styles.modalTitle, rtlTextAlign]}>
+                  {language === "ar" ? "عميل جديد" : language === "de" ? "Neuer Kunde" : "New Customer"}
+                </Text>
+              </View>
+              <Pressable onPress={() => setShowNewCustomerForm(false)}>
+                <Ionicons name="close" size={24} color={Colors.text} />
+              </Pressable>
+            </View>
+
+            <ScrollView style={{ paddingHorizontal: 20, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
+              {/* Name */}
+              <Text style={styles.newCustLabel}>
+                {language === "ar" ? "الاسم الكامل *" : language === "de" ? "Vollständiger Name *" : "Full Name *"}
+              </Text>
+              <View style={[styles.newCustInputWrap, isRTL && { flexDirection: "row-reverse" }]}>
+                <Ionicons name="person-outline" size={16} color={Colors.textMuted} />
+                <TextInput
+                  style={[styles.newCustInput, isRTL && { textAlign: "right" }]}
+                  placeholder={language === "ar" ? "أدخل الاسم" : language === "de" ? "Name eingeben" : "Enter name"}
+                  placeholderTextColor={Colors.textMuted}
+                  value={newCustomerForm.name}
+                  onChangeText={(v) => setNewCustomerForm((f) => ({ ...f, name: v }))}
+                />
+              </View>
+
+              {/* Phone */}
+              <Text style={styles.newCustLabel}>
+                {language === "ar" ? "رقم الهاتف" : language === "de" ? "Telefon" : "Phone Number"}
+              </Text>
+              <View style={[styles.newCustInputWrap, isRTL && { flexDirection: "row-reverse" }]}>
+                <Ionicons name="call-outline" size={16} color={Colors.textMuted} />
+                <TextInput
+                  style={[styles.newCustInput, isRTL && { textAlign: "right" }]}
+                  placeholder="+41 ..."
+                  placeholderTextColor={Colors.textMuted}
+                  value={newCustomerForm.phone}
+                  onChangeText={(v) => setNewCustomerForm((f) => ({ ...f, phone: v }))}
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              {/* Address */}
+              <Text style={styles.newCustLabel}>
+                {language === "ar" ? "العنوان" : language === "de" ? "Adresse" : "Address"}
+              </Text>
+              <View style={[styles.newCustInputWrap, isRTL && { flexDirection: "row-reverse" }]}>
+                <Ionicons name="location-outline" size={16} color={Colors.textMuted} />
+                <TextInput
+                  style={[styles.newCustInput, isRTL && { textAlign: "right" }]}
+                  placeholder={language === "ar" ? "أدخل العنوان" : language === "de" ? "Adresse eingeben" : "Enter address"}
+                  placeholderTextColor={Colors.textMuted}
+                  value={newCustomerForm.address}
+                  onChangeText={(v) => setNewCustomerForm((f) => ({ ...f, address: v }))}
+                />
+              </View>
+
+              {/* Email */}
+              <Text style={styles.newCustLabel}>
+                {language === "ar" ? "البريد الإلكتروني" : language === "de" ? "E-Mail" : "Email"}
+              </Text>
+              <View style={[styles.newCustInputWrap, isRTL && { flexDirection: "row-reverse" }]}>
+                <Ionicons name="mail-outline" size={16} color={Colors.textMuted} />
+                <TextInput
+                  style={[styles.newCustInput, isRTL && { textAlign: "right" }]}
+                  placeholder="email@example.com"
+                  placeholderTextColor={Colors.textMuted}
+                  value={newCustomerForm.email}
+                  onChangeText={(v) => setNewCustomerForm((f) => ({ ...f, email: v }))}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={{ height: 16 }} />
+
+              <Pressable
+                onPress={handleCreateCustomer}
+                disabled={customerPhoneLoading || !newCustomerForm.name.trim()}
+                style={{ opacity: !newCustomerForm.name.trim() ? 0.5 : 1 }}
+              >
+                <LinearGradient
+                  colors={[Colors.primary, Colors.secondary]}
+                  style={styles.newCustSaveBtn}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                >
+                  <Ionicons name={customerPhoneLoading ? "sync" : "checkmark"} size={18} color={Colors.white} />
+                  <Text style={styles.newCustSaveBtnText}>
+                    {customerPhoneLoading
+                      ? (language === "ar" ? "جاري الحفظ..." : language === "de" ? "Speichern..." : "Saving...")
+                      : (language === "ar" ? "حفظ وربط" : language === "de" ? "Speichern & Verknüpfen" : "Save & Link")}
+                  </Text>
+                </LinearGradient>
+              </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={showDiscountModal} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxHeight: 340 }]}>
@@ -1837,6 +2079,151 @@ const styles = StyleSheet.create({
   customerCardMeta: { color: Colors.textMuted, fontSize: 11, marginTop: 1 },
   customerLoyalty: { flexDirection: "row", alignItems: "center", gap: 4 },
   customerLoyaltyText: { color: Colors.warning, fontSize: 12, fontWeight: "700" },
+
+  // Phone bar
+  phoneBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  phoneBarInputWrap: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: Colors.inputBg,
+    borderWidth: 1,
+    borderColor: Colors.inputBorder,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 40,
+  },
+  phoneBarInput: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  phoneBarCustomer: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: Colors.primary + "18",
+    borderWidth: 1,
+    borderColor: Colors.primary + "40",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    minWidth: 0,
+  },
+  phoneBarAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: Colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    flexShrink: 0,
+  },
+  phoneBarAvatarText: { color: Colors.white, fontSize: 13, fontWeight: "700" },
+  phoneBarCustomerInfo: { flex: 1, minWidth: 0 },
+  phoneBarCustomerName: { color: Colors.white, fontSize: 13, fontWeight: "700" },
+  phoneBarCustomerMeta: { flexDirection: "row", alignItems: "center", gap: 4, flexWrap: "nowrap" },
+  phoneBarMetaText: { color: Colors.textMuted, fontSize: 11, flexShrink: 1 },
+  phoneBarMetaDot: { color: Colors.textMuted, fontSize: 11 },
+  phoneBarClear: { padding: 4, flexShrink: 0 },
+  phoneBarWalkIn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: Colors.inputBg,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.inputBorder,
+    borderStyle: "dashed" as const,
+  },
+  phoneBarWalkInText: { color: Colors.textMuted, fontSize: 13 },
+
+  // Cart customer card
+  cartCustomerCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderColor: Colors.primary + "30",
+    backgroundColor: Colors.primary + "10",
+  },
+  cartCustomerAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    justifyContent: "center",
+    alignItems: "center",
+    flexShrink: 0,
+  },
+  cartCustomerAvatarText: { color: Colors.white, fontSize: 14, fontWeight: "800" },
+  cartCustomerBody: { flex: 1, minWidth: 0 },
+  cartCustomerName: { color: Colors.white, fontSize: 13, fontWeight: "700", marginBottom: 3 },
+  cartCustomerRow: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
+  cartCustomerChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: Colors.surface,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  cartCustomerChipText: { color: Colors.textMuted, fontSize: 10 },
+  cartCustomerClear: { padding: 4 },
+
+  // New customer form
+  newCustLabel: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 14,
+    marginBottom: 6,
+    letterSpacing: 0.5,
+    textTransform: "uppercase" as const,
+  },
+  newCustInputWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: Colors.inputBg,
+    borderWidth: 1,
+    borderColor: Colors.inputBorder,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 46,
+  },
+  newCustInput: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 15,
+  },
+  newCustSaveBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 14,
+    marginBottom: 8,
+  },
+  newCustSaveBtnText: { color: Colors.white, fontSize: 16, fontWeight: "700" },
+
   discountTypeRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
   discountTypeBtn: { flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: Colors.surfaceLight, alignItems: "center" },
   discountTypeBtnActive: { backgroundColor: Colors.accent },

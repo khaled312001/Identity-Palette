@@ -2,13 +2,21 @@ import { EventEmitter } from "events";
 import { WebSocketServer, WebSocket } from "ws";
 import { Server } from "http";
 
+interface ActiveCall {
+  phoneNumber: string;
+  slot: number; // 1-4 for the 4 ISDN B-channels
+  timestamp: string;
+}
+
 /**
  * CallerIDService handles incoming calls from hardware (FRITZ!Card via CAPI)
  * and broadcasts them to connected POS clients via WebSockets.
+ * Supports up to 4 simultaneous call slots (ISDN B-channels).
  */
 export class CallerIDService extends EventEmitter {
   private wss: WebSocketServer | null = null;
   private isSimulation: boolean = true;
+  private activeCallSlots: Map<number, ActiveCall> = new Map(); // slot 1-4
 
   constructor() {
     super();
@@ -27,11 +35,24 @@ export class CallerIDService extends EventEmitter {
       console.log("[CallerID] Client connected to WebSocket");
       ws.send(JSON.stringify({ type: "connected", status: "ready", mode: this.isSimulation ? "simulation" : "hardware" }));
       
+      // Send current active calls to newly connected client
+      if (this.activeCallSlots.size > 0) {
+        const activeCalls = Array.from(this.activeCallSlots.values());
+        ws.send(JSON.stringify({ type: "active_calls", calls: activeCalls }));
+      }
+
       ws.on("message", (message) => {
         try {
           const data = JSON.parse(message.toString());
           if (data.type === "simulate_call") {
-            this.handleIncomingCall(data.phoneNumber || "0123456789");
+            this.handleIncomingCall(data.phoneNumber || "0123456789", data.slot);
+          } else if (data.type === "call_answered" || data.type === "call_ended") {
+            // Client signals call was handled — free the slot
+            const slot = data.slot;
+            if (slot) {
+              this.activeCallSlots.delete(slot);
+              this.broadcastCallSlotUpdate();
+            }
           }
         } catch (e) {
           console.error("[CallerID] WS Message Error:", e);
@@ -78,15 +99,33 @@ export class CallerIDService extends EventEmitter {
   }
 
   /**
-   * Handles an incoming call notification
+   * Handles an incoming call notification, assigning to the next free slot (1-4)
    */
-  public handleIncomingCall(phoneNumber: string) {
+  public handleIncomingCall(phoneNumber: string, preferredSlot?: number) {
     console.log(`[CallerID] Incoming call from: ${phoneNumber}`);
-    
+
+    // Find next free slot (1-4)
+    let slot = preferredSlot;
+    if (!slot || this.activeCallSlots.has(slot)) {
+      for (let s = 1; s <= 4; s++) {
+        if (!this.activeCallSlots.has(s)) { slot = s; break; }
+      }
+    }
+    if (!slot) {
+      console.warn("[CallerID] All 4 call slots occupied, dropping call from:", phoneNumber);
+      return;
+    }
+
+    const callInfo: ActiveCall = { phoneNumber, slot, timestamp: new Date().toISOString() };
+    this.activeCallSlots.set(slot, callInfo);
+
     const payload = JSON.stringify({
       type: "incoming_call",
       phoneNumber,
-      timestamp: new Date().toISOString()
+      slot,
+      timestamp: callInfo.timestamp,
+      totalActiveCalls: this.activeCallSlots.size,
+      allActiveCalls: Array.from(this.activeCallSlots.values()),
     });
 
     if (this.wss) {
@@ -97,14 +136,40 @@ export class CallerIDService extends EventEmitter {
       });
     }
 
-    this.emit("call", phoneNumber);
+    this.emit("call", phoneNumber, slot);
+  }
+
+  /**
+   * Broadcasts updated slot information to all connected clients
+   */
+  private broadcastCallSlotUpdate() {
+    if (!this.wss) return;
+    const payload = JSON.stringify({
+      type: "calls_update",
+      allActiveCalls: Array.from(this.activeCallSlots.values()),
+      totalActiveCalls: this.activeCallSlots.size,
+    });
+    this.wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) client.send(payload);
+    });
+  }
+
+  /**
+   * Broadcast any arbitrary message to all connected POS clients
+   */
+  public broadcast(payload: object) {
+    if (!this.wss) return;
+    const msg = JSON.stringify(payload);
+    this.wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) client.send(msg);
+    });
   }
 
   /**
    * Mock function to trigger a call (for testing)
    */
-  public simulateCall(number: string = "0551234567") {
-    this.handleIncomingCall(number);
+  public simulateCall(number: string = "0551234567", slot?: number) {
+    this.handleIncomingCall(number, slot);
   }
 }
 

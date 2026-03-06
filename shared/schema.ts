@@ -319,7 +319,7 @@ export const syncQueue = pgTable("sync_queue", {
 
 export const cashDrawerOperations = pgTable("cash_drawer_operations", {
   id: serial("id").primaryKey(),
-  shiftId: integer("shift_id").references(() => shifts.id, { onDelete: 'cascade' }).notNull(),
+  shiftId: integer("shift_id").references(() => shifts.id, { onDelete: 'set null' }),
   employeeId: integer("employee_id").references(() => employees.id, { onDelete: 'cascade' }).notNull(),
   type: text("type").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
@@ -515,6 +515,61 @@ export const tenantNotifications = pgTable("tenant_notifications", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ========== Online Ordering ==========
+
+export const onlineOrders = pgTable("online_orders", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  orderNumber: text("order_number").notNull(),
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone").notNull(),
+  customerAddress: text("customer_address"),
+  customerEmail: text("customer_email"),
+  items: jsonb("items").$type<{ productId: number; name: string; quantity: number; unitPrice: number; total: number; notes?: string }[]>().notNull().default([]),
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).default("0"),
+  deliveryFee: decimal("delivery_fee", { precision: 10, scale: 2 }).default("0"),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: text("payment_method").notNull().default("cash"), // cash, card, mobile
+  paymentStatus: text("payment_status").notNull().default("pending"), // pending, paid, failed
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  status: text("status").notNull().default("pending"), // pending, accepted, preparing, ready, delivered, cancelled
+  orderType: text("order_type").notNull().default("delivery"), // delivery, pickup
+  notes: text("notes"),
+  estimatedTime: integer("estimated_time"), // minutes
+  language: text("language").default("en"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const landingPageConfig = pgTable("landing_page_config", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }).notNull().unique(),
+  slug: text("slug").notNull().unique(), // URL slug e.g. "pizza-lemon"
+  heroTitle: text("hero_title"),
+  heroSubtitle: text("hero_subtitle"),
+  heroImage: text("hero_image"),
+  aboutText: text("about_text"),
+  primaryColor: text("primary_color").default("#2FD3C6"),
+  accentColor: text("accent_color").default("#6366F1"),
+  enableOnlineOrdering: boolean("enable_online_ordering").default(true),
+  enableDelivery: boolean("enable_delivery").default(true),
+  enablePickup: boolean("enable_pickup").default(true),
+  acceptCard: boolean("accept_card").default(true),
+  acceptMobile: boolean("accept_mobile").default(true),
+  acceptCash: boolean("accept_cash").default(true),
+  minOrderAmount: decimal("min_order_amount", { precision: 10, scale: 2 }).default("0"),
+  estimatedDeliveryTime: integer("estimated_delivery_time").default(30), // minutes
+  footerText: text("footer_text"),
+  socialFacebook: text("social_facebook"),
+  socialInstagram: text("social_instagram"),
+  socialWhatsapp: text("social_whatsapp"),
+  customCss: text("custom_css"),
+  isPublished: boolean("is_published").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // ========== Insert Schemas ==========
 
 export const insertBranchSchema = createInsertSchema(branches).omit({ id: true, createdAt: true, updatedAt: true });
@@ -553,6 +608,8 @@ export const insertTenantSchema = createInsertSchema(tenants).omit({ id: true, c
 export const insertTenantSubscriptionSchema = createInsertSchema(tenantSubscriptions).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertLicenseKeySchema = createInsertSchema(licenseKeys).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTenantNotificationSchema = createInsertSchema(tenantNotifications).omit({ id: true, createdAt: true });
+export const insertOnlineOrderSchema = createInsertSchema(onlineOrders).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertLandingPageConfigSchema = createInsertSchema(landingPageConfig).omit({ id: true, createdAt: true, updatedAt: true });
 
 // ========== Type Exports ==========
 
@@ -627,3 +684,7 @@ export type LicenseKey = typeof licenseKeys.$inferSelect;
 export type InsertLicenseKey = z.infer<typeof insertLicenseKeySchema>;
 export type TenantNotification = typeof tenantNotifications.$inferSelect;
 export type InsertTenantNotification = z.infer<typeof insertTenantNotificationSchema>;
+export type OnlineOrder = typeof onlineOrders.$inferSelect;
+export type InsertOnlineOrder = z.infer<typeof insertOnlineOrderSchema>;
+export type LandingPageConfig = typeof landingPageConfig.$inferSelect;
+export type InsertLandingPageConfig = z.infer<typeof insertLandingPageConfigSchema>;

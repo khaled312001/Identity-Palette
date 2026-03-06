@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   StyleSheet,
   Text,
@@ -188,6 +188,27 @@ function MiniLineChart({ data, height = 100, color = Colors.accent }: { data: nu
   );
 }
 
+type PeriodFilter = "daily" | "weekly" | "monthly" | "annual" | "custom";
+
+function getPeriodDates(period: PeriodFilter): { from: string; to: string } {
+  const now = new Date();
+  const toStr = now.toISOString().split("T")[0];
+  if (period === "daily") {
+    return { from: toStr, to: toStr };
+  } else if (period === "weekly") {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 6);
+    return { from: d.toISOString().split("T")[0], to: toStr };
+  } else if (period === "monthly") {
+    const d = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { from: d.toISOString().split("T")[0], to: toStr };
+  } else if (period === "annual") {
+    const d = new Date(now.getFullYear(), 0, 1);
+    return { from: d.toISOString().split("T")[0], to: toStr };
+  }
+  return { from: "", to: "" };
+}
+
 export default function ReportsScreen() {
   const insets = useSafeAreaInsets();
   const { t, isRTL, rtlRow, rtlTextAlign, rtlText } = useLanguage();
@@ -199,6 +220,7 @@ export default function ReportsScreen() {
   }, []);
   const isTablet = screenDims.width > 600;
   const [tab, setTab] = useState<TabType>("overview");
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("monthly");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
@@ -227,14 +249,22 @@ export default function ReportsScreen() {
     queryFn: getQueryFn({ on401: "throw" }),
   });
 
-  const salesQueryKey = dateFrom || dateTo 
-    ? `/api/analytics/sales-range?startDate=${dateFrom || "2000-01-01"}&endDate=${dateTo || "2099-12-31"}`
+  // Compute effective date range from period or custom input
+  const effectiveDates = useMemo(() => {
+    if (periodFilter === "custom") {
+      return { from: dateFrom, to: dateTo };
+    }
+    return getPeriodDates(periodFilter);
+  }, [periodFilter, dateFrom, dateTo]);
+
+  const salesQueryKey = (effectiveDates.from || effectiveDates.to)
+    ? `/api/analytics/sales-range?startDate=${effectiveDates.from || "2000-01-01"}&endDate=${effectiveDates.to || "2099-12-31"}`
     : null;
 
   const { data: filteredSales = [] } = useQuery<any[]>({
     queryKey: [salesQueryKey],
     queryFn: getQueryFn({ on401: "throw" }),
-    enabled: !!(dateFrom || dateTo),
+    enabled: !!(effectiveDates.from || effectiveDates.to),
   });
 
   const { data: returnsReport } = useQuery<any>({
@@ -616,78 +646,114 @@ export default function ReportsScreen() {
     );
   };
 
-  const renderSales = () => (
-    <>
-      <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("dateFilter")}</Text>
-      <GlassCard>
-        <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 10 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={[{ color: Colors.textMuted, fontSize: 11, marginBottom: 4 }, rtlTextAlign, rtlText]}>{t("from")}</Text>
-            <TextInput
-              style={[{ backgroundColor: Colors.surfaceLight, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: Colors.text, fontSize: 14, borderWidth: 1, borderColor: Colors.cardBorder }, rtlTextAlign, rtlText]}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={Colors.textMuted}
-              value={dateFrom}
-              onChangeText={setDateFrom}
-            />
+  const renderSales = () => {
+    const activeSalesList = filteredSales.length > 0 ? filteredSales : salesData;
+    const periodTotalRevenue = activeSalesList.reduce((sum: number, s: any) => sum + Number(s.totalAmount || 0), 0);
+    const PERIOD_BTNS: { key: PeriodFilter; label: string }[] = [
+      { key: "daily", label: t("daily" as any) },
+      { key: "weekly", label: t("weekly" as any) },
+      { key: "monthly", label: t("monthly" as any) },
+      { key: "annual", label: t("annual" as any) },
+      { key: "custom", label: t("dateFilter") },
+    ];
+    return (
+      <>
+        {/* Period filter buttons */}
+        <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("filterPeriod" as any)}</Text>
+        <GlassCard>
+          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: 8 }}>
+            {PERIOD_BTNS.map(({ key, label }) => (
+              <Pressable
+                key={key}
+                onPress={() => {
+                  setPeriodFilter(key);
+                  if (key !== "custom") { setDateFrom(""); setDateTo(""); }
+                }}
+                style={{
+                  paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+                  backgroundColor: periodFilter === key ? Colors.accent : Colors.surfaceLight,
+                  borderWidth: 1.5, borderColor: periodFilter === key ? Colors.accent : Colors.cardBorder,
+                }}
+              >
+                <Text style={{ color: periodFilter === key ? Colors.textDark : Colors.textSecondary, fontSize: 13, fontWeight: "700" }}>
+                  {label}
+                </Text>
+              </Pressable>
+            ))}
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[{ color: Colors.textMuted, fontSize: 11, marginBottom: 4 }, rtlTextAlign, rtlText]}>{t("to")}</Text>
-            <TextInput
-              style={[{ backgroundColor: Colors.surfaceLight, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: Colors.text, fontSize: 14, borderWidth: 1, borderColor: Colors.cardBorder }, rtlTextAlign, rtlText]}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={Colors.textMuted}
-              value={dateTo}
-              onChangeText={setDateTo}
-            />
-          </View>
-        </View>
-        {(dateFrom || dateTo) && (
-          <View style={{ marginTop: 10 }}>
-            <Text style={[{ color: Colors.accent, fontSize: 13, fontWeight: "600" }, rtlTextAlign, rtlText]}>
-              {filteredSales.length} {t("salesFoundInRange")}
+
+          {/* Custom date range inputs */}
+          {periodFilter === "custom" && (
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 10, marginTop: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={[{ color: Colors.textMuted, fontSize: 11, marginBottom: 4 }, rtlTextAlign, rtlText]}>{t("from")}</Text>
+                <TextInput
+                  style={[{ backgroundColor: Colors.surfaceLight, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: Colors.text, fontSize: 14, borderWidth: 1, borderColor: Colors.cardBorder }, rtlTextAlign, rtlText]}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={Colors.textMuted}
+                  value={dateFrom}
+                  onChangeText={setDateFrom}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[{ color: Colors.textMuted, fontSize: 11, marginBottom: 4 }, rtlTextAlign, rtlText]}>{t("to")}</Text>
+                <TextInput
+                  style={[{ backgroundColor: Colors.surfaceLight, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: Colors.text, fontSize: 14, borderWidth: 1, borderColor: Colors.cardBorder }, rtlTextAlign, rtlText]}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={Colors.textMuted}
+                  value={dateTo}
+                  onChangeText={setDateTo}
+                />
+              </View>
+            </View>
+          )}
+
+          {/* Period revenue summary */}
+          <View style={{ marginTop: 12, flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Text style={[{ color: Colors.textMuted, fontSize: 12 }, rtlText]}>
+              {activeSalesList.length} {t("salesFoundInRange")}
             </Text>
-            <Pressable onPress={() => { setDateFrom(""); setDateTo(""); }} style={{ marginTop: 6 }}>
-              <Text style={[{ color: Colors.danger, fontSize: 12 }, rtlTextAlign, rtlText]}>{t("clearFilter")}</Text>
-            </Pressable>
+            <Text style={[{ color: Colors.accent, fontSize: 15, fontWeight: "800" }]}>
+              CHF {periodTotalRevenue.toFixed(2)}
+            </Text>
           </View>
+        </GlassCard>
+
+        {activeSalesList.length > 0 && (
+          <>
+            <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("salesTrend")}</Text>
+            <GlassCard>
+              <MiniLineChart
+                data={activeSalesList.slice(0, 15).reverse().map((s: any) => Number(s.totalAmount || 0))}
+                color={Colors.accent}
+                height={120}
+              />
+              <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", marginTop: 8 }}>
+                <Text style={{ color: Colors.textMuted, fontSize: 10 }}>{t("oldest")}</Text>
+                <Text style={{ color: Colors.textMuted, fontSize: 10 }}>{t("latest")}</Text>
+              </View>
+            </GlassCard>
+          </>
         )}
-      </GlassCard>
 
-      {((dateFrom || dateTo) ? filteredSales : salesData).length > 0 && (
-        <>
-          <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("salesTrend")}</Text>
-          <GlassCard>
-            <MiniLineChart
-              data={((dateFrom || dateTo) ? filteredSales : salesData).slice(0, 15).reverse().map((s: any) => Number(s.totalAmount || 0))}
-              color={Colors.accent}
-              height={120}
-            />
-            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", marginTop: 8 }}>
-              <Text style={{ color: Colors.textMuted, fontSize: 10 }}>{t("oldest")}</Text>
-              <Text style={{ color: Colors.textMuted, fontSize: 10 }}>{t("latest")}</Text>
-            </View>
-          </GlassCard>
-        </>
-      )}
-
-      <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("recentSales")}</Text>
-      <FlatList
-        data={(dateFrom || dateTo) ? filteredSales : salesData}
-        keyExtractor={(item: any) => String(item.id)}
-        renderItem={renderSaleItem}
-        scrollEnabled={!!((dateFrom || dateTo) ? filteredSales : salesData).length}
-        ListEmptyComponent={
-          <GlassCard>
-            <View style={styles.empty}>
-              <Ionicons name="receipt-outline" size={40} color={Colors.textMuted} />
-              <Text style={[styles.emptyText, rtlText]}>{t("noSalesData")}</Text>
-            </View>
-          </GlassCard>
-        }
-      />
-    </>
-  );
+        <Text style={[styles.sectionTitle, rtlTextAlign, rtlText]}>{t("recentSales")}</Text>
+        <FlatList
+          data={activeSalesList}
+          keyExtractor={(item: any) => String(item.id)}
+          renderItem={renderSaleItem}
+          scrollEnabled={!!activeSalesList.length}
+          ListEmptyComponent={
+            <GlassCard>
+              <View style={styles.empty}>
+                <Ionicons name="receipt-outline" size={40} color={Colors.textMuted} />
+                <Text style={[styles.emptyText, rtlText]}>{t("noSalesData")}</Text>
+              </View>
+            </GlassCard>
+          }
+        />
+      </>
+    );
+  };
 
   const renderInventory = () => (
     <>

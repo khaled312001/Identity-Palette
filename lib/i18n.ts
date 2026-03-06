@@ -538,6 +538,64 @@ const en = {
   enterPinToSwitch: "Enter PIN to switch",
   accountSwitched: "Account switched successfully",
   deactivateDevice: "Deactivate Device",
+
+  // Multiple Incoming Calls
+  multipleIncomingCalls: "Multiple Incoming Calls",
+  callQueue: "Call Queue",
+  dismissAll: "Dismiss All",
+  callSlot: "Line",
+  callsWaiting: "calls waiting",
+
+  // Invoice 24h Filter
+  last24Hours: "Last 24 Hours",
+  allInvoices: "All",
+  filterInvoices: "Filter",
+
+  // Reports Period Filter
+  daily: "Daily",
+  weekly: "Weekly",
+  monthly: "Monthly",
+  annual: "Annual",
+  filterPeriod: "Period",
+  yearRevenue: "Year Revenue",
+
+  // Delivery Fee Stepper
+  adjustDeliveryFee: "Delivery Fee",
+  deliveryFeeStep: "0.50 CHF steps",
+
+  // Payment Confirmation
+  confirmPayment: "Confirm Payment",
+  confirmPaymentMsg: "Confirm payment received?",
+  insufficientCash: "Cash received must be at least the total amount",
+  customerAddressRequired: "Delivery requires customer address",
+  customerPhoneRequired: "Delivery requires customer phone number",
+  paymentNotConfirmed: "Please confirm payment has been received",
+
+  // Left-Hand Mode
+  leftHandMode: "Left-Hand Mode",
+  leftHandModeDesc: "Optimizes the POS layout for left-handed use",
+
+  // Shift Enforcement
+  shiftRequiredTitle: "Shift Required",
+  shiftRequiredMsg: "You must start a shift to access the POS. Please enter your opening cash balance.",
+  cannotSkipShift: "Starting a shift is mandatory before accessing the POS",
+
+  // Bulk Import / Export
+  exportCustomersExcel: "Export Customers Excel",
+  importData: "Import Products & Customers",
+  bulkImport: "Bulk Import",
+
+  // Online Orders
+  onlineOrdersTitle: "Online Orders",
+  newOnlineOrder: "New Online Order!",
+  tapToView: "Tap to view details",
+  loadToPOS: "Load to POS",
+  noOnlineOrders: "No online orders yet",
+  orderAccept: "Accept",
+  orderPreparing: "Preparing",
+  orderReady: "Ready",
+  orderDelivered: "Delivered",
+  orderCancel: "Cancel",
 };
 
 const ar: typeof en = {
@@ -1080,6 +1138,64 @@ const ar: typeof en = {
   enterPinToSwitch: "أدخل رمز PIN للتبديل",
   accountSwitched: "تم تبديل الحساب بنجاح",
   deactivateDevice: "إلغاء تفعيل الجهاز",
+
+  // Multiple Incoming Calls
+  multipleIncomingCalls: "مكالمات واردة متعددة",
+  callQueue: "قائمة المكالمات",
+  dismissAll: "رفض الكل",
+  callSlot: "خط",
+  callsWaiting: "مكالمات في الانتظار",
+
+  // Invoice 24h Filter
+  last24Hours: "آخر 24 ساعة",
+  allInvoices: "الكل",
+  filterInvoices: "فلتر",
+
+  // Reports Period Filter
+  daily: "يومي",
+  weekly: "أسبوعي",
+  monthly: "شهري",
+  annual: "سنوي",
+  filterPeriod: "الفترة",
+  yearRevenue: "إيرادات السنة",
+
+  // Delivery Fee Stepper
+  adjustDeliveryFee: "رسوم التوصيل",
+  deliveryFeeStep: "خطوات 0.50 CHF",
+
+  // Payment Confirmation
+  confirmPayment: "تأكيد الدفع",
+  confirmPaymentMsg: "تأكيد استلام الدفع؟",
+  insufficientCash: "المبلغ المستلم يجب أن يكون على الأقل مساوياً للإجمالي",
+  customerAddressRequired: "التوصيل يتطلب عنوان العميل",
+  customerPhoneRequired: "التوصيل يتطلب رقم هاتف العميل",
+  paymentNotConfirmed: "يرجى تأكيد استلام الدفع",
+
+  // Left-Hand Mode
+  leftHandMode: "وضع اليد اليسرى",
+  leftHandModeDesc: "يحسّن تخطيط الكاشير لمستخدمي اليد اليسرى",
+
+  // Shift Enforcement
+  shiftRequiredTitle: "الوردية مطلوبة",
+  shiftRequiredMsg: "يجب عليك بدء وردية للوصول إلى نقطة البيع. يرجى إدخال رصيد الفتح النقدي.",
+  cannotSkipShift: "بدء الوردية إلزامي قبل الوصول لنقطة البيع",
+
+  // Bulk Import / Export
+  exportCustomersExcel: "تصدير العملاء Excel",
+  importData: "استيراد المنتجات والعملاء",
+  bulkImport: "الاستيراد الجماعي",
+
+  // Online Orders
+  onlineOrdersTitle: "الطلبات الإلكترونية",
+  newOnlineOrder: "طلب جديد!",
+  tapToView: "اضغط لعرض التفاصيل",
+  loadToPOS: "تحميل للنقطة",
+  noOnlineOrders: "لا توجد طلبات إلكترونية",
+  orderAccept: "قبول",
+  orderPreparing: "قيد التحضير",
+  orderReady: "جاهز",
+  orderDelivered: "تم التوصيل",
+  orderCancel: "إلغاء",
 };
 
 const de: typeof en = {
@@ -1622,6 +1738,64 @@ const de: typeof en = {
   enterPinToSwitch: "PIN zum Wechseln eingeben",
   accountSwitched: "Konto erfolgreich gewechselt",
   deactivateDevice: "Gerät deaktivieren",
+
+  // Multiple Incoming Calls
+  multipleIncomingCalls: "Mehrere eingehende Anrufe",
+  callQueue: "Anrufwarteschlange",
+  dismissAll: "Alle ablehnen",
+  callSlot: "Leitung",
+  callsWaiting: "Anrufe warten",
+
+  // Invoice 24h Filter
+  last24Hours: "Letzte 24 Stunden",
+  allInvoices: "Alle",
+  filterInvoices: "Filter",
+
+  // Reports Period Filter
+  daily: "Täglich",
+  weekly: "Wöchentlich",
+  monthly: "Monatlich",
+  annual: "Jährlich",
+  filterPeriod: "Zeitraum",
+  yearRevenue: "Jahresumsatz",
+
+  // Delivery Fee Stepper
+  adjustDeliveryFee: "Liefergebühr",
+  deliveryFeeStep: "0,50 CHF Schritte",
+
+  // Payment Confirmation
+  confirmPayment: "Zahlung bestätigen",
+  confirmPaymentMsg: "Zahlungseingang bestätigen?",
+  insufficientCash: "Erhaltener Betrag muss mindestens dem Gesamtbetrag entsprechen",
+  customerAddressRequired: "Lieferung erfordert Kundenadresse",
+  customerPhoneRequired: "Lieferung erfordert Kundentelefonnummer",
+  paymentNotConfirmed: "Bitte bestätigen Sie den Zahlungseingang",
+
+  // Left-Hand Mode
+  leftHandMode: "Linkshänder-Modus",
+  leftHandModeDesc: "Optimiert das POS-Layout für Linkshänder",
+
+  // Shift Enforcement
+  shiftRequiredTitle: "Schicht erforderlich",
+  shiftRequiredMsg: "Sie müssen eine Schicht starten, um auf das POS zuzugreifen. Bitte geben Sie Ihren Eröffnungskassenbestand ein.",
+  cannotSkipShift: "Das Starten einer Schicht ist vor dem POS-Zugriff Pflicht",
+
+  // Bulk Import / Export
+  exportCustomersExcel: "Kunden Excel exportieren",
+  importData: "Produkte & Kunden importieren",
+  bulkImport: "Massenimport",
+
+  // Online Orders
+  onlineOrdersTitle: "Online-Bestellungen",
+  newOnlineOrder: "Neue Bestellung!",
+  tapToView: "Tippen für Details",
+  loadToPOS: "In POS laden",
+  noOnlineOrders: "Keine Online-Bestellungen",
+  orderAccept: "Annehmen",
+  orderPreparing: "In Zubereitung",
+  orderReady: "Fertig",
+  orderDelivered: "Geliefert",
+  orderCancel: "Stornieren",
 };
 
 export type TranslationKey = keyof typeof en;

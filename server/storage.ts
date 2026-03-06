@@ -19,7 +19,9 @@ import {
   type InsertProductBatch, type InsertInventoryMovement, type InsertStockCount,
   type InsertStockCountItem, type InsertSupplierContract, type InsertEmployeeCommission,
   type InsertNotification, superAdmins, tenants, tenantSubscriptions, licenseKeys, tenantNotifications,
-  type InsertSuperAdmin, type InsertTenant, type InsertTenantSubscription, type InsertLicenseKey, type InsertTenantNotification
+  type InsertSuperAdmin, type InsertTenant, type InsertTenantSubscription, type InsertLicenseKey, type InsertTenantNotification,
+  onlineOrders, landingPageConfig,
+  type InsertOnlineOrder, type InsertLandingPageConfig
 } from "@shared/schema";
 
 export const storage = {
@@ -1315,6 +1317,63 @@ export const storage = {
     } catch (error: any) {
       this.seedLog(`ERROR in getSuperAdminDashboardStats: ${error.message}`);
       throw error;
+    }
+  },
+
+  // ── Online Orders ──────────────────────────────────────────────────────────
+  async getOnlineOrders(tenantId?: number, status?: string) {
+    const conditions = [];
+    if (tenantId) conditions.push(eq(onlineOrders.tenantId, tenantId));
+    if (status) conditions.push(eq(onlineOrders.status, status));
+    if (conditions.length > 0) {
+      return db.select().from(onlineOrders).where(and(...conditions)).orderBy(desc(onlineOrders.createdAt));
+    }
+    return db.select().from(onlineOrders).orderBy(desc(onlineOrders.createdAt));
+  },
+
+  async getOnlineOrder(id: number) {
+    const [order] = await db.select().from(onlineOrders).where(eq(onlineOrders.id, id));
+    return order;
+  },
+
+  async createOnlineOrder(data: InsertOnlineOrder) {
+    const [order] = await db.insert(onlineOrders).values(data).returning();
+    return order;
+  },
+
+  async updateOnlineOrder(id: number, data: Partial<InsertOnlineOrder>) {
+    const [order] = await db.update(onlineOrders).set({ ...data, updatedAt: new Date() }).where(eq(onlineOrders.id, id)).returning();
+    return order;
+  },
+
+  async deleteOnlineOrder(id: number) {
+    await db.delete(onlineOrders).where(eq(onlineOrders.id, id));
+  },
+
+  // ── Landing Page Config ────────────────────────────────────────────────────
+  async getLandingPageConfig(tenantId: number) {
+    const [config] = await db.select().from(landingPageConfig).where(eq(landingPageConfig.tenantId, tenantId));
+    return config;
+  },
+
+  async getLandingPageConfigBySlug(slug: string) {
+    const [config] = await db.select().from(landingPageConfig).where(eq(landingPageConfig.slug, slug));
+    return config;
+  },
+
+  async upsertLandingPageConfig(tenantId: number, data: Partial<InsertLandingPageConfig>) {
+    const existing = await this.getLandingPageConfig(tenantId);
+    if (existing) {
+      const [updated] = await db.update(landingPageConfig)
+        .set({ ...data, tenantId, updatedAt: new Date() })
+        .where(eq(landingPageConfig.tenantId, tenantId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(landingPageConfig)
+        .values({ tenantId, ...data } as InsertLandingPageConfig)
+        .returning();
+      return created;
     }
   },
 

@@ -49,8 +49,9 @@ export default function POSScreen() {
   const [cardError, setCardError] = useState("");
   const [nfcStatus, setNfcStatus] = useState<"waiting" | "reading" | "success" | "error">("waiting");
   const [nfcPulse, setNfcPulse] = useState(0);
-  const [incomingCall, setIncomingCall] = useState<any>(null);
+  const [incomingCalls, setIncomingCalls] = useState<any[]>([]); // queue of up to 4 simultaneous calls
   const [showInvoiceHistory, setShowInvoiceHistory] = useState(false);
+  const [invoiceFilter24h, setInvoiceFilter24h] = useState(true); // default: last 24h
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [showReprintReceipt, setShowReprintReceipt] = useState(false);
   const [reprintQrDataUrl, setReprintQrDataUrl] = useState<string | null>(null);
@@ -65,8 +66,19 @@ export default function POSScreen() {
   const [showToppingsStep, setShowToppingsStep] = useState(false);
   const [phoneInput, setPhoneInput] = useState("");
   const [customerPhoneLoading, setCustomerPhoneLoading] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [leftHandMode, setLeftHandMode] = useState(false);
+  useEffect(() => {
+    import("@react-native-async-storage/async-storage").then(({ default: AsyncStorage }) => {
+      AsyncStorage.getItem("barmagly_left_hand_mode").then((v) => {
+        if (v === "true") setLeftHandMode(true);
+      });
+    });
+  }, []);
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomerForm, setNewCustomerForm] = useState({ name: "", phone: "", address: "", email: "" });
+  const [showOnlineOrders, setShowOnlineOrders] = useState(false);
+  const [onlineOrderNotification, setOnlineOrderNotification] = useState<any>(null);
 
   const tenantId = tenant?.id;
 
@@ -123,6 +135,13 @@ export default function POSScreen() {
     queryKey: ["/api/sales", tenantId ? `?tenantId=${tenantId}` : ""],
     queryFn: getQueryFn({ on401: "throw" }),
     enabled: showInvoiceHistory && !!tenantId,
+  });
+
+  const { data: onlineOrders = [] } = useQuery<any[]>({
+    queryKey: ["/api/online-orders", tenantId ? `?tenantId=${tenantId}` : ""],
+    queryFn: getQueryFn({ on401: "throw" }),
+    enabled: showOnlineOrders && !!tenantId,
+    refetchInterval: showOnlineOrders ? 30000 : false,
   });
 
   const loadInvoiceDetails = async (saleId: number) => {
@@ -222,9 +241,48 @@ export default function POSScreen() {
           const data = JSON.parse(event.data);
           if (data.type === "incoming_call") {
             const customer = customers.find((c: any) => c.phone === data.phoneNumber);
-            setIncomingCall({ ...data, customer });
-            setPhoneInput(data.phoneNumber);
+            const callEntry = { ...data, customer, id: `${data.slot || 1}-${data.timestamp}` };
+            setIncomingCalls((prev) => {
+              // Replace if same slot, else add (up to 4)
+              const filtered = prev.filter((c) => c.slot !== data.slot);
+              return [...filtered, callEntry].slice(0, 4);
+            });
+            // Auto-fill phone input only if no customer selected yet
+            if (!cart.customerId) setPhoneInput(data.phoneNumber);
             if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          } else if (data.type === "active_calls") {
+            const calls = (data.calls || []).map((c: any) => ({
+              ...c,
+              customer: customers.find((cu: any) => cu.phone === c.phoneNumber),
+              id: `${c.slot}-${c.timestamp}`,
+            }));
+            setIncomingCalls(calls);
+          } else if (data.type === "calls_update") {
+            const calls = (data.allActiveCalls || []).map((c: any) => ({
+              ...c,
+              customer: customers.find((cu: any) => cu.phone === c.phoneNumber),
+              id: `${c.slot}-${c.timestamp}`,
+            }));
+            setIncomingCalls(calls);
+          } else if (data.type === "new_online_order") {
+            setOnlineOrderNotification(data.order);
+            qc.invalidateQueries({ queryKey: ["/api/online-orders"] });
+            if (Platform.OS !== "web") {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } else {
+              // Play notification sound on web
+              try {
+                const ctx = new (window as any).AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(880, ctx.currentTime);
+                osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+                osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5);
+              } catch { }
+            }
           }
         } catch (e) {
           console.error("WS Message Error:", e);
@@ -427,6 +485,7 @@ export default function POSScreen() {
     setCardCvc("");
     setCardError("");
     setNfcStatus("waiting");
+    setPaymentConfirmed(false);
     setShowReceipt(true);
     qc.invalidateQueries({ queryKey: ["/api/sales"] });
     qc.invalidateQueries({ queryKey: ["/api/dashboard"] });
@@ -465,6 +524,33 @@ export default function POSScreen() {
     }
     const res = await apiRequest("POST", "/api/sales", data);
     return await res.json();
+  };
+
+  const validateBeforeComplete = (): string | null => {
+    // Cash payment: must have received enough
+    if (paymentMethod === "cash") {
+      if (!cashReceived || Number(cashReceived) < cart.total) {
+        return t("insufficientCash" as any) || "Cash received must be at least the total amount";
+      }
+    }
+    // Delivery order: customer must have phone and address
+    if (cart.orderType === "delivery") {
+      if (!cart.customerId) {
+        return t("customerPhoneRequired" as any) || "Delivery requires customer phone number";
+      }
+      const cust = (customers as any[]).find((c: any) => c.id === cart.customerId);
+      if (!cust?.phone) {
+        return t("customerPhoneRequired" as any) || "Delivery requires customer phone number";
+      }
+      if (!cust?.address) {
+        return t("customerAddressRequired" as any) || "Delivery requires customer address";
+      }
+    }
+    // Non-cash: confirm payment received
+    if (paymentMethod !== "cash" && paymentMethod !== "card" && paymentMethod !== "nfc" && !paymentConfirmed) {
+      return t("paymentNotConfirmed" as any) || "Please confirm payment has been received";
+    }
+    return null;
   };
 
   const saleMutation = useMutation({
@@ -643,6 +729,13 @@ export default function POSScreen() {
           <View style={[styles.headerContent, isRTL && { flexDirection: "row-reverse" }]}>
             <Text style={[styles.headerTitle, rtlTextAlign]}>Barmagly POS</Text>
             <View style={[styles.headerRight, isRTL && { flexDirection: "row-reverse" }]}>
+              <Pressable onPress={() => setShowOnlineOrders(true)} style={[styles.headerInvoiceBtn, { position: "relative" }]}>
+                <Ionicons name="globe-outline" size={28} color={Colors.white} />
+                <Text style={styles.headerInvoiceLabel}>{language === "ar" ? "طلبات" : language === "de" ? "Online" : "Orders"}</Text>
+                {onlineOrderNotification && (
+                  <View style={{ position: "absolute", top: -2, right: -2, width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.danger }} />
+                )}
+              </Pressable>
               <Pressable onPress={() => setShowInvoiceHistory(true)} style={styles.headerInvoiceBtn}>
                 <Ionicons name="receipt-outline" size={28} color={Colors.white} />
                 <Text style={styles.headerInvoiceLabel}>{t("invoices" as any)}</Text>
@@ -716,48 +809,75 @@ export default function POSScreen() {
         )}
       </View>
 
-      {incomingCall && (
+      {incomingCalls.length > 0 && (
         <View style={styles.callNotification}>
-          <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={[styles.callGradient, isRTL && { flexDirection: "row-reverse" }]}>
-            <View style={styles.callIconWrap}>
-              <Ionicons name="call" size={24} color={Colors.white} />
-            </View>
-            <View style={[styles.callInfo, isRTL && { alignItems: "flex-end" }]}>
-              <Text style={styles.callTitle}>{t("incomingCall" as any) || "Incoming Call"}</Text>
-              <Text style={styles.callNumber}>{incomingCall.phoneNumber}</Text>
-              {incomingCall.customer ? (
-                <Text style={styles.callCustomer}>{incomingCall.customer.name}</Text>
-              ) : (
-                <Text style={styles.callCustomer}>{t("newCustomer" as any) || "New Customer"}</Text>
-              )}
-            </View>
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <Pressable
-                style={[styles.callActionBtn, { backgroundColor: Colors.success }]}
-                onPress={() => {
-                  if (incomingCall.customer) {
-                    cart.setCustomerId(incomingCall.customer.id);
-                  } else {
-                    setNewCustomerForm({ name: "", phone: incomingCall.phoneNumber, address: "", email: "" });
-                    setShowNewCustomerForm(true);
-                  }
-                  setIncomingCall(null);
-                }}
-              >
-                <Ionicons name="checkmark" size={20} color={Colors.white} />
-              </Pressable>
-              <Pressable
-                style={[styles.callActionBtn, { backgroundColor: Colors.danger }]}
-                onPress={() => setIncomingCall(null)}
-              >
-                <Ionicons name="close" size={20} color={Colors.white} />
+          {incomingCalls.length > 1 && (
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingTop: 6, paddingBottom: 2 }}>
+              <Text style={{ color: Colors.white, fontSize: 11, fontWeight: "700", opacity: 0.9 }}>
+                {t("callQueue" as any)} — {incomingCalls.length} {t("callsWaiting" as any)}
+              </Text>
+              <Pressable onPress={() => setIncomingCalls([])} style={{ paddingHorizontal: 10, paddingVertical: 3, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 8 }}>
+                <Text style={{ color: Colors.white, fontSize: 11, fontWeight: "600" }}>{t("dismissAll" as any)}</Text>
               </Pressable>
             </View>
-          </LinearGradient>
+          )}
+          {incomingCalls.map((call, idx) => (
+            <LinearGradient
+              key={call.id || idx}
+              colors={idx === 0 ? [Colors.accent, Colors.gradientMid] : ["#1E3A5F", "#2A4A7F"]}
+              style={[styles.callGradient, isRTL && { flexDirection: "row-reverse" }, idx > 0 && { marginTop: 2, opacity: 0.9 }]}
+            >
+              <View style={styles.callIconWrap}>
+                <Ionicons name="call" size={idx === 0 ? 24 : 18} color={Colors.white} />
+                {incomingCalls.length > 1 && (
+                  <Text style={{ color: Colors.white, fontSize: 9, fontWeight: "800", position: "absolute", bottom: -2, right: -2 }}>
+                    {t("callSlot" as any)}{call.slot}
+                  </Text>
+                )}
+              </View>
+              <View style={[styles.callInfo, isRTL && { alignItems: "flex-end" }]}>
+                <Text style={[styles.callTitle, idx > 0 && { fontSize: 11 }]}>
+                  {language === "ar" ? "مكالمة واردة" : language === "de" ? "Eingehender Anruf" : "Incoming Call"}
+                </Text>
+                <Text style={[styles.callNumber, idx > 0 && { fontSize: 13 }]}>{call.phoneNumber}</Text>
+                {call.customer ? (
+                  <Text style={[styles.callCustomer, idx > 0 && { fontSize: 11 }]}>{call.customer.name}</Text>
+                ) : (
+                  <Text style={[styles.callCustomer, idx > 0 && { fontSize: 11 }]}>
+                    {language === "ar" ? "عميل جديد" : language === "de" ? "Neuer Kunde" : "New Customer"}
+                  </Text>
+                )}
+              </View>
+              <View style={{ flexDirection: "row", gap: 6 }}>
+                <Pressable
+                  style={[styles.callActionBtn, { backgroundColor: Colors.success }]}
+                  onPress={() => {
+                    if (call.customer) {
+                      cart.setCustomerId(call.customer.id);
+                      setPhoneInput(call.phoneNumber);
+                    } else {
+                      setNewCustomerForm({ name: "", phone: call.phoneNumber, address: "", email: "" });
+                      setPhoneInput(call.phoneNumber);
+                      setShowNewCustomerForm(true);
+                    }
+                    setIncomingCalls((prev) => prev.filter((c) => c.id !== call.id));
+                  }}
+                >
+                  <Ionicons name="checkmark" size={18} color={Colors.white} />
+                </Pressable>
+                <Pressable
+                  style={[styles.callActionBtn, { backgroundColor: Colors.danger }]}
+                  onPress={() => setIncomingCalls((prev) => prev.filter((c) => c.id !== call.id))}
+                >
+                  <Ionicons name="close" size={18} color={Colors.white} />
+                </Pressable>
+              </View>
+            </LinearGradient>
+          ))}
         </View>
       )}
 
-      <View style={[styles.mainContent, { flexDirection: isTablet ? (isRTL ? "row-reverse" : "row") : "column" }]}>
+      <View style={[styles.mainContent, { flexDirection: isTablet ? (leftHandMode ? (isRTL ? "row" : "row-reverse") : (isRTL ? "row-reverse" : "row")) : "column" }]}>
         <View style={[styles.productsSection, isTablet && styles.productsSectionTablet]}>
           <View style={[styles.searchRow, { flexDirection: isRTL ? "row-reverse" : "row", gap: 8, alignItems: "center" }]}>
             <View style={[styles.searchBox, { flex: 1 }, isRTL && { flexDirection: "row-reverse" }]}>
@@ -1285,16 +1405,60 @@ export default function POSScreen() {
                   <Text style={[styles.checkoutItemTotal, rtlTextAlign]}>CHF {(item.price * item.quantity).toFixed(2)}</Text>
                 </View>
               ))}
-              {cart.deliveryFee > 0 && (
-                <View style={[styles.checkoutItem, isRTL && { flexDirection: "row-reverse" }]}>
-                  <Text style={[styles.checkoutItemName, rtlTextAlign, { color: Colors.info }]}>Delivery Fee</Text>
-                  <Text style={[styles.checkoutItemTotal, rtlTextAlign, { color: Colors.info }]}>CHF {cart.deliveryFee.toFixed(2)}</Text>
+              {/* Delivery Fee Stepper — editable in 0.50 CHF increments */}
+              <View style={[{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", justifyContent: "space-between", backgroundColor: Colors.surfaceLight, borderRadius: 12, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: Colors.cardBorder }]}>
+                <View style={[{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 6 }]}>
+                  <Ionicons name="bicycle-outline" size={16} color={Colors.info} />
+                  <Text style={[{ color: Colors.text, fontSize: 13, fontWeight: "600" }, rtlTextAlign]}>
+                    {t("adjustDeliveryFee" as any)}
+                  </Text>
                 </View>
+                <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 8 }}>
+                  <Pressable
+                    onPress={() => cart.setDeliveryFee(Math.max(0, Math.round((cart.deliveryFee - 0.5) * 100) / 100))}
+                    style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: Colors.danger + "20", justifyContent: "center", alignItems: "center" }}
+                  >
+                    <Ionicons name="remove" size={16} color={Colors.danger} />
+                  </Pressable>
+                  <Text style={{ color: Colors.accent, fontSize: 14, fontWeight: "700", minWidth: 60, textAlign: "center" }}>
+                    CHF {cart.deliveryFee.toFixed(2)}
+                  </Text>
+                  <Pressable
+                    onPress={() => cart.setDeliveryFee(Math.round((cart.deliveryFee + 0.5) * 100) / 100)}
+                    style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: Colors.success + "20", justifyContent: "center", alignItems: "center" }}
+                  >
+                    <Ionicons name="add" size={16} color={Colors.success} />
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* Payment confirmation checkbox for non-card/cash/nfc payments */}
+              {(paymentMethod === "twint" || paymentMethod === "mobile" || paymentMethod === "qr") && (
+                <Pressable
+                  style={[{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 10, backgroundColor: paymentConfirmed ? Colors.success + "15" : Colors.surfaceLight, borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1.5, borderColor: paymentConfirmed ? Colors.success : Colors.cardBorder }]}
+                  onPress={() => setPaymentConfirmed(!paymentConfirmed)}
+                >
+                  <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: paymentConfirmed ? Colors.success : Colors.textMuted, backgroundColor: paymentConfirmed ? Colors.success : "transparent", justifyContent: "center", alignItems: "center" }}>
+                    {paymentConfirmed && <Ionicons name="checkmark" size={14} color={Colors.white} />}
+                  </View>
+                  <Text style={[{ color: paymentConfirmed ? Colors.success : Colors.text, fontSize: 13, fontWeight: "600", flex: 1 }, rtlTextAlign]}>
+                    {t("confirmPayment" as any)} — CHF {cart.total.toFixed(2)}
+                  </Text>
+                </Pressable>
               )}
 
               <Pressable
                 style={[styles.completeBtn, (saleMutation.isPending || cardProcessing || nfcStatus === "reading" || (paymentMethod === "card" && !isCardValid())) && { opacity: 0.5 }]}
-                onPress={() => !saleMutation.isPending && !cardProcessing && nfcStatus !== "reading" && !(paymentMethod === "card" && !isCardValid()) && saleMutation.mutate()}
+                onPress={() => {
+                  const validationError = validateBeforeComplete();
+                  if (validationError) {
+                    Alert.alert(t("error"), validationError);
+                    return;
+                  }
+                  if (!saleMutation.isPending && !cardProcessing && nfcStatus !== "reading" && !(paymentMethod === "card" && !isCardValid())) {
+                    saleMutation.mutate();
+                  }
+                }}
                 disabled={saleMutation.isPending || cardProcessing || nfcStatus === "reading" || (paymentMethod === "card" && !isCardValid())}
               >
                 <LinearGradient colors={[Colors.success, "#059669"]} style={[styles.completeBtnGradient, isRTL && { flexDirection: "row-reverse" }]}>
@@ -1632,8 +1796,33 @@ export default function POSScreen() {
                 <Ionicons name="close" size={24} color={Colors.text} />
               </Pressable>
             </View>
+
+            {/* 24h filter toggle */}
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8, paddingHorizontal: 4, paddingBottom: 10 }}>
+              <Pressable
+                onPress={() => setInvoiceFilter24h(true)}
+                style={{ flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: invoiceFilter24h ? Colors.accent : Colors.surfaceLight, alignItems: "center", borderWidth: 1, borderColor: invoiceFilter24h ? Colors.accent : Colors.cardBorder }}
+              >
+                <Text style={{ color: invoiceFilter24h ? Colors.textDark : Colors.textSecondary, fontSize: 12, fontWeight: "700" }}>
+                  {t("last24Hours" as any)}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setInvoiceFilter24h(false)}
+                style={{ flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: !invoiceFilter24h ? Colors.accent : Colors.surfaceLight, alignItems: "center", borderWidth: 1, borderColor: !invoiceFilter24h ? Colors.accent : Colors.cardBorder }}
+              >
+                <Text style={{ color: !invoiceFilter24h ? Colors.textDark : Colors.textSecondary, fontSize: 12, fontWeight: "700" }}>
+                  {t("allInvoices" as any)}
+                </Text>
+              </Pressable>
+            </View>
+
             <FlatList
-              data={salesHistory}
+              data={salesHistory.filter((s: any) => {
+                if (!invoiceFilter24h) return true;
+                const saleDate = new Date(s.createdAt || s.date);
+                return (Date.now() - saleDate.getTime()) <= 24 * 60 * 60 * 1000;
+              })}
               keyExtractor={(item: any) => String(item.id)}
               scrollEnabled={!!salesHistory.length}
               renderItem={({ item }: { item: any }) => {
@@ -1920,6 +2109,207 @@ export default function POSScreen() {
         onScanned={handleBarcodeScan}
         onClose={() => setShowScanner(false)}
       />
+
+      {/* ── Online Orders Panel ── */}
+      <Modal visible={showOnlineOrders} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: "92%" }]}>
+            <View style={[styles.modalHeader, isRTL && { flexDirection: "row-reverse" }]}>
+              <Text style={[styles.modalTitle, rtlTextAlign]}>
+                {language === "ar" ? "🌐 الطلبات الإلكترونية" : language === "de" ? "🌐 Online-Bestellungen" : "🌐 Online Orders"}
+              </Text>
+              <Pressable onPress={() => setShowOnlineOrders(false)}>
+                <Ionicons name="close" size={24} color={Colors.text} />
+              </Pressable>
+            </View>
+
+            <FlatList
+              data={onlineOrders as any[]}
+              keyExtractor={(item: any) => String(item.id)}
+              scrollEnabled
+              renderItem={({ item }: { item: any }) => {
+                const orderDate = new Date(item.createdAt);
+                const statusColor: Record<string, string> = {
+                  pending: Colors.warning,
+                  accepted: Colors.info,
+                  preparing: Colors.secondary,
+                  ready: Colors.accent,
+                  delivered: Colors.success,
+                  cancelled: Colors.danger,
+                };
+                const payIcon: Record<string, string> = { cash: "💵", card: "💳", mobile: "📱" };
+                return (
+                  <View style={{
+                    backgroundColor: Colors.surfaceLight,
+                    borderRadius: 14, padding: 14, marginBottom: 10,
+                    borderWidth: 1, borderColor: Colors.cardBorder,
+                    borderLeftWidth: 4, borderLeftColor: statusColor[item.status] || Colors.textMuted,
+                  }}>
+                    <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <Text style={{ color: Colors.text, fontWeight: "800", fontSize: 14 }}>#{item.orderNumber}</Text>
+                      <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+                        <View style={{ backgroundColor: statusColor[item.status] || Colors.textMuted, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 }}>
+                          <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700", textTransform: "capitalize" }}>{item.status}</Text>
+                        </View>
+                        <Text style={{ color: Colors.accent, fontWeight: "800" }}>CHF {Number(item.totalAmount).toFixed(2)}</Text>
+                      </View>
+                    </View>
+                    <Text style={{ color: Colors.textSecondary, fontSize: 12, marginBottom: 2 }}>
+                      👤 {item.customerName} · 📞 {item.customerPhone}
+                    </Text>
+                    {item.customerAddress && (
+                      <Text style={{ color: Colors.textMuted, fontSize: 11, marginBottom: 2 }}>📍 {item.customerAddress}</Text>
+                    )}
+                    <Text style={{ color: Colors.textMuted, fontSize: 11, marginBottom: 6 }}>
+                      {payIcon[item.paymentMethod] || "💵"} {item.paymentMethod?.toUpperCase()} · {item.orderType?.toUpperCase()} · {orderDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </Text>
+                    {/* Items */}
+                    {(item.items || []).map((it: any, idx: number) => (
+                      <Text key={idx} style={{ color: Colors.textMuted, fontSize: 11 }}>
+                        • {it.name} x{it.quantity} — CHF {Number(it.total).toFixed(2)}
+                      </Text>
+                    ))}
+                    {item.notes && <Text style={{ color: Colors.warning, fontSize: 11, marginTop: 4 }}>📝 {item.notes}</Text>}
+
+                    {/* Action buttons */}
+                    <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                      {item.status === "pending" && (
+                        <Pressable
+                          onPress={async () => {
+                            await apiRequest("PUT", `/api/online-orders/${item.id}`, { status: "accepted", estimatedTime: 30 });
+                            qc.invalidateQueries({ queryKey: ["/api/online-orders"] });
+                          }}
+                          style={{ backgroundColor: Colors.info, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8 }}
+                        >
+                          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>
+                            {language === "ar" ? "قبول" : language === "de" ? "Annehmen" : "Accept"}
+                          </Text>
+                        </Pressable>
+                      )}
+                      {item.status === "accepted" && (
+                        <Pressable
+                          onPress={async () => {
+                            await apiRequest("PUT", `/api/online-orders/${item.id}`, { status: "preparing" });
+                            qc.invalidateQueries({ queryKey: ["/api/online-orders"] });
+                          }}
+                          style={{ backgroundColor: Colors.secondary, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8 }}
+                        >
+                          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>
+                            {language === "ar" ? "قيد التحضير" : language === "de" ? "In Zubereitung" : "Preparing"}
+                          </Text>
+                        </Pressable>
+                      )}
+                      {item.status === "preparing" && (
+                        <Pressable
+                          onPress={async () => {
+                            await apiRequest("PUT", `/api/online-orders/${item.id}`, { status: "ready" });
+                            qc.invalidateQueries({ queryKey: ["/api/online-orders"] });
+                          }}
+                          style={{ backgroundColor: Colors.accent, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8 }}
+                        >
+                          <Text style={{ color: Colors.textDark || "#111", fontWeight: "700", fontSize: 12 }}>
+                            {language === "ar" ? "جاهز" : language === "de" ? "Fertig" : "Ready"}
+                          </Text>
+                        </Pressable>
+                      )}
+                      {item.status === "ready" && (
+                        <Pressable
+                          onPress={async () => {
+                            await apiRequest("PUT", `/api/online-orders/${item.id}`, { status: "delivered" });
+                            qc.invalidateQueries({ queryKey: ["/api/online-orders"] });
+                          }}
+                          style={{ backgroundColor: "#22c55e", paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8 }}
+                        >
+                          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>
+                            {language === "ar" ? "تم التوصيل" : language === "de" ? "Geliefert" : "Delivered"}
+                          </Text>
+                        </Pressable>
+                      )}
+                      {item.status !== "cancelled" && item.status !== "delivered" && (
+                        <Pressable
+                          onPress={async () => {
+                            await apiRequest("PUT", `/api/online-orders/${item.id}`, { status: "cancelled" });
+                            qc.invalidateQueries({ queryKey: ["/api/online-orders"] });
+                          }}
+                          style={{ backgroundColor: Colors.danger, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8 }}
+                        >
+                          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>
+                            {language === "ar" ? "إلغاء" : language === "de" ? "Stornieren" : "Cancel"}
+                          </Text>
+                        </Pressable>
+                      )}
+                      {/* Load to POS cart */}
+                      {["pending", "accepted", "preparing"].includes(item.status) && (
+                        <Pressable
+                          onPress={() => {
+                            // Load items into cart
+                            cart.clearCart();
+                            (item.items || []).forEach((it: any) => {
+                              for (let i = 0; i < it.quantity; i++) {
+                                cart.addItem({ id: it.productId || 0, name: it.name, price: Number(it.unitPrice) || 0 });
+                              }
+                            });
+                            setShowOnlineOrders(false);
+                          }}
+                          style={{ backgroundColor: Colors.surfaceLight, borderWidth: 1, borderColor: Colors.cardBorder, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8 }}
+                        >
+                          <Text style={{ color: Colors.text, fontWeight: "700", fontSize: 12 }}>
+                            🛒 {language === "ar" ? "تحميل للنقطة" : language === "de" ? "In POS laden" : "Load to POS"}
+                          </Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  </View>
+                );
+              }}
+              ListEmptyComponent={
+                <View style={{ alignItems: "center", paddingVertical: 40 }}>
+                  <Text style={{ fontSize: 40 }}>🌐</Text>
+                  <Text style={{ color: Colors.textMuted, fontSize: 15, marginTop: 12, fontWeight: "600" }}>
+                    {language === "ar" ? "لا توجد طلبات إلكترونية" : language === "de" ? "Keine Online-Bestellungen" : "No online orders yet"}
+                  </Text>
+                </View>
+              }
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── New Online Order Notification Popup ── */}
+      {onlineOrderNotification && (
+        <Pressable
+          onPress={() => { setShowOnlineOrders(true); setOnlineOrderNotification(null); }}
+          style={{
+            position: "absolute", bottom: 90, left: 16, right: 16,
+            backgroundColor: Colors.surface,
+            borderRadius: 16, padding: 16,
+            borderWidth: 2, borderColor: "#22c55e",
+            flexDirection: isRTL ? "row-reverse" : "row",
+            alignItems: "center", gap: 12,
+            elevation: 10,
+            shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8,
+            zIndex: 9999,
+          }}
+        >
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(34,197,94,0.15)", justifyContent: "center", alignItems: "center" }}>
+            <Text style={{ fontSize: 24 }}>🛵</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: "#22c55e", fontWeight: "800", fontSize: 14 }}>
+              {language === "ar" ? "🔔 طلب جديد!" : language === "de" ? "🔔 Neue Bestellung!" : "🔔 New Online Order!"}
+            </Text>
+            <Text style={{ color: Colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+              #{onlineOrderNotification.orderNumber} · {onlineOrderNotification.customerName} · CHF {Number(onlineOrderNotification.totalAmount).toFixed(2)}
+            </Text>
+            <Text style={{ color: Colors.textMuted, fontSize: 11, marginTop: 1 }}>
+              {language === "ar" ? "اضغط لعرض التفاصيل" : language === "de" ? "Tippen für Details" : "Tap to view details"}
+            </Text>
+          </View>
+          <Pressable onPress={(e) => { e.stopPropagation(); setOnlineOrderNotification(null); }}>
+            <Ionicons name="close" size={20} color={Colors.textMuted} />
+          </Pressable>
+        </Pressable>
+      )}
 
       <View style={{ height: Platform.OS === "web" ? 84 : 60 }} />
     </View>

@@ -125,6 +125,20 @@ export default function SettingsScreen() {
   const [showCallerIdTest, setShowCallerIdTest] = useState(false);
   const [testPhoneNumber, setTestPhoneNumber] = useState("0551234567");
   const [callerIdStatus, setCallerIdStatus] = useState<"idle" | "testing" | "done">("idle");
+  const [leftHandMode, setLeftHandMode] = useState(false);
+  useEffect(() => {
+    import("@react-native-async-storage/async-storage").then(({ default: AsyncStorage }) => {
+      AsyncStorage.getItem("barmagly_left_hand_mode").then((v) => {
+        if (v === "true") setLeftHandMode(true);
+      });
+    });
+  }, []);
+  const toggleLeftHandMode = (val: boolean) => {
+    setLeftHandMode(val);
+    import("@react-native-async-storage/async-storage").then(({ default: AsyncStorage }) => {
+      AsyncStorage.setItem("barmagly_left_hand_mode", val ? "true" : "false");
+    });
+  };
 
   const { data: employees = [] } = useQuery<any[]>({ queryKey: [tenant?.id ? `/api/employees?tenantId=${tenant.id}` : "/api/employees"], queryFn: getQueryFn({ on401: "throw" }), enabled: !!tenant?.id });
   const { data: suppliers = [] } = useQuery<any[]>({ queryKey: [tenant?.id ? `/api/suppliers?tenantId=${tenant.id}` : "/api/suppliers"], queryFn: getQueryFn({ on401: "throw" }), enabled: !!tenant?.id });
@@ -543,6 +557,25 @@ export default function SettingsScreen() {
 
         <Text style={styles.sectionTitle}>{t("system")}</Text>
         <SettingRow icon="language" label={t("language")} value={language === "ar" ? "العربية" : language === "de" ? "Deutsch" : "English"} onPress={() => setShowLanguagePicker(true)} color={Colors.info} rtl={isRTL} />
+        {/* Left-hand mode toggle */}
+        <Pressable
+          style={[rowStyles.row, isRTL && { flexDirection: "row-reverse" }]}
+          onPress={() => toggleLeftHandMode(!leftHandMode)}
+        >
+          <View style={[rowStyles.iconWrap, { backgroundColor: Colors.secondary + "20" }, isRTL ? { marginLeft: 12, marginRight: 0 } : {}]}>
+            <Ionicons name="hand-left-outline" size={20} color={Colors.secondary} />
+          </View>
+          <View style={[rowStyles.info, isRTL && { alignItems: "flex-end" }]}>
+            <Text style={[rowStyles.label, isRTL && { textAlign: "right" }]}>{t("leftHandMode" as any)}</Text>
+            <Text style={[rowStyles.value, isRTL && { textAlign: "right" }]}>{t("leftHandModeDesc" as any)}</Text>
+          </View>
+          <Switch
+            value={leftHandMode}
+            onValueChange={toggleLeftHandMode}
+            trackColor={{ false: Colors.cardBorder, true: Colors.secondary + "60" }}
+            thumbColor={leftHandMode ? Colors.secondary : Colors.textMuted}
+          />
+        </Pressable>
         <SettingRow icon="print" label={t("receiptPrinter")} value={t("notConfigured")} onPress={() => setShowPrinterSettings(true)} color={Colors.textMuted} rtl={isRTL} />
         <SettingRow icon="cloud-upload" label={t("syncStatus")} value={t("connected")} color={Colors.success} rtl={isRTL} />
         <SettingRow icon="information-circle" label={t("appVersion")} value="1.0.0" color={Colors.info} rtl={isRTL} />
@@ -1135,54 +1168,55 @@ export default function SettingsScreen() {
               <Pressable onPress={() => setShowCashDrawer(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
             </View>
             <ScrollView>
+              {/* Shift status info */}
               {activeShift ? (
-                <>
-                  <View style={{ backgroundColor: Colors.success + "15", borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: Colors.success + "30" }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.success }} />
-                      <Text style={{ color: Colors.success, fontSize: 14, fontWeight: "700" }}>{t("activeShift")}</Text>
-                    </View>
-                    <Text style={{ color: Colors.textMuted, fontSize: 12 }}>{t("openingCash")}: ${Number(activeShift.openingCash || 0).toFixed(2)}</Text>
-                    <Text style={{ color: Colors.textMuted, fontSize: 12, marginTop: 2 }}>{t("durationLabel")}: {activeShiftElapsed || "0:00"}</Text>
+                <View style={{ backgroundColor: Colors.success + "15", borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: Colors.success + "30" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.success }} />
+                    <Text style={{ color: Colors.success, fontSize: 14, fontWeight: "700" }}>{t("activeShift")}</Text>
                   </View>
-
-                  <Text style={styles.label}>{t("operationType")}</Text>
-                  <View style={styles.roleRow}>
-                    {["withdrawal", "deposit", "count"].map((ct) => (
-                      <Pressable key={ct} style={[styles.roleChip, cashDrawerForm.type === ct && { backgroundColor: Colors.accent }]} onPress={() => setCashDrawerForm({ ...cashDrawerForm, type: ct })}>
-                        <Text style={[styles.roleChipText, cashDrawerForm.type === ct && { color: Colors.textDark }]}>{t(ct as any)}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-
-                  <Text style={styles.label}>{t("amount")} *</Text>
-                  <TextInput style={styles.input} value={cashDrawerForm.amount} onChangeText={(v) => setCashDrawerForm({ ...cashDrawerForm, amount: v })} keyboardType="decimal-pad" placeholderTextColor={Colors.textMuted} placeholder="0.00" />
-
-                  <Text style={styles.label}>{t("reason")}</Text>
-                  <TextInput style={styles.input} value={cashDrawerForm.reason} onChangeText={(v) => setCashDrawerForm({ ...cashDrawerForm, reason: v })} placeholderTextColor={Colors.textMuted} placeholder={t("reasonForOperation")} />
-
-                  <Pressable style={styles.saveBtn} onPress={() => {
-                    if (!cashDrawerForm.amount) return Alert.alert(t("error"), t("amountRequired"));
-                    cashDrawerMutation.mutate({
-                      shiftId: activeShift.id,
-                      employeeId: employee?.id,
-                      type: cashDrawerForm.type,
-                      amount: cashDrawerForm.amount,
-                      reason: cashDrawerForm.reason,
-                    });
-                  }}>
-                    <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={styles.saveBtnGradient}>
-                      <Text style={styles.saveBtnText}>{t("recordOperation")}</Text>
-                    </LinearGradient>
-                  </Pressable>
-                </>
+                  <Text style={{ color: Colors.textMuted, fontSize: 12 }}>{t("openingCash")}: CHF {Number(activeShift.openingCash || 0).toFixed(2)}</Text>
+                  <Text style={{ color: Colors.textMuted, fontSize: 12, marginTop: 2 }}>{t("durationLabel")}: {activeShiftElapsed || "0:00"}</Text>
+                </View>
               ) : (
-                <View style={{ alignItems: "center", paddingVertical: 40 }}>
-                  <Ionicons name="lock-closed" size={48} color={Colors.textMuted} />
-                  <Text style={{ color: Colors.textMuted, fontSize: 15, marginTop: 12 }}>{t("noActiveShift")}</Text>
-                  <Text style={{ color: Colors.textMuted, fontSize: 12, marginTop: 4, textAlign: "center" }}>{t("noActiveShiftCashDrawer")}</Text>
+                <View style={{ backgroundColor: Colors.warning + "15", borderRadius: 14, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: Colors.warning + "30" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Ionicons name="warning-outline" size={16} color={Colors.warning} />
+                    <Text style={{ color: Colors.warning, fontSize: 13, fontWeight: "600", flex: 1 }}>{t("noActiveShift")} — {t("noActiveShiftCashDrawer")}</Text>
+                  </View>
                 </View>
               )}
+
+              <Text style={styles.label}>{t("operationType")}</Text>
+              <View style={styles.roleRow}>
+                {["withdrawal", "deposit", "count"].map((ct) => (
+                  <Pressable key={ct} style={[styles.roleChip, cashDrawerForm.type === ct && { backgroundColor: Colors.accent }]} onPress={() => setCashDrawerForm({ ...cashDrawerForm, type: ct })}>
+                    <Text style={[styles.roleChipText, cashDrawerForm.type === ct && { color: Colors.textDark }]}>{t(ct as any)}</Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <Text style={styles.label}>{t("amount")} *</Text>
+              <TextInput style={styles.input} value={cashDrawerForm.amount} onChangeText={(v) => setCashDrawerForm({ ...cashDrawerForm, amount: v })} keyboardType="decimal-pad" placeholderTextColor={Colors.textMuted} placeholder="0.00" />
+
+              <Text style={styles.label}>{t("reason")}</Text>
+              <TextInput style={styles.input} value={cashDrawerForm.reason} onChangeText={(v) => setCashDrawerForm({ ...cashDrawerForm, reason: v })} placeholderTextColor={Colors.textMuted} placeholder={t("reasonForOperation")} />
+
+              <Pressable style={styles.saveBtn} onPress={() => {
+                if (!cashDrawerForm.amount) return Alert.alert(t("error"), t("amountRequired"));
+                cashDrawerMutation.mutate({
+                  shiftId: activeShift?.id || null,
+                  employeeId: employee?.id,
+                  tenantId: tenant?.id,
+                  type: cashDrawerForm.type,
+                  amount: cashDrawerForm.amount,
+                  reason: cashDrawerForm.reason,
+                });
+              }}>
+                <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={styles.saveBtnGradient}>
+                  <Text style={styles.saveBtnText}>{t("recordOperation")}</Text>
+                </LinearGradient>
+              </Pressable>
             </ScrollView>
           </View>
         </View>
@@ -2096,7 +2130,7 @@ export default function SettingsScreen() {
 
               {/* Download Template Button */}
               <Pressable
-                style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: Colors.surfaceLight, borderRadius: 12, paddingVertical: 12, marginBottom: 16, borderWidth: 1, borderColor: Colors.accent + "40" }}
+                style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: Colors.surfaceLight, borderRadius: 12, paddingVertical: 12, marginBottom: 8, borderWidth: 1, borderColor: Colors.accent + "40" }}
                 onPress={() => {
                   const templateUrl = `${getApiUrl()}/api/${importType}/template`;
                   if (Platform.OS === "web") {
@@ -2109,6 +2143,24 @@ export default function SettingsScreen() {
                 <Ionicons name="download-outline" size={20} color={Colors.accent} />
                 <Text style={{ color: Colors.accent, fontSize: 14, fontWeight: "600" }}>{t("downloadTemplate" as any) || "Download Template"}</Text>
               </Pressable>
+
+              {/* Export existing data (customers only) */}
+              {importType === "customers" && (
+                <Pressable
+                  style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: Colors.success + "15", borderRadius: 12, paddingVertical: 12, marginBottom: 16, borderWidth: 1, borderColor: Colors.success + "40" }}
+                  onPress={() => {
+                    const exportUrl = `${getApiUrl()}/api/customers/export${tenant?.id ? `?tenantId=${tenant.id}` : ""}`;
+                    if (Platform.OS === "web") {
+                      window.open(exportUrl, "_blank");
+                    } else {
+                      Alert.alert(t("exportCustomersExcel" as any) || "Export", exportUrl);
+                    }
+                  }}
+                >
+                  <Ionicons name="share-outline" size={20} color={Colors.success} />
+                  <Text style={{ color: Colors.success, fontSize: 14, fontWeight: "600" }}>{t("exportCustomersExcel" as any)}</Text>
+                </Pressable>
+              )}
 
               {/* Upload Button */}
               <Pressable
@@ -2131,8 +2183,8 @@ export default function SettingsScreen() {
                           try {
                             const base64 = (ev.target?.result as string).split(",")[1];
                             const endpoint = importType === "products" ? "/api/products/import" : "/api/customers/import";
-                            const body: any = { fileBase64: base64, tenantId: 1 };
-                            if (importType === "products") body.branchId = 1;
+                            const body: any = { fileBase64: base64, tenantId: tenant?.id || 1 };
+                            if (importType === "products") body.branchId = employee?.branchId || 1;
                             const res = await apiRequest("POST", endpoint, body);
                             const data = await res.json();
                             setImportResult(data);
@@ -2163,8 +2215,8 @@ export default function SettingsScreen() {
                           try {
                             const base64 = (reader.result as string).split(",")[1];
                             const endpoint = importType === "products" ? "/api/products/import" : "/api/customers/import";
-                            const body: any = { fileBase64: base64, tenantId: 1 };
-                            if (importType === "products") body.branchId = 1;
+                            const body: any = { fileBase64: base64, tenantId: tenant?.id || 1 };
+                            if (importType === "products") body.branchId = employee?.branchId || 1;
                             const res = await apiRequest("POST", endpoint, body);
                             const data = await res.json();
                             setImportResult(data);
@@ -2282,11 +2334,11 @@ export default function SettingsScreen() {
 
               {/* Simulate Button */}
               <Pressable
-                style={{ borderRadius: 14, overflow: "hidden", marginTop: 24, marginBottom: 16 }}
+                style={{ borderRadius: 14, overflow: "hidden", marginTop: 24, marginBottom: 8 }}
                 onPress={async () => {
                   try {
                     setCallerIdStatus("testing");
-                    await apiRequest("POST", "/api/caller-id/simulate", { phoneNumber: testPhoneNumber });
+                    await apiRequest("POST", "/api/caller-id/simulate", { phoneNumber: testPhoneNumber, slot: 1 });
                     setCallerIdStatus("done");
                     setTimeout(() => setCallerIdStatus("idle"), 3000);
                   } catch (err: any) {
@@ -2300,6 +2352,29 @@ export default function SettingsScreen() {
                   <Ionicons name={callerIdStatus === "testing" ? "hourglass" : "call"} size={22} color={Colors.white} />
                   <Text style={{ color: Colors.white, fontSize: 16, fontWeight: "700" }}>
                     {callerIdStatus === "testing" ? (t("simulating" as any) || "Simulating...") : (t("simulateIncomingCall" as any) || "Simulate Incoming Call")}
+                  </Text>
+                </LinearGradient>
+              </Pressable>
+
+              {/* Multi-call test: simulate all 4 slots */}
+              <Pressable
+                style={{ borderRadius: 14, overflow: "hidden", marginBottom: 16 }}
+                onPress={async () => {
+                  const testNumbers = ["0551234567", "0509876543", "0521112233", "+41791234567"];
+                  for (let i = 0; i < 4; i++) {
+                    try {
+                      await apiRequest("POST", "/api/caller-id/simulate", { phoneNumber: testNumbers[i], slot: i + 1 });
+                      await new Promise((r) => setTimeout(r, 300));
+                    } catch { }
+                  }
+                  setCallerIdStatus("done");
+                  setTimeout(() => setCallerIdStatus("idle"), 3000);
+                }}
+              >
+                <LinearGradient colors={["#6366F1", "#8B5CF6"]} style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", justifyContent: "center", paddingVertical: 12, gap: 8 }}>
+                  <Ionicons name="call-outline" size={18} color={Colors.white} />
+                  <Text style={{ color: Colors.white, fontSize: 14, fontWeight: "700" }}>
+                    {t("multipleIncomingCalls" as any)} (4 {t("callSlot" as any)}s)
                   </Text>
                 </LinearGradient>
               </Pressable>

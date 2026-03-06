@@ -210,3 +210,9 @@
 [2026-03-04T12:30:15.653Z] Existing tenants count: 4
 [2026-03-04T18:02:11.127Z] seedSuperAdminData started
 [2026-03-04T18:02:11.417Z] Existing tenants count: 4
+[2026-03-06T00:36:39.220Z] seedSuperAdminData started
+[2026-03-06T00:36:39.461Z] Existing tenants count: 5
+[2026-03-06T00:36:39.746Z] Creating default branch for tenant 25
+[2026-03-06T00:36:40.014Z] Creating default admin for tenant 25
+[2026-03-06T00:39:28.238Z] seedSuperAdminData started
+[2026-03-06T00:39:28.544Z] Existing tenants count: 5

@@ -1,6 +1,8 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "node:http";
 import * as xlsx from "xlsx";
+import path from "node:path";
+import fs from "node:fs";
 import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { callerIdService } from "./callerIdService";
@@ -1681,8 +1683,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── Public Restaurant Store page ───────────────────────────────────────────
   app.get("/store/:slug", async (req, res) => {
     try {
-      const path = require("path");
-      const fs = require("fs");
       const { slug } = req.params;
       const config = await storage.getLandingPageConfigBySlug(slug);
       if (!config || !config.isPublished) {

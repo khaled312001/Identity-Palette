@@ -642,22 +642,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.send(buf);
   });
 
+  // Export Customers Excel (must be before :id route)
+  app.get("/api/customers/export", async (req, res) => {
+    try {
+      const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      const customers = await storage.getCustomers(tenantId);
+      const exportData = customers.map((c: any) => ({
+        Name: c.name || "",
+        Phone: c.phone || "",
+        Email: c.email || "",
+        Address: c.address || "",
+        LoyaltyPoints: c.loyaltyPoints || 0,
+        TotalPurchases: c.totalPurchases || 0,
+        CreatedAt: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "",
+      }));
+      const ws = xlsx.utils.json_to_sheet(exportData);
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, "Customers");
+      const buf = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
+      res.setHeader("Content-Disposition", "attachment; filename=customers_export.xlsx");
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.send(buf);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // Bulk Import Customers (must be before :id route)
   app.post("/api/customers/import", async (req: any, res) => {
     try {
       const { fileBase64, tenantId } = req.body;
+      if (!fileBase64) return res.status(400).json({ error: "fileBase64 is required" });
       const buffer = Buffer.from(fileBase64, "base64");
       const workbook = xlsx.read(buffer, { type: "buffer" });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const data = xlsx.utils.sheet_to_json(sheet);
 
       const customersToInsert = data.map((item: any) => ({
-        name: item.Name || item.name,
+        name: item.Name || item.name || "",
         email: item.Email || item.email || undefined,
         phone: String(item.Phone || item.phone || ""),
         address: item.Address || item.address || undefined,
+        tenantId: tenantId ? Number(tenantId) : undefined,
         isActive: true,
-      }));
+      })).filter((c: any) => c.name);
 
       const results = await storage.bulkCreateCustomers(customersToInsert as any);
       res.json({ success: true, count: results.length });
@@ -1561,6 +1587,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { phoneNumber } = req.body;
     callerIdService.handleIncomingCall(phoneNumber || "0551234567");
     res.json({ success: true });
+  });
+
+  // ── Online Orders ──────────────────────────────────────────────────────────
+  // Public: get store info + menu by slug (for landing page)
+  app.get("/api/store-public/:slug", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const config = await storage.getLandingPageConfigBySlug(slug);
+      if (!config || !config.isPublished) return res.status(404).json({ error: "Store not found" });
+      const tenant = await storage.getTenant(config.tenantId);
+      const products = await storage.getProductsByTenant(config.tenantId);
+      const categories = await storage.getCategories(config.tenantId);
+      res.json({ config, tenant, products, categories });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Public: create online order
+  app.post("/api/online-orders/public", async (req, res) => {
+    try {
+      const { slug, ...orderData } = req.body;
+      const config = await storage.getLandingPageConfigBySlug(slug);
+      if (!config) return res.status(404).json({ error: "Store not found" });
+
+      const orderNumber = `ONL-${Date.now().toString().slice(-6)}`;
+      const order = await storage.createOnlineOrder({
+        ...orderData,
+        tenantId: config.tenantId,
+        orderNumber,
+        paymentStatus: orderData.paymentMethod === "cash" ? "pending" : "pending",
+        status: "pending",
+      });
+
+      // Broadcast to all connected POS clients
+      callerIdService.broadcast({
+        type: "new_online_order",
+        order,
+      });
+
+      res.json(order);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Internal: list online orders
+  app.get("/api/online-orders", async (req, res) => {
+    try {
+      const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      const status = req.query.status as string | undefined;
+      const orders = await storage.getOnlineOrders(tenantId, status);
+      res.json(orders);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Internal: update online order status
+  app.put("/api/online-orders/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const order = await storage.updateOnlineOrder(id, req.body);
+
+      // Broadcast status update to all clients
+      callerIdService.broadcast({ type: "online_order_updated", order });
+      res.json(order);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Internal: delete online order
+  app.delete("/api/online-orders/:id", async (req, res) => {
+    try {
+      await storage.deleteOnlineOrder(Number(req.params.id));
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Landing Page Config ────────────────────────────────────────────────────
+  app.get("/api/landing-page-config", async (req, res) => {
+    try {
+      const tenantId = Number(req.query.tenantId);
+      if (!tenantId) return res.status(400).json({ error: "tenantId required" });
+      const config = await storage.getLandingPageConfig(tenantId);
+      res.json(config || null);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.put("/api/landing-page-config", async (req, res) => {
+    try {
+      const { tenantId, ...data } = req.body;
+      if (!tenantId) return res.status(400).json({ error: "tenantId required" });
+      const config = await storage.upsertLandingPageConfig(Number(tenantId), data);
+      res.json(config);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Public Restaurant Store page ───────────────────────────────────────────
+  app.get("/store/:slug", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const config = await storage.getLandingPageConfigBySlug(slug);
+      if (!config || !config.isPublished) {
+        return res.status(404).send("<h1>Store not found</h1>");
+      }
+      const templatePath = require("path").join(__dirname, "templates", "restaurant-store.html");
+      const fs = require("fs");
+      let html = fs.readFileSync(templatePath, "utf8");
+      html = html.replace(/\{\{SLUG\}\}/g, slug);
+      html = html.replace(/\{\{PRIMARY_COLOR\}\}/g, config.primaryColor || "#2FD3C6");
+      html = html.replace(/\{\{ACCENT_COLOR\}\}/g, config.accentColor || "#6366F1");
+      res.send(html);
+    } catch (e: any) { res.status(500).send("<h1>Server error</h1>"); }
   });
 
   const httpServer = createServer(app);

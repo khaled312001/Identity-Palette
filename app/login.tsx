@@ -148,6 +148,16 @@ export default function LoginScreen() {
   };
 
   const handleSkipShift = () => {
+    // Shift is mandatory for admin and cashier — warn them
+    if (loggedInEmployee && (loggedInEmployee.role === "admin" || loggedInEmployee.role === "cashier" || loggedInEmployee.role === "owner")) {
+      Alert.alert(
+        t("shiftRequiredTitle" as any) || "Shift Required",
+        t("cannotSkipShift" as any) || "Starting a shift is mandatory before accessing the POS",
+        [{ text: t("startShift"), onPress: () => setShowOpeningCashInput(true) }]
+      );
+      return;
+    }
+    // Managers can skip
     setShowShiftPrompt(false);
     setShowOpeningCashInput(false);
     setOpeningCash("");
@@ -295,9 +305,19 @@ export default function LoginScreen() {
                 <Pressable onPress={() => setShowOpeningCashInput(true)} style={{ backgroundColor: Colors.accent, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}>
                   <Text style={{ color: Colors.textDark, fontSize: 16, fontWeight: "700" }}>{t("startShiftNow")}</Text>
                 </Pressable>
-                <Pressable onPress={handleSkipShift} style={{ borderRadius: 12, paddingVertical: 14, alignItems: "center", borderWidth: 1, borderColor: Colors.cardBorder }}>
-                  <Text style={{ color: Colors.textSecondary, fontSize: 16, fontWeight: "500" }}>{t("skipForNow")}</Text>
-                </Pressable>
+                {/* Only allow skip for non-admin/cashier roles (e.g. manager access without shift) */}
+                {loggedInEmployee && loggedInEmployee.role === "manager" && (
+                  <Pressable onPress={handleSkipShift} style={{ borderRadius: 12, paddingVertical: 14, alignItems: "center", borderWidth: 1, borderColor: Colors.cardBorder }}>
+                    <Text style={{ color: Colors.textSecondary, fontSize: 16, fontWeight: "500" }}>{t("skipForNow")}</Text>
+                  </Pressable>
+                )}
+                {loggedInEmployee && (loggedInEmployee.role === "admin" || loggedInEmployee.role === "cashier" || loggedInEmployee.role === "owner") && (
+                  <View style={{ borderRadius: 12, paddingVertical: 10, alignItems: "center" }}>
+                    <Text style={{ color: Colors.warning, fontSize: 12, textAlign: "center", paddingHorizontal: 20 }}>
+                      {t("cannotSkipShift" as any)}
+                    </Text>
+                  </View>
+                )}
               </>
             ) : (
               <>

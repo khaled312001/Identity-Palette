@@ -2263,7 +2263,7 @@ export default function POSScreen() {
       />
 
       {/* ── Shift Prompt after Account Switch ── */}
-      <Modal visible={showSwitchShiftPrompt} animationType="fade" transparent>
+      <Modal visible={showSwitchShiftPrompt} animationType="fade" transparent onRequestClose={() => {}}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", padding: 24 }}>
           <View style={{ backgroundColor: Colors.surface, borderRadius: 20, padding: 24, width: "100%", maxWidth: 380, borderWidth: 1, borderColor: Colors.cardBorder }}>
             {!showSwitchCashInput ? (
@@ -2281,18 +2281,10 @@ export default function POSScreen() {
                 </View>
                 <Pressable
                   onPress={() => setShowSwitchCashInput(true)}
-                  style={{ backgroundColor: Colors.accent, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
+                  style={{ backgroundColor: Colors.accent, borderRadius: 12, paddingVertical: 14, alignItems: "center" }}
                 >
                   <Text style={{ color: Colors.textDark, fontSize: 16, fontWeight: "700" }}>
                     {language === "ar" ? "بدء الوردية الآن" : language === "de" ? "Schicht jetzt starten" : "Start Shift Now"}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => { setShowSwitchShiftPrompt(false); setSwitchedEmployee(null); setSwitchOpeningCash(""); setShowSwitchCashInput(false); }}
-                  style={{ borderRadius: 12, paddingVertical: 14, alignItems: "center", borderWidth: 1, borderColor: Colors.cardBorder }}
-                >
-                  <Text style={{ color: Colors.textSecondary, fontSize: 16, fontWeight: "500" }}>
-                    {language === "ar" ? "تخطي" : language === "de" ? "Überspringen" : "Skip for Now"}
                   </Text>
                 </Pressable>
               </>

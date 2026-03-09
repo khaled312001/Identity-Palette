@@ -616,6 +616,32 @@ function setupPaymentGatewayRoutes(app: express.Application) {
 
   await initStripe();
 
+  // Ensure platform tables exist (idempotent)
+  try {
+    const { pool } = await import("./db");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS platform_settings (
+        id SERIAL PRIMARY KEY,
+        key TEXT NOT NULL UNIQUE,
+        value TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS platform_commissions (
+        id SERIAL PRIMARY KEY,
+        tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        order_id INTEGER,
+        sale_total DECIMAL(12,2) NOT NULL,
+        commission_rate DECIMAL(5,2) NOT NULL,
+        commission_amount DECIMAL(12,2) NOT NULL,
+        status TEXT DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    log("Platform tables ready");
+  } catch (err) {
+    log("Error ensuring platform tables:", err);
+  }
+
   // Seed super admin data and initial POS data
   try {
     const { storage } = await import("./storage");

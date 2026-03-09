@@ -15,7 +15,8 @@
       "Bash(dir F:\\\\POS-APP\\\\static-build:*)",
       "Bash(grep:*)",
       "Bash(python:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

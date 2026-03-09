@@ -8,6 +8,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { callerIdService } from "./callerIdService";
 import { requireSuperAdmin } from "./superAdminAuth";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
+import { sendLicenseKeyEmail } from "./emailService";
 
 const TIMESTAMP_FIELDS = [
   "createdAt", "updatedAt", "expiryDate", "expectedDate", "receivedDate",
@@ -72,11 +73,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ownerName,
         ownerEmail,
         ownerPhone,
-        planType, // trial, monthly, yearly
-        planName,
-        paymentMethod, // stripe, bank
-        receiptUrl,
-        stripeToken
+        planType,         // monthly | yearly
+        planName,         // basic | advanced
+        paymentMethodId,  // Stripe PaymentMethod ID (preferred)
+        stripeToken,      // fallback: legacy token
+        lang,
       } = req.body;
 
       if (!businessName || !ownerName || !ownerEmail) {
@@ -89,9 +90,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "A store with this email already exists" });
       }
 
-      // 2. Create Tenant
-      // Generate a temporary password (e.g., ownerName lower + 123)
-      const tempPassword = "admin" + Math.floor(1000 + Math.random() * 9000);
+      // 2. Process Stripe payment (if card provided)
+      let stripeChargeId: string | null = null;
+      const isAdvanced = planName === "advanced";
+      const isYearly = planType === "yearly";
+      const priceChf = isYearly ? (isAdvanced ? 4999 : 1999) : (isAdvanced ? 499 : 199);
+      const amountCents = priceChf * 100;
+
+      if (paymentMethodId || stripeToken) {
+        try {
+          const stripeClient = await getUncachableStripeClient();
+          if (paymentMethodId) {
+            // Modern PaymentIntent flow
+            const pi = await stripeClient.paymentIntents.create({
+              amount: amountCents,
+              currency: "chf",
+              payment_method: paymentMethodId,
+              confirm: true,
+              automatic_payment_methods: { enabled: true, allow_redirects: "never" },
+              receipt_email: ownerEmail,
+              description: `Barmagly ${planName} ${planType} — ${businessName}`,
+              metadata: { businessName, ownerEmail, planName, planType },
+            });
+            if (pi.status === "requires_action" || pi.status === "requires_source_action") {
+              return res.json({ requiresAction: true, clientSecret: pi.client_secret, paymentIntentId: pi.id });
+            }
+            if (pi.status !== "succeeded") {
+              return res.status(402).json({ error: "Payment was not completed. Please try again." });
+            }
+            stripeChargeId = pi.id;
+          } else if (stripeToken) {
+            // Legacy token flow
+            const charge = await stripeClient.charges.create({
+              amount: amountCents,
+              currency: "chf",
+              source: stripeToken,
+              receipt_email: ownerEmail,
+              description: `Barmagly ${planName} ${planType} — ${businessName}`,
+              metadata: { businessName, ownerEmail, planName, planType },
+            });
+            if (charge.status !== "succeeded") {
+              return res.status(402).json({ error: "Payment failed. Please try again." });
+            }
+            stripeChargeId = charge.id;
+          }
+        } catch (stripeErr: any) {
+          console.error("[SUBSCRIBE] Stripe error:", stripeErr.message);
+          return res.status(402).json({ error: stripeErr.message || "Payment processing failed" });
+        }
+      }
+
+      // 3. Create Tenant
+      const tempPassword = "Bpos" + Math.floor(100000 + Math.random() * 900000);
       const passwordHash = await bcrypt.hash(tempPassword, 10);
 
       const tenant = await storage.createTenant({
@@ -100,77 +150,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ownerEmail,
         ownerPhone: ownerPhone || null,
         passwordHash,
-        status: planType === "trial" ? "active" : "active", // In a real app, "pending" for bank
-        maxBranches: planName === "advanced" ? 10 : 1,
-        maxEmployees: planName === "advanced" ? 999 : 5,
+        status: "active",
+        maxBranches: isAdvanced ? 10 : 1,
+        maxEmployees: isAdvanced ? 999 : 5,
         metadata: {
           signupDate: new Date().toISOString(),
-          paymentMethod,
-          receiptUrl: receiptUrl || null
+          paymentMethod: paymentMethodId || stripeToken ? "stripe" : "bank",
+          stripeChargeId,
         }
       });
 
-      // 3. Create Subscription
+      // 4. Create Subscription
       const startDate = new Date();
       let endDate = new Date();
-      let status = "active";
-
-      if (planType === "monthly") {
-        endDate = addMonths(startDate, 1);
-      } else if (planType === "yearly") {
+      if (isYearly) {
         endDate = addYears(startDate, 1);
       } else {
-        endDate = addDays(startDate, 30);
-        status = "active"; // Trial
+        endDate = addMonths(startDate, 1);
       }
 
       const subscription = await storage.createTenantSubscription({
         tenantId: tenant.id,
         planType,
-        planName: planName || "Starter",
-        price: planType === "trial" ? "0" : (planType === "yearly" ? (planName === "advanced" ? "4999.00" : "1999.00") : (planName === "advanced" ? "499.00" : "199.00")),
-        status,
+        planName: planName || "basic",
+        price: String(priceChf) + ".00",
+        status: "active",
         startDate,
         endDate,
-        autoRenew: planType !== "trial",
-        paymentMethod: paymentMethod || "manual"
+        autoRenew: true,
+        paymentMethod: stripeChargeId ? "stripe" : "bank",
       });
 
-      // 4. Generate License Key
+      // 5. Generate License Key
       const randomSegments = Array.from({ length: 4 }, () =>
-        crypto.randomBytes(2).toString('hex').toUpperCase()
+        crypto.randomBytes(2).toString("hex").toUpperCase()
       );
-      const licenseKey = `BARMAGLY-${randomSegments.join('-')}`;
+      const licenseKey = `BARMAGLY-${randomSegments.join("-")}`;
 
       await storage.createLicenseKey({
         licenseKey,
         tenantId: tenant.id,
         subscriptionId: subscription.id,
         status: "active",
-        maxActivations: planName === "advanced" ? 10 : 3,
+        maxActivations: isAdvanced ? 10 : 3,
         expiresAt: endDate,
-        notes: `Subscription from landing page: ${planName}`
+        notes: `Landing page subscription: ${planName} ${planType}`,
       });
 
-      // 5. Create Welcome Notification
+      // 6. Welcome Notification
       await storage.createTenantNotification({
         tenantId: tenant.id,
         type: "info",
         title: "Welcome to Barmagly!",
-        message: `Your account for ${businessName} has been created successfully. Use the mobile app to activate with your license key.`,
-        priority: "normal"
+        message: `Your account for ${businessName} is ready. Open the app and enter your license key to activate.`,
+        priority: "normal",
       });
 
-      console.log(`[SUBSCRIBE] New tenant created: ${businessName} (ID: ${tenant.id})`);
+      // 7. Send License Key Email (non-blocking)
+      sendLicenseKeyEmail({
+        to: ownerEmail,
+        ownerName,
+        businessName,
+        licenseKey,
+        planName,
+        planType,
+        tempPassword,
+        expiresAt: endDate,
+      }).then(() => {
+        console.log(`[SUBSCRIBE] Email sent to ${ownerEmail}`);
+      }).catch((emailErr: any) => {
+        console.error("[SUBSCRIBE] Email send failed (non-fatal):", emailErr.message);
+      });
+
+      console.log(`[SUBSCRIBE] Tenant created: ${businessName} (ID: ${tenant.id}) | Stripe: ${stripeChargeId || "none"}`);
 
       res.json({
         success: true,
         tenantId: tenant.id,
         licenseKey,
-        message: "Your account has been created. Check your email for login credentials, or contact support."
+        requiresAction: false,
       });
     } catch (e: any) {
-      console.error("Subscription error:", e);
+      console.error("[SUBSCRIBE] Error:", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Confirm subscription after 3DS
+  app.post("/api/landing/confirm-subscription", async (req, res) => {
+    try {
+      const { paymentIntentId, businessName, ownerName, ownerEmail, ownerPhone, planType, planName } = req.body;
+      if (!paymentIntentId) return res.status(400).json({ error: "paymentIntentId required" });
+
+      const stripeClient = await getUncachableStripeClient();
+      const pi = await stripeClient.paymentIntents.retrieve(paymentIntentId);
+      if (pi.status !== "succeeded") {
+        return res.status(402).json({ error: "Payment not completed" });
+      }
+
+      // Check if tenant was already created (idempotency)
+      const existingTenant = await storage.getTenantByEmail(ownerEmail);
+      if (existingTenant) {
+        const licenses = await storage.getLicenseKeys(existingTenant.id);
+        const key = licenses[0]?.licenseKey || "";
+        return res.json({ success: true, tenantId: existingTenant.id, licenseKey: key, requiresAction: false });
+      }
+
+      // Create tenant (same as above)
+      const isAdvanced = planName === "advanced";
+      const isYearly = planType === "yearly";
+      const priceChf = isYearly ? (isAdvanced ? 4999 : 1999) : (isAdvanced ? 499 : 199);
+      const tempPassword = "Bpos" + Math.floor(100000 + Math.random() * 900000);
+      const passwordHash = await bcrypt.hash(tempPassword, 10);
+      const tenant = await storage.createTenant({
+        businessName, ownerName, ownerEmail, ownerPhone: ownerPhone || null, passwordHash,
+        status: "active", maxBranches: isAdvanced ? 10 : 1, maxEmployees: isAdvanced ? 999 : 5,
+        metadata: { stripeChargeId: paymentIntentId },
+      });
+      const startDate = new Date();
+      const endDate = isYearly ? addYears(startDate, 1) : addMonths(startDate, 1);
+      const subscription = await storage.createTenantSubscription({
+        tenantId: tenant.id, planType, planName: planName || "basic",
+        price: String(priceChf) + ".00", status: "active", startDate, endDate,
+        autoRenew: true, paymentMethod: "stripe",
+      });
+      const randomSegments = Array.from({ length: 4 }, () => crypto.randomBytes(2).toString("hex").toUpperCase());
+      const licenseKey = `BARMAGLY-${randomSegments.join("-")}`;
+      await storage.createLicenseKey({
+        licenseKey, tenantId: tenant.id, subscriptionId: subscription.id,
+        status: "active", maxActivations: isAdvanced ? 10 : 3, expiresAt: endDate,
+      });
+      sendLicenseKeyEmail({ to: ownerEmail, ownerName, businessName, licenseKey, planName, planType, tempPassword, expiresAt: endDate }).catch(() => {});
+      res.json({ success: true, tenantId: tenant.id, licenseKey, requiresAction: false });
+    } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
   });
@@ -1849,6 +1961,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("[store/:slug] Error:", e);
       res.status(500).send("<h1>Server error</h1>");
     }
+  });
+
+  // ── Tenant Backup & Restore (accessible from mobile app via license-key auth) ─
+  const TENANT_BACKUP_DIR = path.resolve(process.cwd(), "backups");
+  if (!fs.existsSync(TENANT_BACKUP_DIR)) fs.mkdirSync(TENANT_BACKUP_DIR, { recursive: true });
+
+  // List backups for this tenant
+  app.get("/api/backup/list", async (req: any, res) => {
+    try {
+      const tenantId = req.tenantId;
+      if (!tenantId) return res.status(401).json({ error: "Not authorized" });
+      const files = fs.readdirSync(TENANT_BACKUP_DIR)
+        .filter(f => f.startsWith(`backup_tenant_${tenantId}_`) && f.endsWith(".json"))
+        .map(f => {
+          const stat = fs.statSync(path.join(TENANT_BACKUP_DIR, f));
+          return { filename: f, size: stat.size, createdAt: stat.mtime.toISOString() };
+        })
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      res.json(files);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Create backup for this tenant
+  app.post("/api/backup/create", async (req: any, res) => {
+    try {
+      const tenantId = req.tenantId;
+      if (!tenantId) return res.status(401).json({ error: "Not authorized" });
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) return res.status(404).json({ error: "Tenant not found" });
+
+      const [branches, employees, products, categories, customers] = await Promise.all([
+        storage.getBranchesByTenant(tenantId),
+        storage.getEmployeesByTenant(tenantId),
+        storage.getProductsByTenant(tenantId),
+        storage.getCategories(tenantId),
+        storage.getCustomers(undefined, tenantId),
+      ]);
+      let inventory: any[] = [];
+      let expenses: any[] = [];
+      for (const b of branches) {
+        try { const inv = await storage.getInventory(b.id, tenantId); inventory.push(...inv); } catch {}
+      }
+      try { expenses = await storage.getExpenses(undefined, tenantId); } catch {}
+      const sales = await storage.getSales({ tenantId, limit: 10000 });
+
+      const snapshot = {
+        version: "2.0",
+        exportedAt: new Date().toISOString(),
+        tenantId,
+        tenant: { ...tenant, passwordHash: "[REDACTED]" },
+        branches,
+        employees: employees.map((e: any) => ({ ...e, pin: "[REDACTED]", passwordHash: "[REDACTED]" })),
+        categories, products, inventory, customers, expenses,
+        sales: sales.slice(0, 5000),
+      };
+      const filename = `backup_tenant_${tenantId}_${Date.now()}.json`;
+      const filepath = path.join(TENANT_BACKUP_DIR, filename);
+      fs.writeFileSync(filepath, JSON.stringify(snapshot));
+      const stat = fs.statSync(filepath);
+      console.log(`[BACKUP] Manual by tenant ${tenantId}: ${filename} (${Math.round(stat.size/1024)}KB)`);
+      res.json({ success: true, filename, size: stat.size, createdAt: stat.mtime.toISOString() });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Restore backup for this tenant
+  app.post("/api/backup/restore/:filename", async (req: any, res) => {
+    try {
+      const tenantId = req.tenantId;
+      if (!tenantId) return res.status(401).json({ error: "Not authorized" });
+      const filename = path.basename(req.params.filename);
+      // Security: only allow own backups
+      if (!filename.startsWith(`backup_tenant_${tenantId}_`)) {
+        return res.status(403).json({ error: "Not authorized to restore this backup" });
+      }
+      const filepath = path.join(TENANT_BACKUP_DIR, filename);
+      if (!fs.existsSync(filepath)) return res.status(404).json({ error: "Backup not found" });
+      const snapshot = JSON.parse(fs.readFileSync(filepath, "utf-8"));
+
+      const restored: Record<string, number> = { branches: 0, categories: 0, products: 0, customers: 0, expenses: 0 };
+
+      // Restore categories
+      if (snapshot.categories?.length) {
+        const existingCats = await storage.getCategories(tenantId);
+        for (const c of snapshot.categories) {
+          try {
+            if (!existingCats.find((ec: any) => ec.name === c.name)) {
+              await storage.createCategory({ ...c, id: undefined, tenantId });
+              restored.categories++;
+            }
+          } catch {}
+        }
+      }
+
+      // Restore products (upsert)
+      if (snapshot.products?.length) {
+        const existingProducts = await storage.getProductsByTenant(tenantId);
+        const freshCats = await storage.getCategories(tenantId);
+        const catMap = new Map(freshCats.map((c: any) => [c.name, c.id]));
+        const origCatMap = new Map((snapshot.categories || []).map((c: any) => [c.id, c.name]));
+        for (const p of snapshot.products) {
+          try {
+            let newCatId = p.categoryId;
+            if (p.categoryId && origCatMap.has(p.categoryId)) {
+              newCatId = catMap.get(origCatMap.get(p.categoryId)) ?? p.categoryId;
+            }
+            const match = p.barcode
+              ? existingProducts.find((ep: any) => ep.barcode === p.barcode)
+              : existingProducts.find((ep: any) => ep.name === p.name);
+            if (match) {
+              await storage.updateProduct(match.id, { name: p.name, price: p.price, costPrice: p.costPrice, description: p.description, isActive: p.isActive, categoryId: newCatId });
+            } else {
+              await storage.createProduct({ ...p, id: undefined, tenantId, categoryId: newCatId });
+            }
+            restored.products++;
+          } catch {}
+        }
+      }
+
+      // Restore customers (skip dups)
+      if (snapshot.customers?.length) {
+        const existingCustomers = await storage.getCustomers(undefined, tenantId);
+        const existingEmails = new Set(existingCustomers.filter((c: any) => c.email).map((c: any) => c.email?.toLowerCase()));
+        for (const c of snapshot.customers) {
+          try {
+            if (!c.email || !existingEmails.has(c.email.toLowerCase())) {
+              await storage.createCustomer({ ...c, id: undefined, tenantId });
+              restored.customers++;
+            }
+          } catch {}
+        }
+      }
+
+      res.json({ success: true, tenantId, restored });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Delete a tenant's own backup
+  app.delete("/api/backup/:filename", async (req: any, res) => {
+    try {
+      const tenantId = req.tenantId;
+      if (!tenantId) return res.status(401).json({ error: "Not authorized" });
+      const filename = path.basename(req.params.filename);
+      if (!filename.startsWith(`backup_tenant_${tenantId}_`)) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+      const filepath = path.join(TENANT_BACKUP_DIR, filename);
+      if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   const httpServer = createServer(app);

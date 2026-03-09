@@ -1646,18 +1646,21 @@ export const storage = {
     return db.select().from(platformCommissions).orderBy(desc(platformCommissions.createdAt));
   },
   async getCommissionSummary() {
-    const { sql: sqlFn } = await import("drizzle-orm");
     const allTenants = await this.getTenants();
     const result = [];
     let grandTotal = 0;
     for (const t of allTenants) {
-      const [row] = await db.select({
-        total: sqlFn<string>`coalesce(sum(cast(commission_amount as decimal)), 0)::text`,
-        count: sqlFn<number>`count(*)`
-      }).from(platformCommissions).where(eq(platformCommissions.tenantId, t.id));
-      const total = parseFloat(row?.total || "0");
-      grandTotal += total;
-      result.push({ tenantId: t.id, businessName: t.businessName, commissionTotal: total, count: Number(row?.count || 0) });
+      try {
+        const [row] = await db.select({
+          total: sql<string>`coalesce(sum(commission_amount::numeric), 0)::text`,
+          count: sql<number>`count(*)`
+        }).from(platformCommissions).where(eq(platformCommissions.tenantId, t.id));
+        const total = parseFloat(row?.total || "0");
+        grandTotal += total;
+        result.push({ tenantId: t.id, businessName: t.businessName, commissionTotal: total, count: Number(row?.count || 0) });
+      } catch {
+        result.push({ tenantId: t.id, businessName: t.businessName, commissionTotal: 0, count: 0 });
+      }
     }
     return { tenants: result, grandTotal };
   },

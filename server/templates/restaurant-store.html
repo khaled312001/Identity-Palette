@@ -142,8 +142,20 @@
       background: linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 100%);
     }
     /* Hero text always white when there's a bg image */
-    #hero-bg.has-image ~ * #hero-content h1,
-    #hero-bg.has-image ~ #hero-content h1 { -webkit-text-fill-color: #fff; }
+    #hero-bg.has-image ~ #hero-content #hero-title {
+      background: none;
+      -webkit-background-clip: unset; background-clip: unset;
+      -webkit-text-fill-color: #fff; color: #fff;
+      text-shadow: 0 2px 20px rgba(0,0,0,0.7), 0 1px 4px rgba(0,0,0,0.9);
+    }
+    #hero-bg.has-image ~ #hero-content #hero-subtitle {
+      color: rgba(255,255,255,0.92);
+      text-shadow: 0 1px 8px rgba(0,0,0,0.7);
+    }
+    #hero-bg.has-image ~ #hero-content .hero-tag {
+      background: rgba(0,0,0,0.45); border-color: rgba(255,255,255,0.3);
+      color: #fff; backdrop-filter: blur(12px);
+    }
     .hero-grid {
       position: absolute; inset: 0;
       background-image: linear-gradient(var(--bd) 1px, transparent 1px),
@@ -503,25 +515,80 @@
 
     /* ══════════════════════════ FOOTER ══════════════════════════ */
     footer {
-      background: var(--s1); border-top: 1px solid var(--bd);
-      padding: 60px 24px; text-align: center;
+      position: relative;
+      background: linear-gradient(180deg, var(--s1) 0%, var(--bg) 100%);
+      border-top: none;
+      padding: 0;
+      overflow: hidden;
     }
+    .footer-wave {
+      display: block; width: 100%; line-height: 0;
+    }
+    .footer-wave svg { display: block; width: 100%; height: 60px; }
+    .footer-inner {
+      padding: 52px 40px 40px;
+      max-width: 1000px; margin: 0 auto;
+    }
+    .footer-grid {
+      display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 40px;
+      margin-bottom: 44px;
+    }
+    .footer-brand {}
     .footer-logo {
-      font-family: var(--font-display); font-size: 2.2rem; font-weight: 900;
-      background: linear-gradient(135deg, var(--txt), var(--P));
+      font-family: var(--font-display); font-size: 2rem; font-weight: 900;
+      background: linear-gradient(135deg, var(--P), var(--A));
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      margin-bottom: 24px;
+      background-clip: text;
+      margin-bottom: 10px; display: inline-block;
     }
-    .social-row { display: flex; gap: 12px; justify-content: center; margin-bottom: 28px; }
+    .footer-tagline {
+      font-size: 13px; color: var(--mu); line-height: 1.6; max-width: 220px;
+      margin-bottom: 20px;
+    }
+    .social-row { display: flex; gap: 10px; flex-wrap: wrap; }
     .social-btn {
-      width: 44px; height: 44px; border-radius: 14px;
+      width: 40px; height: 40px; border-radius: 12px;
       background: var(--s2); border: 1px solid var(--bd);
       display: flex; align-items: center; justify-content: center;
-      color: var(--mu); text-decoration: none; font-size: 18px;
+      color: var(--mu); text-decoration: none; font-size: 17px;
       transition: var(--transition);
     }
-    .social-btn:hover { background: var(--P)22; border-color: var(--P); transform: translateY(-3px); }
+    .social-btn:hover { background: var(--P)22; border-color: var(--P); color: var(--P); transform: translateY(-3px); box-shadow: 0 6px 20px var(--P)33; }
+    .footer-col-title {
+      font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--P);
+      margin-bottom: 16px;
+    }
+    .footer-links { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .footer-links a {
+      color: var(--mu); text-decoration: none; font-size: 14px;
+      transition: color 0.2s; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .footer-links a:hover { color: var(--txt); }
+    .footer-links a::before { content: '›'; color: var(--P); font-weight: 700; }
+    .footer-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--bd), var(--P)44, var(--bd), transparent);
+      margin-bottom: 24px;
+    }
+    .footer-bottom {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 12px;
+    }
     .footer-copy { color: var(--mu); font-size: 13px; }
+    .footer-powered {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--mu); text-decoration: none;
+      border: 1px solid var(--bd); border-radius: 20px;
+      padding: 4px 12px; transition: var(--transition);
+    }
+    .footer-powered:hover { border-color: var(--P); color: var(--P); }
+    .footer-powered span { color: var(--P); font-weight: 700; }
+    @media (max-width: 700px) {
+      .footer-grid { grid-template-columns: 1fr; gap: 28px; }
+      .footer-inner { padding: 40px 20px 28px; }
+      .footer-bottom { flex-direction: column; text-align: center; }
+    }
 
     /* ══════════════════════════ CART OVERLAY ══════════════════════════ */
     #cart-overlay {
@@ -1005,9 +1072,51 @@
 
 <!-- ── Footer ── -->
 <footer>
-  <div class="footer-logo" id="footer-logo">Our Store</div>
-  <div class="social-row" id="social-row"></div>
-  <p class="footer-copy" id="footer-copy">© 2025 All rights reserved. Powered by Barmagly POS</p>
+  <!-- decorative wave -->
+  <div class="footer-wave">
+    <svg viewBox="0 0 1200 60" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0,40 C200,0 400,80 600,40 C800,0 1000,60 1200,30 L1200,60 L0,60 Z" fill="var(--bd)" opacity="0.3"/>
+      <path d="M0,50 C300,10 600,70 900,35 C1050,18 1150,45 1200,40 L1200,60 L0,60 Z" fill="var(--P)" opacity="0.08"/>
+    </svg>
+  </div>
+
+  <div class="footer-inner">
+    <div class="footer-grid">
+      <!-- Brand column -->
+      <div class="footer-brand">
+        <div class="footer-logo" id="footer-logo">Our Store</div>
+        <p class="footer-tagline" id="footer-tagline">Fresh, delicious food made with love — order online and enjoy at home.</p>
+        <div class="social-row" id="social-row"></div>
+      </div>
+
+      <!-- Quick Links -->
+      <div>
+        <div class="footer-col-title">Quick Links</div>
+        <ul class="footer-links">
+          <li><a href="#menu">Our Menu</a></li>
+          <li><a href="#about">About Us</a></li>
+          <li><a href="#" onclick="openCart();return false;">View Cart</a></li>
+        </ul>
+      </div>
+
+      <!-- Info column -->
+      <div>
+        <div class="footer-col-title">Order & Contact</div>
+        <ul class="footer-links" id="footer-info-links">
+          <li><a href="#menu">Order Online</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-divider"></div>
+
+    <div class="footer-bottom">
+      <p class="footer-copy" id="footer-copy">© 2026 · All rights reserved</p>
+      <a href="https://barmagly.com" class="footer-powered" target="_blank" rel="noopener">
+        ⚡ Powered by <span>Barmagly</span>
+      </a>
+    </div>
+  </div>
 </footer>
 
 <!-- ── Floating Cart Button ── -->
@@ -1481,12 +1590,30 @@ function applyStore(data) {
     document.getElementById("about").style.display = "block";
     document.getElementById("about-body").textContent = config.aboutText;
   }
-  if (config.footerText) document.getElementById("footer-copy").textContent = config.footerText;
+  // Footer copy & tagline
+  const yr = new Date().getFullYear();
+  if (config.footerText) {
+    document.getElementById("footer-copy").textContent = config.footerText;
+  } else if (storeName) {
+    document.getElementById("footer-copy").textContent = `© ${yr} ${storeName} · All rights reserved`;
+  }
+  if (config.heroSubtitle || config.aboutText) {
+    const taglineEl = document.getElementById("footer-tagline");
+    if (taglineEl) taglineEl.textContent = config.heroSubtitle || config.aboutText.slice(0, 100);
+  }
+
+  // Footer contact info
+  const infoLinks = document.getElementById("footer-info-links");
+  if (infoLinks) {
+    if (config.phone) infoLinks.innerHTML += `<li><a href="tel:${config.phone}">📞 ${config.phone}</a></li>`;
+    if (config.address) infoLinks.innerHTML += `<li><a href="#">📍 ${config.address}</a></li>`;
+    if (config.email) infoLinks.innerHTML += `<li><a href="mailto:${config.email}">✉️ ${config.email}</a></li>`;
+  }
 
   const sr = document.getElementById("social-row");
-  if (config.socialFacebook) sr.innerHTML += `<a href="${config.socialFacebook}" class="social-btn" target="_blank">📘</a>`;
-  if (config.socialInstagram) sr.innerHTML += `<a href="${config.socialInstagram}" class="social-btn" target="_blank">📸</a>`;
-  if (config.socialWhatsapp) sr.innerHTML += `<a href="https://wa.me/${config.socialWhatsapp.replace(/\D/g,'')}" class="social-btn" target="_blank">💬</a>`;
+  if (config.socialFacebook) sr.innerHTML += `<a href="${config.socialFacebook}" class="social-btn" target="_blank" title="Facebook">📘</a>`;
+  if (config.socialInstagram) sr.innerHTML += `<a href="${config.socialInstagram}" class="social-btn" target="_blank" title="Instagram">📸</a>`;
+  if (config.socialWhatsapp) sr.innerHTML += `<a href="https://wa.me/${config.socialWhatsapp.replace(/\D/g,'')}" class="social-btn" target="_blank" title="WhatsApp">💬</a>`;
 
   window.storeDeliveryFee = config.enableDelivery ? 3.5 : 0;
   window.storeConfig = config;

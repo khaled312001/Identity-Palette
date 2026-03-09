@@ -16,24 +16,52 @@ if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 async function createTenantBackup(tenantId: number): Promise<string> {
   const tenant = await storage.getTenant(tenantId);
   if (!tenant) throw new Error("Tenant not found");
-  const [branches, employees, products, customers, subs, licenses] = await Promise.all([
+
+  const [branches, employees, products, categories, customers, subs, licenses] = await Promise.all([
     storage.getBranchesByTenant(tenantId),
     storage.getEmployeesByTenant(tenantId),
     storage.getProductsByTenant(tenantId),
+    storage.getCategories(tenantId),
     storage.getCustomers(undefined, tenantId),
     storage.getTenantSubscriptions(tenantId),
     storage.getLicenseKeys(tenantId),
   ]);
-  const sales = await storage.getSales({ tenantId, limit: 10000 });
+
+  // Fetch inventory, expenses, purchase orders
+  const allBranchIds = branches.map((b: any) => b.id);
+  let inventory: any[] = [];
+  let expenses: any[] = [];
+  for (const bid of allBranchIds) {
+    try {
+      const inv = await storage.getInventory(bid, tenantId);
+      inventory.push(...inv);
+    } catch {}
+  }
+  try { expenses = await storage.getExpenses(undefined, tenantId); } catch {}
+
+  const sales = await storage.getSales({ tenantId, limit: 50000 });
+
   const snapshot = {
+    version: "2.0",
     exportedAt: new Date().toISOString(),
+    tenantId,
     tenant: { ...tenant, passwordHash: "[REDACTED]" },
-    branches, employees: employees.map((e: any) => ({ ...e, pin: "[REDACTED]", passwordHash: "[REDACTED]" })),
-    products, customers, subscriptions: subs, licenses: licenses.map((l: any) => ({ ...l })), sales,
+    branches,
+    employees: employees.map((e: any) => ({ ...e, pin: "[REDACTED]", passwordHash: "[REDACTED]" })),
+    categories,
+    products,
+    inventory,
+    customers,
+    expenses,
+    sales: sales.slice(0, 10000), // cap at 10k for size
+    subscriptions: subs,
+    licenses: licenses.map((l: any) => ({ ...l })),
   };
+
   const filename = `backup_tenant_${tenantId}_${Date.now()}.json`;
   const filepath = path.join(BACKUP_DIR, filename);
   fs.writeFileSync(filepath, JSON.stringify(snapshot, null, 2));
+  console.log(`[BACKUP] Created ${filename} (${Math.round(fs.statSync(filepath).size / 1024)}KB)`);
   return filename;
 }
 
@@ -803,39 +831,102 @@ export function registerSuperAdminRoutes(app: Express) {
       const snapshot = JSON.parse(raw);
       if (!snapshot.tenant) return res.status(400).json({ error: "Invalid backup format: missing tenant data" });
 
-      const tenantId = snapshot.tenant.id;
+      const tenantId = snapshot.tenantId || snapshot.tenant.id;
       const existingTenant = await storage.getTenant(tenantId);
       if (!existingTenant) {
         return res.status(404).json({ error: `Tenant #${tenantId} not found. The tenant must exist before restoring data.` });
       }
 
-      let restored = { products: 0, customers: 0, branches: 0, employees: 0 };
+      const restored: Record<string, number> = {
+        branches: 0, employees: 0, categories: 0, products: 0, customers: 0, expenses: 0,
+      };
 
-      if (snapshot.products && Array.isArray(snapshot.products)) {
+      // 1. Restore branches
+      if (snapshot.branches?.length) {
+        const existingBranches = await storage.getBranchesByTenant(tenantId);
+        for (const b of snapshot.branches) {
+          try {
+            const match = existingBranches.find((eb: any) => eb.name === b.name);
+            if (match) {
+              await storage.updateBranch(match.id, { address: b.address, phone: b.phone, currency: b.currency, taxRate: b.taxRate, deliveryFee: b.deliveryFee });
+            } else {
+              await storage.createBranch({ ...b, id: undefined, tenantId });
+            }
+            restored.branches++;
+          } catch (err) { console.error(`[RESTORE] Branch "${b.name}":`, err); }
+        }
+      }
+
+      // 2. Restore categories
+      if (snapshot.categories?.length) {
+        const existingCats = await storage.getCategories(tenantId);
+        for (const c of snapshot.categories) {
+          try {
+            const match = existingCats.find((ec: any) => ec.name === c.name);
+            if (!match) {
+              await storage.createCategory({ ...c, id: undefined, tenantId });
+              restored.categories++;
+            }
+          } catch (err) { console.error(`[RESTORE] Category "${c.name}":`, err); }
+        }
+      }
+
+      // 3. Restore products (upsert by barcode or name)
+      if (snapshot.products?.length) {
+        const existingProducts = await storage.getProductsByTenant(tenantId);
+        // Rebuild category name→id map
+        const freshCats = await storage.getCategories(tenantId);
+        const catMap = new Map(freshCats.map((c: any) => [c.name, c.id]));
+        const origCatMap = new Map((snapshot.categories || []).map((c: any) => [c.id, c.name]));
         for (const p of snapshot.products) {
           try {
-            const existing = await storage.getProductsByTenant(tenantId);
-            const match = existing.find((ep: any) => ep.barcode && ep.barcode === p.barcode);
-            if (match) {
-              await storage.updateProduct(match.id, { name: p.name, price: p.price, costPrice: p.costPrice, description: p.description, isActive: p.isActive });
+            const barcodeMatch = p.barcode ? existingProducts.find((ep: any) => ep.barcode === p.barcode) : null;
+            const nameMatch = existingProducts.find((ep: any) => ep.name === p.name);
+            // Remap categoryId via name
+            let newCatId = p.categoryId;
+            if (p.categoryId && origCatMap.has(p.categoryId)) {
+              const catName = origCatMap.get(p.categoryId);
+              newCatId = catMap.get(catName) ?? p.categoryId;
+            }
+            if (barcodeMatch || nameMatch) {
+              const existing = barcodeMatch || nameMatch;
+              await storage.updateProduct(existing!.id, { name: p.name, price: p.price, costPrice: p.costPrice, description: p.description, isActive: p.isActive, categoryId: newCatId });
             } else {
-              await storage.createProduct({ ...p, id: undefined, tenantId });
+              await storage.createProduct({ ...p, id: undefined, tenantId, categoryId: newCatId });
             }
             restored.products++;
-          } catch (err) { console.error(`[RESTORE] Failed to restore product "${p.name}":`, err); }
+          } catch (err) { console.error(`[RESTORE] Product "${p.name}":`, err); }
         }
       }
 
-      if (snapshot.customers && Array.isArray(snapshot.customers)) {
+      // 4. Restore customers (skip duplicates by email or phone)
+      if (snapshot.customers?.length) {
+        const existingCustomers = await storage.getCustomers(undefined, tenantId);
+        const existingEmails = new Set(existingCustomers.filter((c: any) => c.email).map((c: any) => c.email.toLowerCase()));
+        const existingPhones = new Set(existingCustomers.filter((c: any) => c.phone).map((c: any) => c.phone));
         for (const c of snapshot.customers) {
           try {
-            await storage.createCustomer({ ...c, id: undefined, tenantId });
-            restored.customers++;
-          } catch (err) { console.error(`[RESTORE] Failed to restore customer "${c.name}":`, err); }
+            const emailDup = c.email && existingEmails.has(c.email.toLowerCase());
+            const phoneDup = c.phone && existingPhones.has(c.phone);
+            if (!emailDup && !phoneDup) {
+              await storage.createCustomer({ ...c, id: undefined, tenantId });
+              restored.customers++;
+            }
+          } catch (err) { console.error(`[RESTORE] Customer "${c.name}":`, err); }
         }
       }
 
-      console.log(`[RESTORE] Restored from ${filename} for tenant ${tenantId}:`, restored);
+      // 5. Restore expenses (re-create if not already present by amount+date+category)
+      if (snapshot.expenses?.length) {
+        for (const e of snapshot.expenses) {
+          try {
+            await storage.createExpense({ ...e, id: undefined, tenantId });
+            restored.expenses++;
+          } catch (err) { console.error(`[RESTORE] Expense:`, err); }
+        }
+      }
+
+      console.log(`[RESTORE] ✓ Restored from ${filename}:`, restored);
       res.json({ success: true, tenantId, restored });
     } catch (e: any) {
       console.error("[RESTORE] Error:", e);

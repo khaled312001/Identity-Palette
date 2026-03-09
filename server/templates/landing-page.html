@@ -769,7 +769,14 @@
           <p>
             <span data-en="Your license key has been sent to" data-ar="تم إرسال مفتاح الترخيص إلى" data-de="Ihr Lizenzschlüssel wurde gesendet an">Your license key has been sent to</span>
             <strong id="success-email"></strong>.
-            <br><br>
+          </p>
+          <!-- License Key display box -->
+          <div id="success-key-box" style="background:rgba(47,211,198,0.08);border:1px solid rgba(47,211,198,0.3);border-radius:14px;padding:18px 20px;margin:16px 0;text-align:center;display:none">
+            <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:10px">Your License Key</div>
+            <div id="success-license-key" style="font-size:17px;font-weight:800;letter-spacing:3px;color:#2FD3C6;font-family:monospace;word-break:break-all"></div>
+            <button onclick="copyLicenseKey()" style="margin-top:12px;background:rgba(47,211,198,0.15);border:1px solid rgba(47,211,198,0.3);color:#2FD3C6;border-radius:8px;padding:6px 16px;cursor:pointer;font-size:12px;font-weight:600">📋 Copy Key</button>
+          </div>
+          <p style="font-size:13px;color:rgba(255,255,255,0.6)">
             <span data-en="Open the Barmagly POS app and enter your email, password, and license key to activate your store." data-ar="افتح تطبيق برمجلي POS وأدخل بريدك الإلكتروني وكلمة المرور ومفتاح الترخيص لتفعيل متجرك." data-de="Öffnen Sie die Barmagly POS App und geben Sie Ihre E-Mail, Ihr Passwort und Ihren Lizenzschlüssel ein, um Ihr Geschäft zu aktivieren.">Open the Barmagly POS app and enter your email, password, and license key to activate your store.</span>
           </p>
         </div>
@@ -1002,10 +1009,38 @@ function modalBack() {
   }
 }
 
+function copyLicenseKey() {
+  const key = document.getElementById('success-license-key').textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(key);
+  const btn = event.target; btn.textContent = '✅ Copied!';
+  setTimeout(() => { btn.textContent = '📋 Copy Key'; }, 2000);
+}
+
+function showSuccess(email, licenseKey) {
+  document.getElementById('success-email').textContent = email;
+  const keyBox = document.getElementById('success-key-box');
+  const keyEl = document.getElementById('success-license-key');
+  if (licenseKey && keyBox && keyEl) {
+    keyEl.textContent = licenseKey;
+    keyBox.style.display = 'block';
+  }
+  document.getElementById('step2').classList.remove('active');
+  document.getElementById('step3').classList.add('active');
+  document.getElementById('modal-footer').style.display = 'none';
+  applyLang(lang);
+}
+
 async function submitPayment() {
   const btn = document.getElementById('modal-next-btn');
+  const resetBtn = () => {
+    btn.disabled = false;
+    btn.querySelector('span').setAttribute('data-en','Complete & Pay →');
+    btn.querySelector('span').setAttribute('data-ar','إكمال والدفع →');
+    btn.querySelector('span').setAttribute('data-de','Abschließen & Bezahlen →');
+    applyLang(lang);
+  };
   btn.disabled = true;
-  btn.textContent = lang==='ar'?'جارٍ المعالجة...' : lang==='de'?'Wird verarbeitet...' : 'Processing...';
+  btn.querySelector('span').textContent = lang==='ar'?'جارٍ المعالجة...' : lang==='de'?'Wird verarbeitet...' : 'Processing...';
   setError('');
 
   try {
@@ -1013,53 +1048,54 @@ async function submitPayment() {
     const name = document.getElementById('f-name').value.trim();
     const email = document.getElementById('f-email').value.trim();
     const phone = document.getElementById('f-phone').value.trim();
-    const plan = PLANS[currentPlan] || PLANS.basic;
-    const addons = [];
+    const planType = isAnnual ? 'yearly' : 'monthly';
+    const planName = currentPlan === 'advanced' ? 'advanced' : 'basic';
 
-    // Try Stripe tokenization
-    let stripeToken = null;
-    if(stripeReady && cardNumber) {
-      const { token, error } = await stripe.createToken(cardNumber, { name });
-      if(error) {
-        setError(error.message);
-        btn.disabled = false;
-        btn.textContent = lang==='ar'?'أكمل الاشتراك': lang==='de'?'Abonnement abschließen':'Complete Subscription';
-        return;
-      }
-      stripeToken = token.id;
+    let paymentMethodId = null;
+
+    if (stripeReady && cardNumber) {
+      // Modern flow: create PaymentMethod
+      const { paymentMethod, error: pmErr } = await stripe.createPaymentMethod({
+        type: 'card',
+        card: cardNumber,
+        billing_details: { name, email },
+      });
+      if (pmErr) { setError(pmErr.message); resetBtn(); return; }
+      paymentMethodId = paymentMethod.id;
     }
 
     // Submit to server
     const res = await fetch('/api/landing/subscribe', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        businessName: business,
-        ownerName: name,
-        ownerEmail: email,
-        ownerPhone: phone || null,
-        planType: isAnnual ? 'yearly' : 'monthly',
-        planName: currentPlan === 'advanced' ? 'advanced' : 'basic',
-        addons,
-        paymentMethod: stripeToken ? 'stripe' : 'bank',
-        stripeToken,
-        lang,
-      })
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ businessName: business, ownerName: name, ownerEmail: email, ownerPhone: phone || null, planType, planName, paymentMethodId, lang }),
     });
 
     const data = await res.json();
-    if(!res.ok) throw new Error(data.error || 'Subscription failed');
+    if (!res.ok) throw new Error(data.error || 'Subscription failed');
 
-    // Success
-    document.getElementById('success-email').textContent = email;
-    document.getElementById('step2').classList.remove('active');
-    document.getElementById('step3').classList.add('active');
-    document.getElementById('modal-footer').style.display = 'none';
+    // Handle 3DS if needed
+    if (data.requiresAction && data.clientSecret) {
+      btn.querySelector('span').textContent = lang==='ar'?'جارٍ التحقق...' : lang==='de'?'Wird verifiziert...' : 'Verifying...';
+      const { error: confirmErr, paymentIntent } = await stripe.confirmCardPayment(data.clientSecret);
+      if (confirmErr) { setError(confirmErr.message); resetBtn(); return; }
+      // Confirm with server
+      const confirmRes = await fetch('/api/landing/confirm-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentIntentId: paymentIntent.id, businessName: business, ownerName: name, ownerEmail: email, ownerPhone: phone || null, planType, planName }),
+      });
+      const confirmData = await confirmRes.json();
+      if (!confirmRes.ok) throw new Error(confirmData.error || 'Subscription confirmation failed');
+      showSuccess(email, confirmData.licenseKey);
+      return;
+    }
+
+    showSuccess(email, data.licenseKey);
 
   } catch(e) {
     setError(e.message || (lang==='ar'?'حدث خطأ، يرجى المحاولة مرة أخرى': lang==='de'?'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.':'Something went wrong. Please try again.'));
-    btn.disabled = false;
-    btn.textContent = lang==='ar'?'أكمل الاشتراك': lang==='de'?'Abonnement abschließen':'Complete Subscription';
+    resetBtn();
   }
 }
 

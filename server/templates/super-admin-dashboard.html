@@ -752,7 +752,7 @@ document.querySelectorAll('.mo').forEach(o=>o.addEventListener('click',e=>{ if(e
 ══════════════════════════════════════════════════════ */
 function fmtD(d){ if(!d) return '—'; return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 function fmtDT(d){ if(!d) return '—'; return new Date(d).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
-function fmtM(n){ return '$'+parseFloat(n||0).toFixed(2); }
+function fmtM(n){ const v=parseFloat(n||0); return 'CHF\u00a0'+(v%1===0?v.toFixed(0):v.toFixed(2)); }
 function n(v){ return v??0; }
 function badge(s){
   const m={active:'bg',inactive:'bgr',suspended:'br',cancelled:'br',trial:'bb',expired:'by',revoked:'br',pending:'by',true:'bg',false:'bgr',healthy:'bg',info:'bb',warning:'by',success:'bg',error:'br',normal:'bgr',high:'by',urgent:'br',cashier:'bb',manager:'bm',admin:'br',waiter:'bb'};

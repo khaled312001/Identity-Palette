@@ -57,7 +57,7 @@ export const storage = {
 
   // Employees
   async getEmployees() {
-    return db.select().from(employees).orderBy(desc(employees.createdAt));
+    return db.select().from(employees).where(eq(employees.isActive, true)).orderBy(desc(employees.createdAt));
   },
   async getEmployeesByTenant(tenantId: number) {
     const tenantBranches = await this.getBranchesByTenant(tenantId);
@@ -66,14 +66,12 @@ export const storage = {
     const { inArray } = await import('drizzle-orm');
 
     if (branchIds.length > 0) {
-      // Match by tenantId OR by branchId belonging to this tenant
       return db.select().from(employees)
-        .where(or(eq(employees.tenantId, tenantId), inArray(employees.branchId, branchIds)))
+        .where(and(eq(employees.isActive, true), or(eq(employees.tenantId, tenantId), inArray(employees.branchId, branchIds))))
         .orderBy(desc(employees.createdAt));
     }
-    // No branches — fall back to tenantId column only
     return db.select().from(employees)
-      .where(eq(employees.tenantId, tenantId))
+      .where(and(eq(employees.isActive, true), eq(employees.tenantId, tenantId)))
       .orderBy(desc(employees.createdAt));
   },
   async getEmployee(id: number) {

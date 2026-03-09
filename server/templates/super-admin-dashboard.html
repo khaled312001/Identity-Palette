@@ -1337,6 +1337,7 @@ async function loadLics(){
     <td>
       ${iBtn('📋','btn-o',`copyKey('${k.licenseKey}')`)}
       ${iBtn('🚫','btn-d',`revokeLic(${k.id})`)}
+      ${iBtn('🗑️','btn-d',`deleteLic(${k.id},'${k.licenseKey}')`)}
     </td>
   </tr>`).join('') || '<tr><td colspan="6" class="empty">No license keys</td></tr>';
 }
@@ -1350,6 +1351,11 @@ async function revokeLic(id){
   if(!confirm('Revoke this license?')) return;
   const res = await api('PATCH',`/licenses/${id}/revoke`);
   if(res?.id){ toast('Revoked','ok'); loadLics(); } else toast('Failed','err');
+}
+async function deleteLic(id, key){
+  if(!confirm(`Permanently delete license key:\n${key}\n\nThis cannot be undone.`)) return;
+  const res = await api('DELETE',`/licenses/${id}`);
+  if(res?.success){ toast('License deleted','ok'); loadLics(); } else toast('Delete failed','err');
 }
 
 /* ══════════════════════════════════════════════════════

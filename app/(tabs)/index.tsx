@@ -2124,7 +2124,7 @@ export default function POSScreen() {
                 )}
 
                 {/* Shift status */}
-                {myActiveShift ? (
+                {myActiveShift && (
                   <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: Colors.success + "15", borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: Colors.success + "40" }}>
                     <Ionicons name="radio-button-on" size={16} color={Colors.success} style={{ marginRight: 8 }} />
                     <View style={{ flex: 1 }}>
@@ -2144,13 +2144,6 @@ export default function POSScreen() {
                         {language === "ar" ? "إنهاء الوردية" : language === "de" ? "Schicht beenden" : "End Shift"}
                       </Text>
                     </Pressable>
-                  </View>
-                ) : (
-                  <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: Colors.warning + "10", borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: Colors.warning + "30" }}>
-                    <Ionicons name="time-outline" size={16} color={Colors.warning} style={{ marginRight: 8 }} />
-                    <Text style={{ color: Colors.textMuted, fontSize: 13 }}>
-                      {language === "ar" ? "لا توجد وردية نشطة" : language === "de" ? "Keine aktive Schicht" : "No active shift"}
-                    </Text>
                   </View>
                 )}
 

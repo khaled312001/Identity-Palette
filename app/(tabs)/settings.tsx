@@ -68,6 +68,7 @@ export default function SettingsScreen() {
   const [showSuppliers, setShowSuppliers] = useState(false);
   const [showBranches, setShowBranches] = useState(false);
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
+  const [editEmployee, setEditEmployee] = useState<any>(null);
   const [showSupplierForm, setShowSupplierForm] = useState(false);
   const [empForm, setEmpForm] = useState({ name: "", pin: "", role: "cashier", email: "", phone: "" });
   const [supForm, setSupForm] = useState({ name: "", contactName: "", email: "", phone: "", paymentTerms: "" });
@@ -196,9 +197,23 @@ export default function SettingsScreen() {
     return () => clearInterval(interval);
   }, [activeShift]);
 
+  const empQueryKey = tenant?.id ? `/api/employees?tenantId=${tenant.id}` : "/api/employees";
+
   const createEmpMutation = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/employees", data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: [tenant?.id ? `/api/employees?tenantId=${tenant.id}` : "/api/employees"] }); setShowEmployeeForm(false); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: [empQueryKey] }); setShowEmployeeForm(false); },
+    onError: (e: any) => Alert.alert(t("error"), e.message),
+  });
+
+  const updateEmpMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: any }) => apiRequest("PUT", `/api/employees/${id}`, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: [empQueryKey] }); setShowEmployeeForm(false); setEditEmployee(null); },
+    onError: (e: any) => Alert.alert(t("error"), e.message),
+  });
+
+  const deleteEmpMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/employees/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: [empQueryKey] }); },
     onError: (e: any) => Alert.alert(t("error"), e.message),
   });
 
@@ -643,7 +658,7 @@ export default function SettingsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t("employees")}</Text>
               <View style={styles.modalActions}>
-                <Pressable onPress={() => { setEmpForm({ name: "", pin: "", role: "cashier", email: "", phone: "" }); setShowEmployeeForm(true); }}>
+                <Pressable onPress={() => { setEditEmployee(null); setEmpForm({ name: "", pin: "", role: "cashier", email: "", phone: "" }); setShowEmployeeForm(true); }}>
                   <Ionicons name="add-circle" size={28} color={Colors.accent} />
                 </Pressable>
                 <Pressable onPress={() => setShowEmployees(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
@@ -662,8 +677,23 @@ export default function SettingsScreen() {
                     <Text style={styles.empName}>{item.name}</Text>
                     <Text style={styles.empMeta}>PIN: {item.pin} | {item.email || t("noEmail")}</Text>
                   </View>
-                  <View style={[styles.roleBadge, { backgroundColor: (roleColors[item.role] || Colors.info) + "20" }]}>
-                    <Text style={[styles.roleText, { color: roleColors[item.role] || Colors.info }]}>{item.role}</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <View style={[styles.roleBadge, { backgroundColor: (roleColors[item.role] || Colors.info) + "20" }]}>
+                      <Text style={[styles.roleText, { color: roleColors[item.role] || Colors.info }]}>{item.role}</Text>
+                    </View>
+                    <Pressable onPress={() => {
+                      setEditEmployee(item);
+                      setEmpForm({ name: item.name, pin: item.pin || "", role: item.role, email: item.email || "", phone: item.phone || "" });
+                      setShowEmployeeForm(true);
+                    }}>
+                      <Ionicons name="create-outline" size={20} color={Colors.info} />
+                    </Pressable>
+                    <Pressable onPress={() => Alert.alert(t("delete"), `${t("delete")} ${item.name}?`, [
+                      { text: t("cancel"), style: "cancel" },
+                      { text: t("delete"), style: "destructive", onPress: () => deleteEmpMutation.mutate(item.id) },
+                    ])}>
+                      <Ionicons name="trash-outline" size={20} color={Colors.danger} />
+                    </Pressable>
                   </View>
                 </View>
               )}
@@ -676,8 +706,8 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t("newEmployee")}</Text>
-              <Pressable onPress={() => setShowEmployeeForm(false)}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
+              <Text style={styles.modalTitle}>{editEmployee ? t("editEmployee" as any) || "Edit Employee" : t("newEmployee")}</Text>
+              <Pressable onPress={() => { setShowEmployeeForm(false); setEditEmployee(null); }}><Ionicons name="close" size={24} color={Colors.text} /></Pressable>
             </View>
             <ScrollView>
               <Text style={styles.label}>{t("name")} *</Text>
@@ -696,10 +726,14 @@ export default function SettingsScreen() {
               <TextInput style={styles.input} value={empForm.email} onChangeText={(v) => setEmpForm({ ...empForm, email: v })} placeholderTextColor={Colors.textMuted} placeholder="email@example.com" autoCapitalize="none" />
               <Pressable style={styles.saveBtn} onPress={() => {
                 if (!empForm.name || !empForm.pin) return Alert.alert(t("error"), t("namePinRequired"));
-                createEmpMutation.mutate({ name: empForm.name, pin: empForm.pin, role: empForm.role, email: empForm.email || undefined, tenantId: tenant?.id, branchId: branches[0]?.id ?? null, permissions: empForm.role === "admin" ? ["all"] : ["pos"] });
+                if (editEmployee) {
+                  updateEmpMutation.mutate({ id: editEmployee.id, data: { name: empForm.name, pin: empForm.pin, role: empForm.role, email: empForm.email || undefined, permissions: empForm.role === "admin" ? ["all"] : ["pos"] } });
+                } else {
+                  createEmpMutation.mutate({ name: empForm.name, pin: empForm.pin, role: empForm.role, email: empForm.email || undefined, tenantId: tenant?.id, branchId: branches[0]?.id ?? null, permissions: empForm.role === "admin" ? ["all"] : ["pos"] });
+                }
               }}>
                 <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={styles.saveBtnGradient}>
-                  <Text style={styles.saveBtnText}>{t("createEmployee")}</Text>
+                  <Text style={styles.saveBtnText}>{editEmployee ? t("save" as any) || "Save Changes" : t("createEmployee")}</Text>
                 </LinearGradient>
               </Pressable>
             </ScrollView>

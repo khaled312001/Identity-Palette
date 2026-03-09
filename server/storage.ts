@@ -91,7 +91,7 @@ export const storage = {
     return emp;
   },
   async deleteEmployee(id: number) {
-    await db.update(employees).set({ isActive: false }).where(eq(employees.id, id));
+    await db.update(employees).set({ isActive: false, updatedAt: new Date() }).where(eq(employees.id, id));
   },
 
   // Categories

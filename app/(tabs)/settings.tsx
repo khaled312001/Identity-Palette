@@ -213,8 +213,17 @@ export default function SettingsScreen() {
 
   const deleteEmpMutation = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/employees/${id}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: [empQueryKey] }); },
-    onError: (e: any) => Alert.alert(t("error"), e.message),
+    onSuccess: () => {
+      qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).includes("/api/employees") });
+    },
+    onError: (e: any) => {
+      console.error("Delete employee failed:", e.message);
+      if (Platform.OS === "web") {
+        window.alert(`Delete failed: ${e.message}`);
+      } else {
+        Alert.alert(t("error"), e.message);
+      }
+    },
   });
 
   const createSupMutation = useMutation({

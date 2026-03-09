@@ -246,6 +246,11 @@ self.addEventListener('fetch', (e) => {
     }
 
     // Inject PWA tags into the main app index.html for installability
+    // /pos → redirect to the POS app at root
+    if (req.path === "/pos") {
+      return res.redirect(301, "/");
+    }
+
     if (req.path === "/" || req.path === "/index.html") {
       const indexPath = path.resolve(process.cwd(), "static-build", "index.html");
       if (fs.existsSync(indexPath)) {

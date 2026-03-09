@@ -79,6 +79,7 @@ export default function POSScreen() {
   const [newCustomerForm, setNewCustomerForm] = useState({ name: "", phone: "", address: "", email: "" });
   const [showOnlineOrders, setShowOnlineOrders] = useState(false);
   const [onlineOrderNotification, setOnlineOrderNotification] = useState<any>(null);
+  const [endOfDayLoading, setEndOfDayLoading] = useState(false);
 
   const tenantId = tenant?.id;
 
@@ -711,6 +712,85 @@ export default function POSScreen() {
     }
   };
 
+  const handleEndOfDay = async () => {
+    const confirmed = await new Promise((resolve) => {
+      if (Platform.OS === "web") {
+        resolve(window.confirm(t("confirmEndOfDay")));
+      } else {
+        Alert.alert(t("endOfDay"), t("confirmEndOfDay"), [
+          { text: t("cancel"), onPress: () => resolve(false), style: "cancel" },
+          { text: t("yes"), onPress: () => resolve(true) }
+        ]);
+      }
+    });
+
+    if (!confirmed) return;
+
+    try {
+      setEndOfDayLoading(true);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const res = await apiRequest("GET", `/api/sales?tenantId=${tenantId}&limit=200`);
+      const allSales = await res.json();
+      const todaySalesSummaries = allSales.filter((s: any) => new Date(s.createdAt || s.date) >= today);
+
+      if (todaySalesSummaries.length > 0) {
+        const fullSales = [];
+        for (const s of todaySalesSummaries) {
+          try {
+            const fullRes = await apiRequest("GET", `/api/sales/${s.id}`);
+            fullSales.push(await fullRes.json());
+          } catch { }
+        }
+
+        if (Platform.OS === "web") {
+          const printWindow = window.open("", "_blank", "width=380,height=600");
+          if (printWindow) {
+            printWindow.document.write(`<html><head><title>Daily Invoices</title><style>body{font-family:'Courier New',monospace;font-size:12px;width:300px;margin:0 auto;padding:20px}table{width:100%;border-collapse:collapse}td{padding:2px 0}.center{text-align:center}.right{text-align:right}.bold{font-weight:bold}.line{border-top:1px dashed #000;margin:8px 0}.dbl{border-top:2px solid #000;margin:8px 0}.page-break{page-break-after:always;border-bottom:1px solid #ccc;margin:20px 0}</style></head><body>`);
+            fullSales.forEach((inv, index) => {
+              const itemsHtml = (inv.items || []).map((item: any) =>
+                `<tr><td style="text-align:left">${item.productName || item.name}</td><td style="text-align:center">x${item.quantity}</td><td style="text-align:right">CHF ${Number(item.total || (item.unitPrice * item.quantity)).toFixed(2)}</td></tr>`
+              ).join("");
+
+              printWindow.document.write(`<div class="dbl"></div><p class="center bold" style="font-size:16px">${storeSettings?.name || tenant?.name || "POS System"}</p>`);
+              printWindow.document.write(`<p class="center">${new Date(inv.createdAt || inv.date).toLocaleString()}</p>`);
+              printWindow.document.write(`<p class="center">${t("receiptNumber")}: ${inv.receiptNumber || "#" + inv.id}</p>`);
+              printWindow.document.write(`<div class="line"></div><table>${itemsHtml}</table><div class="line"></div>`);
+              printWindow.document.write(`<table><tr><td class="bold">TOTAL:</td><td class="right bold">CHF ${Number(inv.totalAmount).toFixed(2)}</td></tr></table>`);
+              if (index < fullSales.length - 1) {
+                printWindow.document.write(`<div class="page-break"></div>`);
+              }
+            });
+            printWindow.document.write(`</body></html>`);
+            printWindow.document.close();
+            printWindow.print();
+          }
+        } else {
+          Alert.alert(t("success"), `Sent ${fullSales.length} invoices to printer queue.`);
+        }
+      } else {
+        Alert.alert(t("info"), t("noInvoicesToday"));
+      }
+
+      // Close active shift for this employee
+      const shiftRes = await apiRequest("GET", `/api/shifts/active?tenantId=${tenantId}`);
+      const activeShifts = await shiftRes.json();
+      const myShift = activeShifts.find((s: any) => s.employeeId === employee?.id);
+      if (myShift) {
+        await apiRequest("PUT", `/api/shifts/${myShift.id}/close`, { closingCash: "0", totalSales: "0", totalTransactions: 0 });
+        qc.invalidateQueries({ queryKey: ["/api/shifts"] });
+      }
+
+      Alert.alert(t("success"), t("endOfDaySuccess"));
+      qc.invalidateQueries();
+    } catch (err: any) {
+      Alert.alert(t("error"), err.message);
+    } finally {
+      setEndOfDayLoading(false);
+    }
+  };
+
   const handleSwitchPinPress = (digit: string) => {
     if (switchPin.length < 4) {
       if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -736,9 +816,13 @@ export default function POSScreen() {
                   <View style={{ position: "absolute", top: -2, right: -2, width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.danger }} />
                 )}
               </Pressable>
+              <Pressable onPress={handleEndOfDay} style={styles.headerInvoiceBtn} disabled={endOfDayLoading}>
+                <Ionicons name="power-outline" size={28} color={endOfDayLoading ? Colors.textMuted : Colors.danger} />
+                <Text style={[styles.headerInvoiceLabel, { color: endOfDayLoading ? Colors.textMuted : Colors.danger }]}>{t("endOfDay")}</Text>
+              </Pressable>
               <Pressable onPress={() => setShowInvoiceHistory(true)} style={styles.headerInvoiceBtn}>
                 <Ionicons name="receipt-outline" size={28} color={Colors.white} />
-                <Text style={styles.headerInvoiceLabel}>{t("invoices" as any)}</Text>
+                <Text style={styles.headerInvoiceLabel}>{t("invoices")}</Text>
               </Pressable>
               {employee && (
                 <Pressable onPress={() => setShowAccountSwitcher(true)} style={styles.headerAvatarBtn}>
@@ -920,7 +1004,7 @@ export default function POSScreen() {
               return (
                 <Pressable
                   key={cat.id}
-                  style={[styles.categoryChip, isActive && { borderColor: cat.color || Colors.accent, backgroundColor: `${cat.color || Colors.accent}18` }]}
+                  style={[styles.categoryChip, isActive && { borderColor: cat.color || Colors.accent, backgroundColor: `${cat.color || Colors.accent} 18` }]}
                   onPress={() => setSelectedCategory(isActive ? null : cat.id)}
                 >
                   <View style={styles.categoryChipInner}>
@@ -947,9 +1031,9 @@ export default function POSScreen() {
               return (
                 <Pressable style={styles.productCard} onPress={() => handleAddToCart(item)}>
                   <View style={[styles.productCardTopBorder, { backgroundColor: catColor }]} />
-                  <View style={[styles.productIcon, { backgroundColor: `${catColor}15` }]}>
+                  <View style={[styles.productIcon, { backgroundColor: `${catColor} 15` }]}>
                     {item.image ? (
-                      <Image source={{ uri: item.image.startsWith("http") ? item.image : `${getApiUrl()}${item.image}` }} style={{ width: 44, height: 44, borderRadius: 12 }} resizeMode="cover" />
+                      <Image source={{ uri: item.image.startsWith("http") ? item.image : `${getApiUrl()}${item.image} ` }} style={{ width: 44, height: 44, borderRadius: 12 }} resizeMode="cover" />
                     ) : (
                       <Ionicons name={catIcon} size={26} color={catColor} />
                     )}
@@ -960,7 +1044,7 @@ export default function POSScreen() {
                     <Text style={[styles.barcodeText, { color: Colors.textSecondary }]}>Stock: {item.quantity || 0}</Text>
                   )}
                   {item.barcode ? <Text style={styles.barcodeText}>{item.barcode}</Text> : null}
-                  <View style={[styles.productAddBadge, { backgroundColor: `${catColor}20` }]}>
+                  <View style={[styles.productAddBadge, { backgroundColor: `${catColor} 20` }]}>
                     <Ionicons name="add" size={14} color={catColor} />
                   </View>
                 </Pressable>
@@ -1028,7 +1112,7 @@ export default function POSScreen() {
             <Pressable style={[styles.customerSelect, isRTL && { flexDirection: "row-reverse" }]} onPress={() => setShowCustomerPicker(true)}>
               <Ionicons name="person" size={16} color={Colors.textMuted} />
               <Text style={[styles.customerSelectText, rtlTextAlign]}>
-                {`${t("selectCustomer")} (${t("walkIn")})`}
+                {`${t("selectCustomer")}(${t("walkIn")})`}
               </Text>
               <Ionicons name={isRTL ? "chevron-back" : "chevron-down"} size={14} color={Colors.textMuted} />
             </Pressable>
@@ -1482,7 +1566,7 @@ export default function POSScreen() {
 
                 {storeSettings?.logo && (
                   <View style={{ alignItems: "center", marginVertical: 8 }}>
-                    <Image source={{ uri: storeSettings.logo.startsWith("http") ? storeSettings.logo : `${getApiUrl()}${storeSettings.logo}` }} style={{ width: 50, height: 50, borderRadius: 6 }} resizeMode="contain" />
+                    <Image source={{ uri: storeSettings.logo.startsWith("http") ? storeSettings.logo : `${getApiUrl()}${storeSettings.logo} ` }} style={{ width: 50, height: 50, borderRadius: 6 }} resizeMode="contain" />
                   </View>
                 )}
 
@@ -1495,7 +1579,7 @@ export default function POSScreen() {
 
                 <View style={{ marginVertical: 6 }}>
                   <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>{t("receiptDate")}: {lastSale?.date ? new Date(lastSale.date).toLocaleDateString() : new Date().toLocaleDateString()}, {lastSale?.date ? new Date(lastSale.date).toLocaleTimeString() : new Date().toLocaleTimeString()}</Text>
-                  <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>{t("receiptNumber")}: {lastSale?.receiptNumber || `#${lastSale?.id}`}</Text>
+                  <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>{t("receiptNumber")}: {lastSale?.receiptNumber || `#${lastSale?.id} `}</Text>
                   <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>{t("servedBy")}: {lastSale?.employeeName || employee?.name}</Text>
                   {lastSale?.customerName && <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>{t("customer")}: {lastSale.customerName}</Text>}
                 </View>
@@ -1851,7 +1935,7 @@ export default function POSScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[{ color: Colors.text, fontSize: 14, fontWeight: "700" }, rtlTextAlign]}>
-                        {item.receiptNumber || `#${item.id}`}
+                        {item.receiptNumber || `#${item.id} `}
                       </Text>
                       <Text style={[{ color: Colors.textMuted, fontSize: 11, marginTop: 2 }, rtlTextAlign]}>
                         {saleDate.toLocaleDateString()} • {saleDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -1894,7 +1978,7 @@ export default function POSScreen() {
 
                   {storeSettings?.logo && (
                     <View style={{ alignItems: "center", marginVertical: 8 }}>
-                      <Image source={{ uri: storeSettings.logo.startsWith("http") ? storeSettings.logo : `${getApiUrl()}${storeSettings.logo}` }} style={{ width: 50, height: 50, borderRadius: 6 }} resizeMode="contain" />
+                      <Image source={{ uri: storeSettings.logo.startsWith("http") ? storeSettings.logo : `${getApiUrl()}${storeSettings.logo} ` }} style={{ width: 50, height: 50, borderRadius: 6 }} resizeMode="contain" />
                     </View>
                   )}
 
@@ -1906,7 +1990,7 @@ export default function POSScreen() {
 
                   <View style={{ marginVertical: 6 }}>
                     <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>{t("receiptDate")}: {new Date(selectedInvoice.createdAt || selectedInvoice.date).toLocaleDateString()}, {new Date(selectedInvoice.createdAt || selectedInvoice.date).toLocaleTimeString()}</Text>
-                    <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>{t("receiptNumber")}: {selectedInvoice.receiptNumber || `#${selectedInvoice.id}`}</Text>
+                    <Text style={{ color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace" }}>{t("receiptNumber")}: {selectedInvoice.receiptNumber || `#${selectedInvoice.id} `}</Text>
                   </View>
 
                   <Text style={{ textAlign: "center", color: "#000", fontSize: 11, fontFamily: Platform.OS === "web" ? "Courier New, monospace" : "monospace", letterSpacing: 1 }}>{"─".repeat(36)}</Text>
@@ -2176,7 +2260,7 @@ export default function POSScreen() {
                       {item.status === "pending" && (
                         <Pressable
                           onPress={async () => {
-                            await apiRequest("PUT", `/api/online-orders/${item.id}`, { status: "accepted", estimatedTime: 30 });
+                            await apiRequest("PUT", `/ api / online - orders / ${item.id} `, { status: "accepted", estimatedTime: 30 });
                             qc.invalidateQueries({ queryKey: ["/api/online-orders"] });
                           }}
                           style={{ backgroundColor: Colors.info, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8 }}
@@ -2189,7 +2273,7 @@ export default function POSScreen() {
                       {item.status === "accepted" && (
                         <Pressable
                           onPress={async () => {
-                            await apiRequest("PUT", `/api/online-orders/${item.id}`, { status: "preparing" });
+                            await apiRequest("PUT", `/ api / online - orders / ${item.id} `, { status: "preparing" });
                             qc.invalidateQueries({ queryKey: ["/api/online-orders"] });
                           }}
                           style={{ backgroundColor: Colors.secondary, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8 }}
@@ -2202,7 +2286,7 @@ export default function POSScreen() {
                       {item.status === "preparing" && (
                         <Pressable
                           onPress={async () => {
-                            await apiRequest("PUT", `/api/online-orders/${item.id}`, { status: "ready" });
+                            await apiRequest("PUT", `/ api / online - orders / ${item.id} `, { status: "ready" });
                             qc.invalidateQueries({ queryKey: ["/api/online-orders"] });
                           }}
                           style={{ backgroundColor: Colors.accent, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8 }}
@@ -2215,7 +2299,7 @@ export default function POSScreen() {
                       {item.status === "ready" && (
                         <Pressable
                           onPress={async () => {
-                            await apiRequest("PUT", `/api/online-orders/${item.id}`, { status: "delivered" });
+                            await apiRequest("PUT", `/ api / online - orders / ${item.id} `, { status: "delivered" });
                             qc.invalidateQueries({ queryKey: ["/api/online-orders"] });
                           }}
                           style={{ backgroundColor: "#22c55e", paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8 }}
@@ -2228,7 +2312,7 @@ export default function POSScreen() {
                       {item.status !== "cancelled" && item.status !== "delivered" && (
                         <Pressable
                           onPress={async () => {
-                            await apiRequest("PUT", `/api/online-orders/${item.id}`, { status: "cancelled" });
+                            await apiRequest("PUT", `/ api / online - orders / ${item.id} `, { status: "cancelled" });
                             qc.invalidateQueries({ queryKey: ["/api/online-orders"] });
                           }}
                           style={{ backgroundColor: Colors.danger, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8 }}

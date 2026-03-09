@@ -1,5 +1,5 @@
 const en = {
-  dir: "ltr" as const,
+  dir: "ltr" as "ltr" | "rtl",
   pos: "POS",
   products: "Products",
   customers: "Customers",
@@ -23,6 +23,11 @@ const en = {
   noData: "No data available",
   yes: "Yes",
   no: "No",
+  endOfDay: "Zero Out Shift",
+  confirmEndOfDay: "Are you sure you want to zero out the shift and print today's invoices?",
+  processingEndOfDay: "Processing End of Day...",
+  endOfDaySuccess: "End of day completed successfully!",
+  noInvoicesToday: "No invoices found for today.",
 
   // Login
   welcomeBack: "Welcome Back",
@@ -646,6 +651,11 @@ const ar: typeof en = {
   noData: "لا توجد بيانات",
   yes: "نعم",
   no: "لا",
+  endOfDay: "تصفير الوردية",
+  confirmEndOfDay: "هل أنت متأكد من تصفير الوردية وطباعة فواتير اليوم؟",
+  processingEndOfDay: "جاري تصفير الوردية...",
+  endOfDaySuccess: "تم تصفير الوردية بنجاح!",
+  noInvoicesToday: "لا توجد فواتير لهذا اليوم.",
 
   // Login
   welcomeBack: "مرحباً بعودتك",
@@ -1269,6 +1279,11 @@ const de: typeof en = {
   noData: "Keine Daten verfügbar",
   yes: "Ja",
   no: "Nein",
+  endOfDay: "Schicht Nullstellen",
+  confirmEndOfDay: "Sind Sie sicher, dass Sie die Schicht nullstellen und die heutigen Rechnungen drucken möchten?",
+  processingEndOfDay: "Schicht wird nullgestellt...",
+  endOfDaySuccess: "Tagesende erfolgreich abgeschlossen!",
+  noInvoicesToday: "Keine Rechnungen für heute gefunden.",
 
   // Login
   welcomeBack: "Willkommen zurück",

@@ -60,6 +60,10 @@ export default function POSScreen() {
   const [switchPin, setSwitchPin] = useState("");
   const [switchLoading, setSwitchLoading] = useState(false);
   const [switchError, setSwitchError] = useState("");
+  const [showSwitchShiftPrompt, setShowSwitchShiftPrompt] = useState(false);
+  const [switchedEmployee, setSwitchedEmployee] = useState<any>(null);
+  const [switchOpeningCash, setSwitchOpeningCash] = useState("");
+  const [showSwitchCashInput, setShowSwitchCashInput] = useState(false);
   const [selectedProductForOptions, setSelectedProductForOptions] = useState<any>(null);
   const [selectedVariant, setSelectedVariant] = useState<any>(null);
   const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
@@ -571,6 +575,18 @@ export default function POSScreen() {
     onError: (e: any) => Alert.alert("Error", e.message),
   });
 
+  const startShiftAfterSwitchMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/shifts", data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [tenantId ? `/api/shifts?tenantId=${tenantId}` : "/api/shifts"] });
+      setShowSwitchShiftPrompt(false);
+      setShowSwitchCashInput(false);
+      setSwitchOpeningCash("");
+      setSwitchedEmployee(null);
+    },
+    onError: (e: any) => Alert.alert("Error", e.message),
+  });
+
   const saleMutation = useMutation({
     mutationFn: async () => {
       if (paymentMethod === "nfc") {
@@ -720,6 +736,17 @@ export default function POSScreen() {
       setSwitchTarget(null);
       setSwitchPin("");
       qc.invalidateQueries();
+      // Check if new user has an active shift
+      try {
+        const shiftRes = await apiRequest("GET", `/api/shifts/active/${emp.id}`);
+        const activeShift = await shiftRes.json();
+        if (!activeShift) {
+          setSwitchedEmployee(emp);
+          setShowSwitchShiftPrompt(true);
+        }
+      } catch {
+        // ignore shift check errors
+      }
     } catch {
       setSwitchError(t("invalidPin" as any) || "Invalid PIN");
       setSwitchPin("");
@@ -2234,6 +2261,83 @@ export default function POSScreen() {
         onScanned={handleBarcodeScan}
         onClose={() => setShowScanner(false)}
       />
+
+      {/* ── Shift Prompt after Account Switch ── */}
+      <Modal visible={showSwitchShiftPrompt} animationType="fade" transparent>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", padding: 24 }}>
+          <View style={{ backgroundColor: Colors.surface, borderRadius: 20, padding: 24, width: "100%", maxWidth: 380, borderWidth: 1, borderColor: Colors.cardBorder }}>
+            {!showSwitchCashInput ? (
+              <>
+                <View style={{ alignItems: "center", marginBottom: 20 }}>
+                  <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: Colors.accent + "20", justifyContent: "center", alignItems: "center", marginBottom: 12 }}>
+                    <Ionicons name="time-outline" size={30} color={Colors.accent} />
+                  </View>
+                  <Text style={{ color: Colors.text, fontSize: 20, fontWeight: "700", marginBottom: 8 }}>
+                    {language === "ar" ? "بدء الوردية" : language === "de" ? "Schicht starten" : "Start Shift"}
+                  </Text>
+                  <Text style={{ color: Colors.textSecondary, fontSize: 14, textAlign: "center" }}>
+                    {switchedEmployee?.name}{language === "ar" ? " لا يوجد وردية نشطة. هل تريد بدء وردية؟" : language === "de" ? " hat keine aktive Schicht. Schicht starten?" : " has no active shift. Start one now?"}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => setShowSwitchCashInput(true)}
+                  style={{ backgroundColor: Colors.accent, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
+                >
+                  <Text style={{ color: Colors.textDark, fontSize: 16, fontWeight: "700" }}>
+                    {language === "ar" ? "بدء الوردية الآن" : language === "de" ? "Schicht jetzt starten" : "Start Shift Now"}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => { setShowSwitchShiftPrompt(false); setSwitchedEmployee(null); setSwitchOpeningCash(""); setShowSwitchCashInput(false); }}
+                  style={{ borderRadius: 12, paddingVertical: 14, alignItems: "center", borderWidth: 1, borderColor: Colors.cardBorder }}
+                >
+                  <Text style={{ color: Colors.textSecondary, fontSize: 16, fontWeight: "500" }}>
+                    {language === "ar" ? "تخطي" : language === "de" ? "Überspringen" : "Skip for Now"}
+                  </Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text style={{ color: Colors.text, fontSize: 18, fontWeight: "700", marginBottom: 16, textAlign: "center" }}>
+                  {language === "ar" ? "رصيد الفتح النقدي" : language === "de" ? "Öffnungskassenbestand" : "Opening Cash Balance"}
+                </Text>
+                <TextInput
+                  style={{ backgroundColor: Colors.surfaceLight, borderRadius: 12, padding: 14, fontSize: 18, color: Colors.text, textAlign: "center", borderWidth: 1, borderColor: Colors.cardBorder, marginBottom: 16 }}
+                  value={switchOpeningCash}
+                  onChangeText={setSwitchOpeningCash}
+                  keyboardType="decimal-pad"
+                  placeholder="0.00"
+                  placeholderTextColor={Colors.textMuted}
+                  autoFocus
+                />
+                <Pressable
+                  onPress={() => {
+                    if (!switchedEmployee) return;
+                    startShiftAfterSwitchMutation.mutate({
+                      employeeId: switchedEmployee.id,
+                      branchId: switchedEmployee.branchId || 1,
+                      openingCash: switchOpeningCash ? Number(switchOpeningCash) : 0,
+                    });
+                  }}
+                  style={{ backgroundColor: Colors.accent, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
+                >
+                  <Text style={{ color: Colors.textDark, fontSize: 16, fontWeight: "700" }}>
+                    {language === "ar" ? "بدء الوردية" : language === "de" ? "Schicht starten" : "Start Shift"}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setShowSwitchCashInput(false)}
+                  style={{ borderRadius: 12, paddingVertical: 14, alignItems: "center" }}
+                >
+                  <Text style={{ color: Colors.textSecondary, fontSize: 15 }}>
+                    {language === "ar" ? "رجوع" : language === "de" ? "Zurück" : "Back"}
+                  </Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* ── Online Orders Panel ── */}
       <Modal visible={showOnlineOrders} animationType="slide" transparent>

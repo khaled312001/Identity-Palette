@@ -688,10 +688,16 @@ export default function SettingsScreen() {
                     }}>
                       <Ionicons name="create-outline" size={20} color={Colors.info} />
                     </Pressable>
-                    <Pressable onPress={() => Alert.alert(t("delete"), `${t("delete")} ${item.name}?`, [
-                      { text: t("cancel"), style: "cancel" },
-                      { text: t("delete"), style: "destructive", onPress: () => deleteEmpMutation.mutate(item.id) },
-                    ])}>
+                    <Pressable onPress={() => {
+                      if (Platform.OS === "web") {
+                        if (window.confirm(`${t("delete")} ${item.name}?`)) deleteEmpMutation.mutate(item.id);
+                      } else {
+                        Alert.alert(t("delete"), `${t("delete")} ${item.name}?`, [
+                          { text: t("cancel"), style: "cancel" },
+                          { text: t("delete"), style: "destructive", onPress: () => deleteEmpMutation.mutate(item.id) },
+                        ]);
+                      }
+                    }}>
                       <Ionicons name="trash-outline" size={20} color={Colors.danger} />
                     </Pressable>
                   </View>

@@ -260,6 +260,7 @@ self.addEventListener('fetch', (e) => {
         res.setHeader("Content-Type", "text/html; charset=utf-8");
         return res.status(200).send(html);
       }
+      return serveLandingPage({ req, res, appName });
     }
 
     if (req.path.startsWith("/super_admin")) {

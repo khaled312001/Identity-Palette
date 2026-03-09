@@ -90,7 +90,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 2. Create Tenant
       // Generate a temporary password (e.g., ownerName lower + 123)
       const tempPassword = "admin" + Math.floor(1000 + Math.random() * 9000);
-      const passwordHash = await bcrypt.hash("admin123", 10); // Default for now, or use generated
+      const passwordHash = await bcrypt.hash(tempPassword, 10);
 
       const tenant = await storage.createTenant({
         businessName,
@@ -159,11 +159,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         priority: "normal"
       });
 
+      console.log(`[SUBSCRIBE] New tenant created: ${businessName} (ID: ${tenant.id})`);
+
       res.json({
         success: true,
         tenantId: tenant.id,
         licenseKey,
-        tempPassword: "admin123" // In a real app, we'd email this
+        message: "Your account has been created. Check your email for login credentials, or contact support."
       });
     } catch (e: any) {
       console.error("Subscription error:", e);
@@ -286,7 +288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const allBranches = await storage.getBranchesByTenant(tenantId);
       const allEmployees = await storage.getEmployeesByTenant(tenantId);
-      const allInventory = await storage.getInventoryByTenant(tenantId);
+      const allInventory = await storage.getInventory(undefined, tenantId);
       const allSales = await storage.getSales({ tenantId });
       const allShifts = await storage.getShifts(tenantId);
       const allProducts = await storage.getProductsByTenant(tenantId);
@@ -601,7 +603,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Inventory
   app.get("/api/inventory", async (req, res) => {
-    try { res.json(await storage.getInventory(req.query.branchId ? Number(req.query.branchId) : undefined)); } catch (e: any) { res.status(500).json({ error: e.message }); }
+    try {
+      const branchId = req.query.branchId ? Number(req.query.branchId) : undefined;
+      const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      res.json(await storage.getInventory(branchId, tenantId));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.post("/api/inventory", async (req, res) => {
     try { res.json(await storage.upsertInventory(sanitizeDates(req.body))); } catch (e: any) { res.status(500).json({ error: e.message }); }
@@ -615,8 +621,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/inventory/low-stock", async (req, res) => {
     try {
       const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
-      if (!tenantId) return res.status(400).json({ error: "tenantId is required" });
-      res.json(await storage.getLowStockItems(tenantId));
+      const branchId = req.query.branchId ? Number(req.query.branchId) : undefined;
+      if (!tenantId && !branchId) return res.status(400).json({ error: "tenantId or branchId is required" });
+      if (branchId) {
+        res.json(await storage.getLowStockItems(branchId));
+      } else if (tenantId) {
+        const tenantBranches = await storage.getBranchesByTenant(tenantId);
+        const allLowStock = [];
+        for (const branch of tenantBranches) {
+          const items = await storage.getLowStockItems(branch.id);
+          allLowStock.push(...items);
+        }
+        res.json(allLowStock);
+      }
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
@@ -648,7 +665,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/customers/export", async (req, res) => {
     try {
       const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
-      const customers = await storage.getCustomers(tenantId);
+      const customers = await storage.getCustomers(undefined, tenantId);
       const exportData = customers.map((c: any) => ({
         Name: c.name || "",
         Phone: c.phone || "",
@@ -665,6 +682,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader("Content-Disposition", "attachment; filename=customers_export.xlsx");
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       res.send(buf);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Phone number customer lookup (must be before :id route)
+  app.get("/api/customers/phone-lookup", async (req, res) => {
+    try {
+      const phone = req.query.phone as string;
+      const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      if (!phone) return res.status(400).json({ error: "phone is required" });
+      if (!tenantId) return res.status(400).json({ error: "tenantId is required" });
+      const results = await storage.findCustomerByPhone(phone, tenantId);
+      res.json(results);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
@@ -1396,12 +1425,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const topProducts = stats.topProducts || [];
       const slowMoving = await storage.getSlowMovingProducts(30); // Need to update slowMoving to tenantId if needed
       const allProds = tenantId ? await storage.getProductsByTenant(tenantId) : await storage.getProducts();
-      // Low stock data needs branch filtering
-      let lowStockData = await storage.getLowStockItems();
+      let lowStockData: any[] = [];
       if (tenantId) {
-        const branches = await storage.getBranchesByTenant(tenantId);
-        const branchIds = branches.map(b => b.id);
-        lowStockData = lowStockData.filter(item => branchIds.includes(item.branchId));
+        const tenantBranches = await storage.getBranchesByTenant(tenantId);
+        for (const branch of tenantBranches) {
+          const items = await storage.getLowStockItems(branch.id);
+          lowStockData.push(...items);
+        }
+      } else {
+        lowStockData = await storage.getLowStockItems();
       }
 
       // Simple predictions based on trends
@@ -1586,9 +1618,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Simulate Caller ID
   app.post("/api/caller-id/simulate", async (req, res) => {
-    const { phoneNumber } = req.body;
-    callerIdService.handleIncomingCall(phoneNumber || "0551234567");
+    const { phoneNumber, tenantId } = req.body;
+    await callerIdService.handleIncomingCall(phoneNumber || "0551234567", undefined, tenantId ? Number(tenantId) : undefined);
     res.json({ success: true });
+  });
+
+  app.get("/api/store/:tenantId/menu", async (req, res) => {
+    try {
+      const tenantId = Number(req.params.tenantId);
+      if (!tenantId || isNaN(tenantId)) {
+        return res.status(400).json({ error: "Valid tenantId is required" });
+      }
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) {
+        return res.status(404).json({ error: "Store not found" });
+      }
+      const products = await storage.getProductsByTenant(tenantId);
+      const categories = await storage.getCategories(tenantId);
+      const config = await storage.getLandingPageConfig(tenantId);
+      res.json({
+        store: {
+          id: tenant.id,
+          name: tenant.businessName,
+          logo: tenant.logo,
+          storeType: tenant.storeType,
+        },
+        config: config || null,
+        products,
+        categories,
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
   });
 
   // ── Online Orders ──────────────────────────────────────────────────────────
@@ -1608,14 +1669,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public: create online order
   app.post("/api/online-orders/public", async (req, res) => {
     try {
-      const { slug, ...orderData } = req.body;
-      const config = await storage.getLandingPageConfigBySlug(slug);
-      if (!config) return res.status(404).json({ error: "Store not found" });
+      const { slug, tenantId: bodyTenantId, ...orderData } = req.body;
+      let resolvedTenantId: number | undefined;
+      if (slug) {
+        const config = await storage.getLandingPageConfigBySlug(slug);
+        if (config) resolvedTenantId = config.tenantId;
+      }
+      if (!resolvedTenantId && bodyTenantId) {
+        resolvedTenantId = Number(bodyTenantId);
+      }
+      if (!resolvedTenantId) return res.status(404).json({ error: "Store not found" });
 
       const orderNumber = `ONL-${Date.now().toString().slice(-6)}`;
       const order = await storage.createOnlineOrder({
         ...orderData,
-        tenantId: config.tenantId,
+        tenantId: resolvedTenantId,
         orderNumber,
         paymentStatus: orderData.paymentMethod === "cash" ? "pending" : "pending",
         status: "pending",
@@ -1691,6 +1759,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const templatePath = path.resolve(process.cwd(), "server", "templates", "restaurant-store.html");
       let html = fs.readFileSync(templatePath, "utf8");
       html = html.replace(/\{\{SLUG\}\}/g, slug);
+      html = html.replace(/\{\{TENANT_ID\}\}/g, String(config.tenantId));
       html = html.replace(/\{\{PRIMARY_COLOR\}\}/g, config.primaryColor || "#2FD3C6");
       html = html.replace(/\{\{ACCENT_COLOR\}\}/g, config.accentColor || "#6366F1");
       res.setHeader("Content-Type", "text/html; charset=utf-8");

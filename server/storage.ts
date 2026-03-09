@@ -1433,6 +1433,12 @@ export const storage = {
   },
 
   async upsertLandingPageConfig(tenantId: number, data: Partial<InsertLandingPageConfig>) {
+    if (!data.slug) {
+      const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
+      if (tenant) {
+        data.slug = tenant.businessName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      }
+    }
     const existing = await this.getLandingPageConfig(tenantId);
     if (existing) {
       const [updated] = await db.update(landingPageConfig)

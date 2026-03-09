@@ -1473,13 +1473,13 @@ async function loadLandingPages(){
           ${cfg ? `<span style="background:${cfg.isPublished?'#10B981':'#6B7280'};color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">${cfg.isPublished?'Live':'Draft'}</span>` : '<span style="color:var(--mu);font-size:12px">Not configured</span>'}
         </div>
         ${cfg ? `
-          <div style="color:var(--mu);font-size:12px;margin-bottom:6px">Slug: <a href="/store/${cfg.slug}" target="_blank" style="color:var(--ac)">/store/${cfg.slug}</a></div>
+          <div style="color:var(--mu);font-size:12px;margin-bottom:6px">Slug: ${cfg.slug ? `<a href="/store/${cfg.slug}" target="_blank" style="color:var(--ac)">/store/${cfg.slug}</a>` : '<span style="color:#EF4444">Not set</span>'}</div>
           <div style="color:var(--mu);font-size:12px;margin-bottom:12px">${cfg.heroTitle || 'No title set'}</div>
         ` : `<div style="color:var(--mu);font-size:12px;margin-bottom:12px">Click Edit to set up this store's landing page</div>`}
-        <button class="btn btn-p" style="width:100%" onclick="editLandingPage(${t.id}, ${cfg ? `'${cfg.slug}'` : 'null'})">
+        <button class="btn btn-p" style="width:100%" onclick="editLandingPage(${t.id}, ${cfg && cfg.slug ? `'${cfg.slug}'` : 'null'})">
           ${cfg ? '✏️ Edit' : '➕ Setup'}
         </button>
-        ${cfg ? `<button class="btn btn-o" style="width:100%;margin-top:8px" onclick="window.open('/store/${cfg.slug}','_blank')">🔗 View Live</button>` : ''}
+        ${cfg && cfg.slug ? `<button class="btn btn-o" style="width:100%;margin-top:8px" onclick="window.open('/store/${cfg.slug}','_blank')">🔗 View Live</button>` : ''}
       </div>
     `).join('')}
   </div>`;

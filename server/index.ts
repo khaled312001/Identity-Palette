@@ -176,68 +176,283 @@ function serveLandingPage({
 }
 
 /**
- * Injects PWA meta tags, manifest link, and service worker registration into HTML.
- * This makes any page PWA-installable from the browser.
+ * Injects PWA meta tags, manifest, service worker, and a custom install dialog.
  */
 function injectPWATags(html: string): string {
-  // Don't double-inject
-  if (html.includes('/manifest.json') && html.includes('/sw.js')) {
-    return html;
-  }
+  if (html.includes('__pwa_injected__')) return html;
 
-  const pwaHead = [
-    '<link rel="manifest" href="/manifest.json">',
-    '<meta name="theme-color" content="#2FD3C6">',
-    '<meta name="mobile-web-app-capable" content="yes">',
-    '<meta name="apple-mobile-web-app-capable" content="yes">',
-    '<meta name="apple-mobile-web-app-title" content="Barmagly POS">',
-    '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">',
-    '<link rel="apple-touch-icon" href="/apple-touch-icon.png">',
-    '<meta name="msapplication-TileColor" content="#0A0E17">',
-    '<meta name="msapplication-tap-highlight" content="no">',
-  ].join('\n  ');
+  const pwaHead = `
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#2FD3C6">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Barmagly POS">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="msapplication-TileColor" content="#0A0E17">
+  <meta name="msapplication-tap-highlight" content="no">
+  <!-- __pwa_injected__ -->
+  <style>
+    /* ── PWA Install Dialog ── */
+    #pwa-dialog-overlay {
+      display: none; position: fixed; inset: 0; z-index: 999999;
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(6px);
+      align-items: flex-end; justify-content: center;
+      padding: 0 0 0 0;
+      animation: pwa-fade-in 0.25s ease;
+    }
+    #pwa-dialog-overlay.open { display: flex; }
+    @keyframes pwa-fade-in { from{opacity:0} to{opacity:1} }
+    #pwa-dialog {
+      background: #13172A;
+      border: 1px solid rgba(47,211,198,0.2);
+      border-radius: 24px 24px 0 0;
+      padding: 28px 24px 36px;
+      width: 100%; max-width: 480px;
+      box-shadow: 0 -20px 60px rgba(0,0,0,0.5);
+      animation: pwa-slide-up 0.35s cubic-bezier(0.34,1.56,0.64,1);
+      position: relative;
+    }
+    @keyframes pwa-slide-up { from{transform:translateY(100%)} to{transform:translateY(0)} }
+    #pwa-dialog-close {
+      position: absolute; top: 16px; right: 18px;
+      background: rgba(255,255,255,0.08); border: none; color: #94a3b8;
+      width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+      font-size: 16px; display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s;
+    }
+    #pwa-dialog-close:hover { background: rgba(255,255,255,0.15); }
+    .pwa-header { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+    .pwa-icon {
+      width: 58px; height: 58px; border-radius: 14px; flex-shrink: 0;
+      background: linear-gradient(135deg,#0A0E17,#1a1f35);
+      border: 1px solid rgba(47,211,198,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+    }
+    .pwa-title { font-family: system-ui,-apple-system,sans-serif; }
+    .pwa-title h2 { margin:0 0 4px; font-size:18px; font-weight:800; color:#f0f4f8; }
+    .pwa-title p  { margin:0; font-size:13px; color:#64748b; }
+    .pwa-preview {
+      width: 100%; height: 130px; border-radius: 14px; overflow: hidden;
+      background: linear-gradient(135deg,#0d1120,#1a1f35);
+      border: 1px solid rgba(255,255,255,0.07);
+      margin-bottom: 18px; display: flex; align-items: center; justify-content: center;
+      position: relative;
+    }
+    .pwa-preview-bar {
+      position: absolute; top: 0; left: 0; right: 0; height: 28px;
+      background: rgba(0,0,0,0.4); display: flex; align-items: center;
+      gap: 5px; padding: 0 10px;
+    }
+    .pwa-preview-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .pwa-preview-content {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 8px; margin-top: 20px;
+    }
+    .pwa-preview-logo {
+      font-size: 22px; font-weight: 900; letter-spacing: -1px;
+      background: linear-gradient(135deg,#2FD3C6,#6366F1);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .pwa-preview-bars { display: flex; flex-direction: column; gap: 4px; width: 120px; }
+    .pwa-preview-bar-item {
+      height: 6px; border-radius: 3px;
+      background: linear-gradient(90deg,rgba(47,211,198,0.4),rgba(99,102,241,0.2));
+    }
+    .pwa-benefits { list-style: none; margin: 0 0 22px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+    .pwa-benefits li {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 14px; color: #cbd5e1; font-family: system-ui,-apple-system,sans-serif;
+    }
+    .pwa-benefits li::before {
+      content: '✓'; display: flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: rgba(47,211,198,0.15); color: #2FD3C6;
+      font-size: 12px; font-weight: 800; flex-shrink: 0;
+    }
+    .pwa-actions { display: flex; gap: 10px; }
+    .pwa-btn-install {
+      flex: 1; padding: 14px; border: none; border-radius: 14px; cursor: pointer;
+      background: linear-gradient(135deg,#2FD3C6,#6366F1);
+      color: #fff; font-size: 15px; font-weight: 700;
+      font-family: system-ui,-apple-system,sans-serif;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    .pwa-btn-install:hover { opacity: 0.9; transform: translateY(-1px); }
+    .pwa-btn-later {
+      padding: 14px 20px; border-radius: 14px; cursor: pointer;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      color: #94a3b8; font-size: 14px; font-weight: 600;
+      font-family: system-ui,-apple-system,sans-serif;
+      transition: background 0.2s;
+    }
+    .pwa-btn-later:hover { background: rgba(255,255,255,0.1); }
 
-  const pwaScript = `<script>
-  // Register PWA Service Worker
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js', { scope: '/' })
-        .then(reg => {
-          console.log('[PWA] Service Worker registered:', reg.scope);
-          // Check for updates periodically
-          setInterval(() => reg.update(), 60 * 60 * 1000);
-        })
-        .catch(err => console.warn('[PWA] SW registration failed:', err));
-    });
-  }
+    /* iOS install banner (Safari doesn't support beforeinstallprompt) */
+    #pwa-ios-banner {
+      display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 999998;
+      background: #13172A; border-top: 1px solid rgba(47,211,198,0.2);
+      padding: 14px 20px 24px; box-shadow: 0 -8px 30px rgba(0,0,0,0.4);
+      font-family: system-ui,-apple-system,sans-serif;
+    }
+    #pwa-ios-banner.show { display: block; }
+    .pwa-ios-text { font-size: 13px; color: #94a3b8; line-height: 1.6; text-align: center; }
+    .pwa-ios-text strong { color: #2FD3C6; }
+    .pwa-ios-close {
+      position: absolute; top: 10px; right: 14px; background: none; border: none;
+      color: #64748b; font-size: 18px; cursor: pointer;
+    }
+  </style>`;
 
-  // Prompt user to install if available
-  let deferredPrompt;
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    // Show install button if one exists
-    const installBtn = document.getElementById('pwa-install-btn');
-    if (installBtn) {
-      installBtn.style.display = 'inline-flex';
-      installBtn.addEventListener('click', () => {
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then(result => {
-          if (result.outcome === 'accepted') console.log('[PWA] App installed');
-          deferredPrompt = null;
-          installBtn.style.display = 'none';
-        });
+  const pwaBody = `
+  <!-- PWA Install Dialog -->
+  <div id="pwa-dialog-overlay">
+    <div id="pwa-dialog" role="dialog" aria-modal="true" aria-labelledby="pwa-dialog-title">
+      <button id="pwa-dialog-close" aria-label="Close">✕</button>
+
+      <div class="pwa-header">
+        <div class="pwa-icon">⚡</div>
+        <div class="pwa-title">
+          <h2 id="pwa-dialog-title">Install Barmagly POS</h2>
+          <p>Add to your desktop — works offline</p>
+        </div>
+      </div>
+
+      <div class="pwa-preview" aria-hidden="true">
+        <div class="pwa-preview-bar">
+          <div class="pwa-preview-dot" style="background:#ff5f57"></div>
+          <div class="pwa-preview-dot" style="background:#febc2e"></div>
+          <div class="pwa-preview-dot" style="background:#28c840"></div>
+        </div>
+        <div class="pwa-preview-content">
+          <div class="pwa-preview-logo">Barmagly POS</div>
+          <div class="pwa-preview-bars">
+            <div class="pwa-preview-bar-item" style="width:100%"></div>
+            <div class="pwa-preview-bar-item" style="width:75%;background:linear-gradient(90deg,rgba(99,102,241,0.4),rgba(47,211,198,0.2))"></div>
+            <div class="pwa-preview-bar-item" style="width:55%"></div>
+          </div>
+        </div>
+      </div>
+
+      <ul class="pwa-benefits">
+        <li>Works offline — access your POS anytime</li>
+        <li>Faster load times, native app experience</li>
+        <li>Quick access from your desktop or home screen</li>
+        <li>No App Store needed — install directly</li>
+      </ul>
+
+      <div class="pwa-actions">
+        <button class="pwa-btn-install" id="pwa-install-btn">Install App</button>
+        <button class="pwa-btn-later" id="pwa-later-btn">Not Now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- iOS Safari install hint -->
+  <div id="pwa-ios-banner">
+    <button class="pwa-ios-close" id="pwa-ios-close">✕</button>
+    <p class="pwa-ios-text">
+      To install <strong>Barmagly POS</strong> on your iPhone:<br>
+      Tap the <strong>Share</strong> button ↑ then <strong>"Add to Home Screen"</strong>
+    </p>
+  </div>
+
+  <script>
+  (function(){
+    var STORAGE_KEY = 'pwa_dismissed_v2';
+    var dismissed = localStorage.getItem(STORAGE_KEY);
+    var deferredPrompt = null;
+    var overlay = document.getElementById('pwa-dialog-overlay');
+    var installBtn = document.getElementById('pwa-install-btn');
+    var laterBtn = document.getElementById('pwa-later-btn');
+    var closeBtn = document.getElementById('pwa-dialog-close');
+    var iosBanner = document.getElementById('pwa-ios-banner');
+    var iosClose = document.getElementById('pwa-ios-close');
+
+    function isIOS() {
+      return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+    }
+    function isInStandaloneMode() {
+      return window.matchMedia('(display-mode: standalone)').matches ||
+             window.navigator.standalone === true;
+    }
+    function dismissDialog() {
+      if (overlay) overlay.classList.remove('open');
+      localStorage.setItem(STORAGE_KEY, '1');
+    }
+    function dismissIOS() {
+      if (iosBanner) iosBanner.classList.remove('show');
+      localStorage.setItem(STORAGE_KEY, '1');
+    }
+
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .then(function(reg) {
+            console.log('[PWA] SW registered:', reg.scope);
+            setInterval(function(){ reg.update(); }, 3600000);
+          })
+          .catch(function(err){ console.warn('[PWA] SW failed:', err); });
       });
     }
-  });
+
+    // Handle Android/Chrome/Edge install prompt
+    window.addEventListener('beforeinstallprompt', function(e) {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (!dismissed && !isInStandaloneMode()) {
+        setTimeout(function(){ if (overlay) overlay.classList.add('open'); }, 2500);
+      }
+    });
+
+    if (installBtn) {
+      installBtn.addEventListener('click', function() {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then(function(result) {
+            console.log('[PWA] Install:', result.outcome);
+            deferredPrompt = null;
+            dismissDialog();
+          });
+        }
+      });
+    }
+    if (laterBtn) laterBtn.addEventListener('click', dismissDialog);
+    if (closeBtn) closeBtn.addEventListener('click', dismissDialog);
+
+    // Close on overlay click
+    if (overlay) {
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) dismissDialog();
+      });
+    }
+
+    // iOS Safari hint
+    if (isIOS() && !isInStandaloneMode() && !dismissed) {
+      setTimeout(function(){ if (iosBanner) iosBanner.classList.add('show'); }, 3000);
+    }
+    if (iosClose) iosClose.addEventListener('click', dismissIOS);
+
+    // Track appinstalled
+    window.addEventListener('appinstalled', function() {
+      console.log('[PWA] App installed successfully');
+      dismissDialog();
+      deferredPrompt = null;
+    });
+
+    // Keyboard: Escape closes dialog
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') { dismissDialog(); dismissIOS(); }
+    });
+  })();
   </script>`;
 
-  if (!html.includes('/manifest.json')) {
-    html = html.replace('</head>', `  ${pwaHead}\n  ${pwaScript}\n</head>`);
-  } else if (!html.includes('/sw.js')) {
-    html = html.replace('</body>', `${pwaScript}\n</body>`);
-  }
-
+  html = html.replace('</head>', pwaHead + '\n</head>');
+  html = html.replace('</body>', pwaBody + '\n</body>');
   return html;
 }
 

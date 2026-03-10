@@ -192,7 +192,7 @@ export default function IntroScreen() {
                         </LinearGradient>
                     </Pressable>
 
-                    <Text style={styles.footerNote}>© 2025 Barmagly · v1.0</Text>
+                    <Text style={styles.footerNote}>© 2026 Barmagly</Text>
                 </ScrollView>
             </LinearGradient>
         </View>

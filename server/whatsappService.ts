@@ -85,21 +85,98 @@ export const whatsappService = {
         log("Connecting…");
 
         try {
-            // Resolve Chrome path — puppeteer's bundled browser or system Chromium
+            // ── 1. Resolve Chrome executable path ──────────────────────────────
             let browserPath: string | undefined;
-            try {
-                const puppeteer = await import("puppeteer");
-                browserPath = (puppeteer as any).executablePath?.() || undefined;
+
+            // Env var override (highest priority)
+            if (process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_PATH) {
+                const fs = await import("fs");
+                const envPath = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_PATH!;
+                if (fs.existsSync(envPath)) {
+                    browserPath = envPath;
+                    log(`Using CHROME_PATH env: ${browserPath}`);
+                }
+            }
+
+            // Try puppeteer's bundled Chrome first
+            if (!browserPath) try {
+                const { executablePath } = await import("puppeteer");
+                const path = await import("path");
+                const fs = await import("fs");
+                const ep = executablePath();
+                if (ep && fs.existsSync(ep)) {
+                    browserPath = ep;
+                }
             } catch { }
-            // Fallback: common system paths
+
+            // If not found, install Chrome programmatically
+            if (!browserPath) {
+                try {
+                    log("Chrome not found — installing via puppeteer browsers…");
+                    const { execSync } = await import("child_process");
+                    execSync("npx puppeteer browsers install chrome", {
+                        encoding: "utf-8",
+                        timeout: 180_000,
+                        stdio: "pipe",
+                    });
+                    const { executablePath } = await import("puppeteer");
+                    const ep = executablePath();
+                    const fs = await import("fs");
+                    if (ep && fs.existsSync(ep)) {
+                        browserPath = ep;
+                        log(`Chrome installed: ${browserPath}`);
+                    }
+                } catch (installErr: any) {
+                    log(`Chrome install failed: ${installErr.message}`);
+                }
+            }
+
+            // Fallback: common system Chromium paths (nix, apt, snap, etc.)
             if (!browserPath) {
                 const { execSync } = await import("child_process");
-                try {
-                    browserPath = execSync("which chromium-browser || which chromium || which google-chrome-stable || which google-chrome", { encoding: "utf-8" }).trim();
-                } catch { }
+                const fs = await import("fs");
+                const candidates = [
+                    "/nix/store",  // nix package - find dynamically below
+                    "/usr/bin/chromium",
+                    "/usr/bin/chromium-browser",
+                    "/usr/bin/google-chrome",
+                    "/usr/bin/google-chrome-stable",
+                    "/snap/bin/chromium",
+                    "/run/current-system/sw/bin/chromium",
+                ];
+                for (const c of candidates) {
+                    if (c === "/nix/store") continue; // handled separately
+                    if (fs.existsSync(c)) { browserPath = c; break; }
+                }
+                // Try nix store chromium
+                if (!browserPath) {
+                    try {
+                        const nixChrome = execSync(
+                            "find /nix/store -name 'chromium' -type f -maxdepth 5 2>/dev/null | head -1",
+                            { encoding: "utf-8", timeout: 5000 }
+                        ).trim();
+                        if (nixChrome && fs.existsSync(nixChrome)) browserPath = nixChrome;
+                    } catch { }
+                }
+                if (!browserPath) {
+                    try {
+                        browserPath = execSync(
+                            "which chromium-browser || which chromium || which google-chrome-stable || which google-chrome 2>/dev/null",
+                            { encoding: "utf-8", timeout: 5000 }
+                        ).trim() || undefined;
+                    } catch { }
+                }
             }
-            if (browserPath) log(`Using browser: ${browserPath}`);
 
+            if (browserPath) {
+                log(`Using browser: ${browserPath}`);
+            } else {
+                throw new Error(
+                    "No Chrome/Chromium found. Run: npx puppeteer browsers install chrome"
+                );
+            }
+
+            // ── 2. Start WPPConnect session ────────────────────────────────────
             client = await wppconnect.create({
                 session: SESSION_NAME,
                 headless: true,
@@ -107,7 +184,8 @@ export const whatsappService = {
                 useChrome: false,
                 debug: false,
                 logQR: false,
-                autoClose: 0, // never auto-close
+                autoClose: 0,
+                browserPathExecutable: browserPath,
                 browserArgs: [
                     "--no-sandbox",
                     "--disable-setuid-sandbox",
@@ -116,21 +194,30 @@ export const whatsappService = {
                     "--no-first-run",
                     "--no-zygote",
                     "--single-process",
+                    "--disable-extensions",
+                    "--disable-background-networking",
+                    "--disable-sync",
+                    "--disable-translate",
+                    "--metrics-recording-only",
+                    "--safebrowsing-disable-auto-update",
                 ],
-                ...(browserPath ? { browserPathExecutable: browserPath } : {}),
-                catchQR: (base64Qr: string, _asciiQR: string, _attempts: number, _urlCode?: string) => {
+                catchQR: (base64Qr: string) => {
                     lastQrCode = base64Qr;
                     status = "qr_ready";
                     log("QR code generated — scan with WhatsApp");
                 },
                 statusFind: (statusSession: string, session: string) => {
-                    log(`Session "${session}" status: ${statusSession}`);
+                    log(`Session "${session}": ${statusSession}`);
                     if (statusSession === "inChat" || statusSession === "isLogged") {
                         status = "connected";
                         lastQrCode = null;
                         log("✅ Connected to WhatsApp");
                     }
-                    if (statusSession === "notLogged" || statusSession === "browserClose" || statusSession === "desconnectedMobile") {
+                    if (
+                        statusSession === "notLogged" ||
+                        statusSession === "browserClose" ||
+                        statusSession === "desconnectedMobile"
+                    ) {
                         status = "disconnected";
                         log(`⚠ Disconnected: ${statusSession}`);
                     }
@@ -141,9 +228,8 @@ export const whatsappService = {
             lastQrCode = null;
             log("✅ WhatsApp client ready");
 
-            // Listen for incoming messages (optional — admin can receive replies)
             client.onMessage(async (message: any) => {
-                log(`Incoming message from ${message.from}: ${(message.body || "").slice(0, 80)}`);
+                log(`Msg from ${message.from}: ${(message.body || "").slice(0, 80)}`);
             });
 
             return { status: "connected" };

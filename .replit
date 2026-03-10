@@ -24,7 +24,7 @@ externalPort = 3001
 
 [env]
 PORT = "5000"
-PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "false"
+PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
 PUPPETEER_CACHE_DIR = "/home/runner/.cache/puppeteer"
 DATABASE_URL = "postgresql://neondb_owner:npg_eMqwIhUg8p2G@ep-long-sound-ajwt8qyz.c-3.us-east-2.aws.neon.tech/neondb?sslmode=require"
 NEON_DATABASE_URL = "postgresql://neondb_owner:npg_eMqwIhUg8p2G@ep-long-sound-ajwt8qyz.c-3.us-east-2.aws.neon.tech/neondb?sslmode=require"
@@ -71,7 +71,7 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "export CHROME_PATH=$(which chromium 2>/dev/null || which chromium-browser 2>/dev/null || echo '') && npm run server:dev"
+args = "export CHROME_PATH=$(which chromium 2>/dev/null || which chromium-browser 2>/dev/null || find /nix/store -maxdepth 4 -name 'chromium' -path '*/bin/chromium' 2>/dev/null | head -1 || echo '') && export PUPPETEER_EXECUTABLE_PATH=$CHROME_PATH && export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true && npm run server:dev"
 waitForPort = 5000
 
 [[workflows.workflow]]

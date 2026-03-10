@@ -154,22 +154,59 @@ export const whatsappService = {
             const { execSync } = await import("child_process");
             const fs = await import("fs");
 
-            // ----- locate chromium -----
+            // ----- locate Google Chrome (preferred) then fall back to Chromium -----
             let browserPath: string | undefined;
 
-            const envChrome = process.env.CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROMIUM_PATH;
-            if (envChrome && fs.existsSync(envChrome)) {
-                browserPath = envChrome;
-                log(`Using env CHROME_PATH: ${browserPath}`);
+            // 1. Puppeteer-managed Chrome (installed via `npx puppeteer browsers install chrome`)
+            //    This is proper Google Chrome, not Chromium.
+            if (!browserPath) {
+                try {
+                    const { executablePath } = await import("puppeteer");
+                    const ep = executablePath();
+                    if (ep && fs.existsSync(ep)) { browserPath = ep; log("Using puppeteer Chrome"); }
+                } catch { }
             }
 
+            // 2. Explicit env override (CHROME_PATH / PUPPETEER_EXECUTABLE_PATH)
+            if (!browserPath) {
+                const envChrome = process.env.CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH;
+                if (envChrome && fs.existsSync(envChrome)) {
+                    browserPath = envChrome;
+                    log(`Using env override: ${browserPath}`);
+                }
+            }
+
+            // 3. Google Chrome on PATH
             if (!browserPath) {
                 try {
                     const found = execSync(
-                        "which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome-stable 2>/dev/null || which google-chrome 2>/dev/null",
+                        "which google-chrome-stable 2>/dev/null || which google-chrome 2>/dev/null || which google-chrome-beta 2>/dev/null",
                         { encoding: "utf-8", timeout: 5000 }
                     ).trim().split("\n")[0];
-                    if (found && fs.existsSync(found)) browserPath = found;
+                    if (found && fs.existsSync(found)) { browserPath = found; }
+                } catch { }
+            }
+
+            // 4. Common Google Chrome install paths
+            if (!browserPath) {
+                for (const c of [
+                    "/usr/bin/google-chrome-stable",
+                    "/usr/bin/google-chrome",
+                    "/opt/google/chrome/chrome",
+                    "/usr/local/bin/google-chrome",
+                ]) {
+                    if (fs.existsSync(c)) { browserPath = c; break; }
+                }
+            }
+
+            // 5. Chromium as last resort
+            if (!browserPath) {
+                try {
+                    const found = execSync(
+                        "which chromium 2>/dev/null || which chromium-browser 2>/dev/null",
+                        { encoding: "utf-8", timeout: 5000 }
+                    ).trim().split("\n")[0];
+                    if (found && fs.existsSync(found)) { browserPath = found; log("Falling back to Chromium"); }
                 } catch { }
             }
 
@@ -179,32 +216,11 @@ export const whatsappService = {
                         "find /nix/store -maxdepth 4 -name 'chromium' -type f 2>/dev/null | grep '/bin/chromium$' | head -1",
                         { encoding: "utf-8", timeout: 8000 }
                     ).trim();
-                    if (nixFound && fs.existsSync(nixFound)) browserPath = nixFound;
+                    if (nixFound && fs.existsSync(nixFound)) { browserPath = nixFound; log("Falling back to nix Chromium"); }
                 } catch { }
             }
 
-            if (!browserPath) {
-                for (const c of [
-                    "/run/current-system/sw/bin/chromium",
-                    "/home/runner/.nix-profile/bin/chromium",
-                    "/usr/bin/chromium",
-                    "/usr/bin/chromium-browser",
-                    "/snap/bin/chromium",
-                    "/usr/bin/google-chrome-stable",
-                ]) {
-                    if (fs.existsSync(c)) { browserPath = c; break; }
-                }
-            }
-
-            if (!browserPath) {
-                try {
-                    const { executablePath } = await import("puppeteer");
-                    const ep = executablePath();
-                    if (ep && fs.existsSync(ep)) browserPath = ep;
-                } catch { }
-            }
-
-            if (!browserPath) throw new Error("No Chrome/Chromium found.");
+            if (!browserPath) throw new Error("No Chrome found. Run: npm run install-chrome");
             log(`Using browser: ${browserPath}`);
 
             const browserArgs = [

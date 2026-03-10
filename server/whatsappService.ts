@@ -187,15 +187,30 @@ export const whatsappService = {
                 "--disable-features=VizDisplayCompositor",
             ];
 
-            // Use an absolute token dir so cleanup is reliable
+            // Kill any orphaned Chrome process holding the old userDataDir lock
+            const CHROME_DATA_DIR = `/tmp/wppconnect-chrome-${SESSION_NAME}`;
+            try {
+                execSync(
+                    `pkill -9 -f 'chromium.*${SESSION_NAME}' 2>/dev/null; pkill -9 -f '${CHROME_DATA_DIR}' 2>/dev/null; true`,
+                    { timeout: 3000 }
+                );
+            } catch { }
+            // Small pause so the OS releases file locks
+            await new Promise(r => setTimeout(r, 800));
+
+            // Wipe Chrome profile dir and session tokens so both start clean
             const TOKEN_DIR = "/tmp/wppconnect-tokens";
             try {
+                if (fs.existsSync(CHROME_DATA_DIR)) {
+                    fs.rmSync(CHROME_DATA_DIR, { recursive: true, force: true });
+                }
                 const sessionTokenDir = TOKEN_DIR + "/" + SESSION_NAME;
                 if (fs.existsSync(sessionTokenDir)) {
                     fs.rmSync(sessionTokenDir, { recursive: true, force: true });
                 }
                 fs.mkdirSync(TOKEN_DIR, { recursive: true });
-                log("Cleared old session tokens");
+                fs.mkdirSync(CHROME_DATA_DIR, { recursive: true });
+                log("Cleared old session tokens and browser profile");
             } catch { /* ignore cleanup errors */ }
 
             client = await wpp.create({
@@ -212,7 +227,7 @@ export const whatsappService = {
                     executablePath: browserPath,
                     args: browserArgs,
                     headless: true,
-                    userDataDir: `/tmp/wppconnect-chrome-${SESSION_NAME}`,
+                    userDataDir: CHROME_DATA_DIR,
                 },
                 browserArgs,
                 catchQR: (base64Qr: string) => {
@@ -262,11 +277,17 @@ export const whatsappService = {
 
     async disconnect(): Promise<void> {
         if (client) {
-            try {
-                await client.close();
-            } catch { }
+            try { await client.close(); } catch { }
             client = null;
         }
+        // Kill any still-running Chrome that belonged to this session
+        try {
+            const { execSync } = await import("child_process");
+            execSync(
+                `pkill -9 -f 'chromium.*${SESSION_NAME}' 2>/dev/null; pkill -9 -f 'wppconnect-chrome-${SESSION_NAME}' 2>/dev/null; true`,
+                { timeout: 3000 }
+            );
+        } catch { }
         status = "disconnected";
         clientReady = false;
         lastQrCode = null;

@@ -1,11 +1,6 @@
 /**
  * WhatsApp Service — uses wppconnect to send WhatsApp messages.
  *
- * Provides:
- *   • Session management (connect / disconnect / status / QR)
- *   • Order notification to admin
- *   • Customer order confirmation & status updates
- *
  * The heavy @wppconnect-team/wppconnect dependency is loaded lazily
  * so the server can start even when the package is not installed.
  */
@@ -58,15 +53,12 @@ let lastQrCode: string | null = null;
 let lastError: string | null = null;
 let connectionLog: { time: string; event: string }[] = [];
 let connecting = false;
-
-// Track the directories created for the active session so we can wipe them on disconnect
-let activeChromeDir: string | null = null;
-let activeTokenDir: string | null = null;
+let connectionPhase: "idle" | "starting" | "awaiting_qr" | "qr_scanned" | "ready" = "idle";
 
 function log(event: string) {
     const entry = { time: new Date().toISOString(), event };
     connectionLog.unshift(entry);
-    if (connectionLog.length > 50) connectionLog.length = 50;
+    if (connectionLog.length > 100) connectionLog.length = 100;
     console.log(`[WhatsApp] ${event}`);
 }
 
@@ -75,28 +67,38 @@ function toChatId(phone: string): string {
     return `${digits}@c.us`;
 }
 
-/** Kill ALL wppconnect-related chrome processes and clean /tmp dirs */
-async function nukeResidualProcesses() {
+async function cleanupProcesses() {
     try {
         const { execSync } = await import("child_process");
-        // Kill any chromium process that has a wppconnect dir in its command line
         execSync(
             `pkill -9 -f 'wppconnect' 2>/dev/null; pkill -9 -f 'chromium.*barmagly' 2>/dev/null; true`,
             { timeout: 4000 }
         );
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 500));
     } catch { }
 
-    // Remove ALL wppconnect temp dirs from /tmp
     try {
         const fs = await import("fs");
-        const entries = fs.readdirSync("/tmp").filter(d =>
+        const entries = fs.readdirSync("/tmp").filter((d: string) =>
             d.startsWith("wppconnect-") || d.startsWith("barmagly-")
         );
         for (const e of entries) {
             try { fs.rmSync(`/tmp/${e}`, { recursive: true, force: true }); } catch { }
         }
     } catch { }
+}
+
+async function isClientAlive(): Promise<boolean> {
+    if (!client) return false;
+    try {
+        const state = await Promise.race([
+            client.getConnectionState(),
+            new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 5000))
+        ]);
+        return state === "CONNECTED";
+    } catch {
+        return false;
+    }
 }
 
 export const whatsappService = {
@@ -110,7 +112,12 @@ export const whatsappService = {
 
     async connect(): Promise<{ status: WhatsAppStatus; qrCode?: string }> {
         if (clientReady && status === "connected" && client) {
-            return { status: "connected" };
+            const alive = await isClientAlive();
+            if (alive) return { status: "connected" };
+            log("Client was marked connected but is actually dead — reconnecting");
+            clientReady = false;
+            status = "disconnected";
+            client = null;
         }
 
         if (connecting) {
@@ -118,32 +125,24 @@ export const whatsappService = {
             return { status };
         }
         connecting = true;
+        connectionPhase = "starting";
         clientReady = false;
 
-        // Close any lingering client gracefully
         if (client) {
             try { await client.close(); } catch { }
             client = null;
         }
 
-        // Kill orphaned chrome processes + wipe all wppconnect /tmp dirs
-        await nukeResidualProcesses();
-        log("Cleared all previous session data");
+        await cleanupProcesses();
+        log("Cleared previous session data");
 
         const wpp = await loadWppConnect();
         if (!wpp) {
             lastError = "@wppconnect-team/wppconnect package not installed";
             connecting = false;
+            connectionPhase = "idle";
             return { status: "disconnected" };
         }
-
-        // Also clear wppconnect's internal session registry
-        try {
-            if (typeof wpp.kill === "function") await wpp.kill(SESSION_NAME).catch(() => {});
-        } catch { }
-        try {
-            if (typeof wpp.deleteSession === "function") await wpp.deleteSession(SESSION_NAME).catch(() => {});
-        } catch { }
 
         status = "connecting";
         lastError = null;
@@ -154,59 +153,21 @@ export const whatsappService = {
             const { execSync } = await import("child_process");
             const fs = await import("fs");
 
-            // ----- locate Google Chrome (preferred) then fall back to Chromium -----
             let browserPath: string | undefined;
 
-            // 1. Puppeteer-managed Chrome (installed via `npx puppeteer browsers install chrome`)
-            //    This is proper Google Chrome, not Chromium.
-            if (!browserPath) {
-                try {
-                    const { executablePath } = await import("puppeteer");
-                    const ep = executablePath();
-                    if (ep && fs.existsSync(ep)) { browserPath = ep; log("Using puppeteer Chrome"); }
-                } catch { }
+            const envChrome = process.env.CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH;
+            if (envChrome && fs.existsSync(envChrome)) {
+                browserPath = envChrome;
+                log(`Using env override: ${browserPath}`);
             }
 
-            // 2. Explicit env override (CHROME_PATH / PUPPETEER_EXECUTABLE_PATH)
-            if (!browserPath) {
-                const envChrome = process.env.CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH;
-                if (envChrome && fs.existsSync(envChrome)) {
-                    browserPath = envChrome;
-                    log(`Using env override: ${browserPath}`);
-                }
-            }
-
-            // 3. Google Chrome on PATH
             if (!browserPath) {
                 try {
                     const found = execSync(
-                        "which google-chrome-stable 2>/dev/null || which google-chrome 2>/dev/null || which google-chrome-beta 2>/dev/null",
+                        "which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome-stable 2>/dev/null || which google-chrome 2>/dev/null",
                         { encoding: "utf-8", timeout: 5000 }
                     ).trim().split("\n")[0];
                     if (found && fs.existsSync(found)) { browserPath = found; }
-                } catch { }
-            }
-
-            // 4. Common Google Chrome install paths
-            if (!browserPath) {
-                for (const c of [
-                    "/usr/bin/google-chrome-stable",
-                    "/usr/bin/google-chrome",
-                    "/opt/google/chrome/chrome",
-                    "/usr/local/bin/google-chrome",
-                ]) {
-                    if (fs.existsSync(c)) { browserPath = c; break; }
-                }
-            }
-
-            // 5. Chromium as last resort
-            if (!browserPath) {
-                try {
-                    const found = execSync(
-                        "which chromium 2>/dev/null || which chromium-browser 2>/dev/null",
-                        { encoding: "utf-8", timeout: 5000 }
-                    ).trim().split("\n")[0];
-                    if (found && fs.existsSync(found)) { browserPath = found; log("Falling back to Chromium"); }
                 } catch { }
             }
 
@@ -216,12 +177,26 @@ export const whatsappService = {
                         "find /nix/store -maxdepth 4 -name 'chromium' -type f 2>/dev/null | grep '/bin/chromium$' | head -1",
                         { encoding: "utf-8", timeout: 8000 }
                     ).trim();
-                    if (nixFound && fs.existsSync(nixFound)) { browserPath = nixFound; log("Falling back to nix Chromium"); }
+                    if (nixFound && fs.existsSync(nixFound)) { browserPath = nixFound; }
                 } catch { }
             }
 
-            if (!browserPath) throw new Error("No Chrome found. Run: npm run install-chrome");
+            if (!browserPath) {
+                try {
+                    const { executablePath } = await import("puppeteer");
+                    const ep = executablePath();
+                    if (ep && fs.existsSync(ep)) { browserPath = ep; }
+                } catch { }
+            }
+
+            if (!browserPath) throw new Error("No Chrome/Chromium found.");
             log(`Using browser: ${browserPath}`);
+
+            const ts = Date.now();
+            const CHROME_DATA_DIR = `/tmp/wppconnect-chrome-${ts}`;
+            const TOKEN_DIR = `/tmp/wppconnect-tokens-${ts}`;
+            fs.mkdirSync(CHROME_DATA_DIR, { recursive: true });
+            fs.mkdirSync(TOKEN_DIR, { recursive: true });
 
             const browserArgs = [
                 "--no-sandbox",
@@ -236,14 +211,7 @@ export const whatsappService = {
                 "--window-size=1280,800",
             ];
 
-            // Use fresh unique dirs per connection attempt — eliminates "browser already running"
-            const ts = Date.now();
-            const CHROME_DATA_DIR = `/tmp/wppconnect-chrome-${ts}`;
-            const TOKEN_DIR = `/tmp/wppconnect-tokens-${ts}`;
-            fs.mkdirSync(CHROME_DATA_DIR, { recursive: true });
-            fs.mkdirSync(TOKEN_DIR, { recursive: true });
-            activeChromeDir = CHROME_DATA_DIR;
-            activeTokenDir = TOKEN_DIR;
+            connectionPhase = "awaiting_qr";
 
             client = await wpp.create({
                 session: SESSION_NAME,
@@ -265,12 +233,24 @@ export const whatsappService = {
                 catchQR: (base64Qr: string) => {
                     lastQrCode = base64Qr;
                     status = "qr_ready";
+                    connectionPhase = "awaiting_qr";
                     log("QR code generated — scan with WhatsApp");
                 },
                 statusFind: (statusSession: string, session: string) => {
                     log(`Session "${session}": ${statusSession}`);
-                    // Only process disconnect events AFTER we are fully ready
-                    if (clientReady) {
+
+                    if (statusSession === "qrReadSuccess") {
+                        connectionPhase = "qr_scanned";
+                        log("QR scanned successfully — waiting for session to stabilize");
+                    }
+
+                    if (statusSession === "inChat" || statusSession === "isLogged") {
+                        if (connectionPhase !== "ready") {
+                            connectionPhase = "qr_scanned";
+                        }
+                    }
+
+                    if (connectionPhase === "ready") {
                         if (
                             statusSession === "notLogged" ||
                             statusSession === "browserClose" ||
@@ -280,20 +260,32 @@ export const whatsappService = {
                             status = "disconnected";
                             clientReady = false;
                             client = null;
-                            log(`Disconnected: ${statusSession}`);
+                            connectionPhase = "idle";
+                            log(`Session lost: ${statusSession}`);
                         }
                     }
                 },
             });
 
-            // Wait for the WPP injection to settle before marking ready
-            await new Promise(r => setTimeout(r, 4000));
+            log("WPP client created — waiting for session to stabilize...");
+            await new Promise(r => setTimeout(r, 6000));
+
+            const alive = await isClientAlive();
+            if (!alive) {
+                log("Client not alive after stabilization — retrying connection state check...");
+                await new Promise(r => setTimeout(r, 5000));
+                const retryAlive = await isClientAlive();
+                if (!retryAlive) {
+                    throw new Error("WhatsApp session failed to stabilize after QR scan");
+                }
+            }
 
             status = "connected";
             clientReady = true;
+            connectionPhase = "ready";
             lastQrCode = null;
             connecting = false;
-            log("WhatsApp client ready");
+            log("WhatsApp client ready and verified");
 
             client.onMessage(async (message: any) => {
                 log(`Msg from ${message.from}: ${(message.body || "").slice(0, 80)}`);
@@ -305,6 +297,7 @@ export const whatsappService = {
             status = "disconnected";
             clientReady = false;
             connecting = false;
+            connectionPhase = "idle";
             log(`Connection failed: ${lastError}`);
             return { status: "disconnected" };
         }
@@ -315,13 +308,12 @@ export const whatsappService = {
             try { await client.close(); } catch { }
             client = null;
         }
-        await nukeResidualProcesses();
+        await cleanupProcesses();
         status = "disconnected";
         clientReady = false;
         lastQrCode = null;
         connecting = false;
-        activeChromeDir = null;
-        activeTokenDir = null;
+        connectionPhase = "idle";
         log("Disconnected");
     },
 
@@ -330,6 +322,19 @@ export const whatsappService = {
             log(`Cannot send — not ready (status="${status}", ready=${clientReady})`);
             return false;
         }
+
+        if (_attempt === 1) {
+            const alive = await isClientAlive();
+            if (!alive) {
+                log("Client not alive when trying to send — marking disconnected");
+                clientReady = false;
+                status = "disconnected";
+                client = null;
+                connectionPhase = "idle";
+                return false;
+            }
+        }
+
         try {
             await client.sendText(toChatId(phone), text);
             log(`Message sent to ${phone}`);
@@ -338,7 +343,6 @@ export const whatsappService = {
             const msg = typeof err === "object" ? (err.message || JSON.stringify(err)) : String(err);
             log(`Failed to send to ${phone}: ${msg}`);
 
-            // Transient injection lag — retry with backoff (up to 3 retries)
             if (
                 (msg.includes("WPP is not defined") || msg.includes("NotInitializedError")) &&
                 _attempt < 4
@@ -348,17 +352,17 @@ export const whatsappService = {
                 return this.sendText(phone, text, _attempt + 1);
             }
 
-            // Fatal browser errors — mark as disconnected
             if (
                 msg.includes("Execution context was destroyed") ||
                 msg.includes("Protocol error") ||
                 msg.includes("Session closed") ||
                 msg.includes("Target closed")
             ) {
-                log("Client appears broken — marking as disconnected");
+                log("Client browser crashed — marking as disconnected");
                 clientReady = false;
                 status = "disconnected";
                 client = null;
+                connectionPhase = "idle";
             }
             return false;
         }

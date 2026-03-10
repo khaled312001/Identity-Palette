@@ -9,6 +9,7 @@ import { callerIdService } from "./callerIdService";
 import { requireSuperAdmin } from "./superAdminAuth";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { sendLicenseKeyEmail } from "./emailService";
+import { whatsappService } from "./whatsappService";
 
 const TIMESTAMP_FIELDS = [
   "createdAt", "updatedAt", "expiryDate", "expectedDate", "receivedDate",
@@ -280,7 +281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         licenseKey, tenantId: tenant.id, subscriptionId: subscription.id,
         status: "active", maxActivations: isAdvanced ? 10 : 3, expiresAt: endDate,
       });
-      sendLicenseKeyEmail({ to: ownerEmail, ownerName, businessName, licenseKey, planName, planType, tempPassword, expiresAt: endDate }).catch(() => {});
+      sendLicenseKeyEmail({ to: ownerEmail, ownerName, businessName, licenseKey, planName, planType, tempPassword, expiresAt: endDate }).catch(() => { });
       res.json({ success: true, tenantId: tenant.id, licenseKey, requiresAction: false });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -1828,6 +1829,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         order,
       });
 
+      // ── WhatsApp notifications ────────────────────────────────
+      try {
+        const tenant = await storage.getTenant(resolvedTenantId);
+        const storeName = tenant?.businessName || "Online Store";
+        // Notify admin
+        await whatsappService.sendOrderNotification({
+          orderNumber,
+          customerName: orderData.customerName,
+          customerPhone: orderData.customerPhone,
+          customerAddress: orderData.customerAddress,
+          items: orderData.items || [],
+          subtotal: orderData.subtotal,
+          deliveryFee: orderData.deliveryFee,
+          totalAmount: orderData.totalAmount,
+          orderType: orderData.orderType || "delivery",
+          paymentMethod: orderData.paymentMethod || "cash",
+          notes: orderData.notes,
+        }, storeName);
+        // Confirm to customer
+        if (orderData.customerPhone) {
+          await whatsappService.sendCustomerConfirmation(
+            orderData.customerPhone,
+            orderNumber,
+            storeName,
+            orderData.totalAmount,
+          );
+        }
+      } catch (waErr) {
+        console.error("[WhatsApp] Failed to send order notifications:", waErr);
+      }
+
       res.json(order);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -1854,6 +1886,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if ((app as any)._broadcastOrderStatus) {
         (app as any)._broadcastOrderStatus(id, { type: "status_update", order });
       }
+
+      // WhatsApp status update to customer
+      if (req.body.status && (order as any).customerPhone) {
+        try {
+          const tenant = (order as any).tenantId ? await storage.getTenant((order as any).tenantId) : null;
+          const storeName = tenant?.businessName || "Store";
+          await whatsappService.sendStatusUpdate(
+            (order as any).customerPhone,
+            (order as any).orderNumber,
+            req.body.status,
+            storeName,
+          );
+        } catch (waErr) {
+          console.error("[WhatsApp] Failed to send status update:", waErr);
+        }
+      }
+
       res.json(order);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -1864,6 +1913,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteOnlineOrder(Number(req.params.id));
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── WhatsApp Integration ───────────────────────────────────────────────────
+  app.get("/api/whatsapp/status", requireSuperAdmin as any, async (_req: any, res: any) => {
+    res.json(whatsappService.getStatus());
+  });
+
+  app.post("/api/whatsapp/connect", requireSuperAdmin as any, async (_req: any, res: any) => {
+    try {
+      const result = await whatsappService.connect();
+      const qr = whatsappService.getQrCode();
+      res.json({ ...result, qrCode: qr });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/whatsapp/disconnect", requireSuperAdmin as any, async (_req: any, res: any) => {
+    await whatsappService.disconnect();
+    res.json({ success: true });
+  });
+
+  app.get("/api/whatsapp/qr", requireSuperAdmin as any, async (_req: any, res: any) => {
+    const qr = whatsappService.getQrCode();
+    res.json({ qrCode: qr });
+  });
+
+  app.post("/api/whatsapp/test", requireSuperAdmin as any, async (_req: any, res: any) => {
+    const sent = await whatsappService.sendText(
+      "201204593124",
+      "🧪 *Test Message*\n\nThis is a test from Barmagly POS WhatsApp integration."
+    );
+    res.json({ success: sent });
   });
 
   // ── Landing Page Config ────────────────────────────────────────────────────
@@ -1937,7 +2017,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const clients = orderSseClients.get(orderId);
     if (clients) {
       const msg = `data: ${JSON.stringify(data)}\n\n`;
-      clients.forEach((c: any) => { try { c.write(msg); } catch {} });
+      clients.forEach((c: any) => { try { c.write(msg); } catch { } });
     }
   };
 
@@ -2001,9 +2081,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let inventory: any[] = [];
       let expenses: any[] = [];
       for (const b of branches) {
-        try { const inv = await storage.getInventory(b.id, tenantId); inventory.push(...inv); } catch {}
+        try { const inv = await storage.getInventory(b.id, tenantId); inventory.push(...inv); } catch { }
       }
-      try { expenses = await storage.getExpenses(undefined, tenantId); } catch {}
+      try { expenses = await storage.getExpenses(undefined, tenantId); } catch { }
       const sales = await storage.getSales({ tenantId, limit: 10000 });
 
       const snapshot = {
@@ -2020,7 +2100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filepath = path.join(TENANT_BACKUP_DIR, filename);
       fs.writeFileSync(filepath, JSON.stringify(snapshot));
       const stat = fs.statSync(filepath);
-      console.log(`[BACKUP] Manual by tenant ${tenantId}: ${filename} (${Math.round(stat.size/1024)}KB)`);
+      console.log(`[BACKUP] Manual by tenant ${tenantId}: ${filename} (${Math.round(stat.size / 1024)}KB)`);
       res.json({ success: true, filename, size: stat.size, createdAt: stat.mtime.toISOString() });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -2050,7 +2130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               await storage.createCategory({ ...c, id: undefined, tenantId });
               restored.categories++;
             }
-          } catch {}
+          } catch { }
         }
       }
 
@@ -2075,7 +2155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               await storage.createProduct({ ...p, id: undefined, tenantId, categoryId: newCatId });
             }
             restored.products++;
-          } catch {}
+          } catch { }
         }
       }
 
@@ -2089,7 +2169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               await storage.createCustomer({ ...c, id: undefined, tenantId });
               restored.customers++;
             }
-          } catch {}
+          } catch { }
         }
       }
 

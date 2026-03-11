@@ -6,6 +6,7 @@ const config = getDefaultConfig(__dirname);
 config.resolver.blockList = [
   /\.local\/skills\/\.tmp-.*/,
   /\.local\/skills\/\.old-.*/,
+  /\.local\/state\/.*/,
 ];
 
 module.exports = config;

@@ -295,6 +295,9 @@ export default function POSScreen() {
                 osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5);
               } catch { }
             }
+          } else if (data.type === "menu_updated") {
+            qc.invalidateQueries({ queryKey: ["/api/products"] });
+            qc.invalidateQueries({ queryKey: ["/api/categories"] });
           }
         } catch (e) {
           console.error("WS Message Error:", e);
@@ -2263,7 +2266,7 @@ export default function POSScreen() {
       />
 
       {/* ── Shift Prompt after Account Switch ── */}
-      <Modal visible={showSwitchShiftPrompt} animationType="fade" transparent onRequestClose={() => {}}>
+      <Modal visible={showSwitchShiftPrompt} animationType="fade" transparent onRequestClose={() => { }}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", padding: 24 }}>
           <View style={{ backgroundColor: Colors.surface, borderRadius: 20, padding: 24, width: "100%", maxWidth: 380, borderWidth: 1, borderColor: Colors.cardBorder }}>
             {!showSwitchCashInput ? (

@@ -619,13 +619,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.post("/api/categories", async (req, res) => {
-    try { res.json(await storage.createCategory(sanitizeDates(req.body))); } catch (e: any) { res.status(500).json({ error: e.message }); }
+    try {
+      const c = await storage.createCategory(sanitizeDates(req.body));
+      callerIdService.broadcast({ type: "menu_updated" });
+      res.json(c);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.put("/api/categories/:id", async (req, res) => {
-    try { res.json(await storage.updateCategory(Number(req.params.id), sanitizeDates(req.body))); } catch (e: any) { res.status(500).json({ error: e.message }); }
+    try {
+      const c = await storage.updateCategory(Number(req.params.id), sanitizeDates(req.body));
+      callerIdService.broadcast({ type: "menu_updated" });
+      res.json(c);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.delete("/api/categories/:id", async (req, res) => {
-    try { await storage.deleteCategory(Number(req.params.id)); res.json({ success: true }); } catch (e: any) { res.status(500).json({ error: e.message }); }
+    try {
+      const c = await storage.getCategory(Number(req.params.id));
+      await storage.deleteCategory(Number(req.params.id));
+      if (c) callerIdService.broadcast({ type: "menu_updated" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // Products
@@ -705,16 +718,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   app.post("/api/products", async (req, res) => {
     try {
-      res.json(await storage.createProduct(sanitizeDates(req.body)));
+      const p = await storage.createProduct(sanitizeDates(req.body));
+      callerIdService.broadcast({ type: "menu_updated" });
+      res.json(p);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.put("/api/products/:id", async (req, res) => {
     try {
-      res.json(await storage.updateProduct(Number(req.params.id), sanitizeDates(req.body)));
+      const p = await storage.updateProduct(Number(req.params.id), sanitizeDates(req.body));
+      callerIdService.broadcast({ type: "menu_updated" });
+      res.json(p);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.delete("/api/products/:id", async (req, res) => {
-    try { await storage.deleteProduct(Number(req.params.id)); res.json({ success: true }); } catch (e: any) { res.status(500).json({ error: e.message }); }
+    try {
+      const p = await storage.getProduct(Number(req.params.id));
+      await storage.deleteProduct(Number(req.params.id));
+      if (p) callerIdService.broadcast({ type: "menu_updated" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // Inventory
@@ -1776,7 +1798,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const config = await storage.getLandingPageConfigBySlug(slug);
       if (!config || !config.isPublished) return res.status(404).json({ error: "Store not found" });
       const tenant = await storage.getTenant(config.tenantId);
-      const products = await storage.getProductsByTenant(config.tenantId);
+      let products = await storage.getProductsByTenant(config.tenantId);
+
+      const commissionRate = await storage.getCommissionRate();
+      if (commissionRate > 0) {
+        const factor = 1 + (commissionRate / 100);
+        products = products.map((p: any) => ({
+          ...p,
+          price: (parseFloat(p.price) * factor).toFixed(2)
+        }));
+      }
+
       const categories = await storage.getCategories(config.tenantId);
       res.json({ config, tenant, products, categories });
     } catch (e: any) { res.status(500).json({ error: e.message }); }

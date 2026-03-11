@@ -11,6 +11,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://js.stripe.com/v3/"></script>
   <style>
     :root {
@@ -732,6 +733,142 @@
       font-size: .78rem;
       color: var(--mu)
     }
+
+
+    /* ── MENU LAYOUT ── */
+    .menu-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    @media(min-width: 992px) {
+      .menu-layout {
+        flex-direction: row;
+      }
+
+      .menu-sidebar {
+        width: 260px;
+        flex-shrink: 0;
+        position: sticky;
+        top: 100px;
+      }
+
+      .menu-content {
+        flex: 1;
+        min-width: 0;
+      }
+    }
+
+    .cat-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .cat-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-radius: 12px;
+      background: var(--s1);
+      border: 1px solid var(--bd);
+      color: var(--mu);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .25s;
+    }
+
+    .cat-item:hover {
+      border-color: var(--P)66;
+      color: var(--txt);
+      transform: translateX(4px);
+    }
+
+    .cat-item.active {
+      background: linear-gradient(135deg, var(--P)20, var(--A)10);
+      border-color: var(--P);
+      color: var(--P);
+    }
+
+    .cat-item-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .cat-item-icon {
+      width: 20px;
+      text-align: center;
+      font-size: 16px;
+      opacity: 0.8;
+    }
+
+    .pb-addon-check {
+      color: transparent;
+    }
+
+    .pb-addon.selected .pb-addon-check {
+      background: var(--P);
+      border-color: var(--P);
+      color: #fff;
+    }
+
+    /* ── FLOAT CART ── */
+    .float-cart-btn {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--P), var(--A));
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      cursor: pointer;
+      z-index: 150;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      opacity: 0;
+      visibility: hidden;
+      transform: scale(0.8) translateY(20px);
+    }
+
+    .float-cart-btn.visible {
+      opacity: 1;
+      visibility: visible;
+      transform: scale(1) translateY(0);
+    }
+
+    .float-cart-btn:hover {
+      transform: scale(1.1) translateY(-4px);
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    .float-cart-count {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #fff;
+      color: var(--txt);
+      font-size: 11px;
+      font-weight: 800;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--A);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    \n
 
     /* ── CATEGORIES ── */
     .cat-scroll {
@@ -1625,11 +1762,13 @@
   <div class="top-bar" id="top-bar">
     <div class="container">
       <div class="top-bar-left">
-        <span class="top-bar-item">📞 <a href="#" id="tb-phone"></a></span>
-        <span class="top-bar-item">✉️ <a href="#" id="tb-email"></a></span>
+        <span class="top-bar-item"><i class="fa-solid fa-phone" style="color:var(--P)"></i> <a href="#"
+            id="tb-phone"></a></span>
+        <span class="top-bar-item"><i class="fa-solid fa-envelope" style="color:var(--P)"></i> <a href="#"
+            id="tb-email"></a></span>
       </div>
       <div class="top-bar-right">
-        <span class="top-bar-item" id="tb-hours">🕐</span>
+        <span class="top-bar-item" id="tb-hours"><i class="fa-regular fa-clock" style="color:var(--P)"></i></span>
         <span class="top-bar-item" id="tb-social-links"></span>
       </div>
     </div>
@@ -1643,13 +1782,13 @@
         <a href="#hero" class="active">Home</a>
         <a href="#about">About</a>
         <a href="#menu">Menu</a>
-        <a href="#pizza-section">Pizza</a>
         <a href="#contact-section">Contact</a>
       </div>
       <div class="nav-actions">
-        <button id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
-        <button class="cart-btn" onclick="openCart()">🛒 <span class="cart-label">Cart</span> <span class="cart-count"
-            id="cart-count">0</span></button>
+        <button id="theme-btn" onclick="toggleTheme()" title="Toggle theme"><i class="fa-solid fa-moon"
+            id="theme-icon"></i></button>
+        <button class="cart-btn" onclick="openCart()"><i class="fa-solid fa-cart-shopping"></i> <span
+            class="cart-label">Cart</span> <span class="cart-count" id="cart-count">0</span></button>
         <button class="hamburger" id="hamburger-btn"
           onclick="toggleSidebar()"><span></span><span></span><span></span></button>
       </div>
@@ -1659,14 +1798,17 @@
   <!-- SIDEBAR -->
   <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
   <aside class="sidebar" id="sidebar">
-    <button class="sidebar-close" onclick="toggleSidebar()">✕</button>
+    <button class="sidebar-close" onclick="toggleSidebar()"><i class="fa-solid fa-xmark"></i></button>
     <a class="sidebar-logo" id="sidebar-logo">Restaurant</a>
     <div class="sidebar-nav">
-      <a href="#hero" onclick="toggleSidebar()">🏠 Home</a>
-      <a href="#about" onclick="toggleSidebar()">ℹ️ About Us</a>
-      <a href="#menu" onclick="toggleSidebar()">🍽️ Our Menu</a>
-      <a href="#pizza-section" onclick="toggleSidebar()">🍕 Pizza Builder</a>
-      <a href="#contact-section" onclick="toggleSidebar()">📞 Contact</a>
+      <a href="#hero" onclick="toggleSidebar()"><i class="fa-solid fa-house" style="width:20px;text-align:center"></i>
+        Home</a>
+      <a href="#about" onclick="toggleSidebar()"><i class="fa-solid fa-circle-info"
+          style="width:20px;text-align:center"></i> About Us</a>
+      <a href="#menu" onclick="toggleSidebar()"><i class="fa-solid fa-utensils"
+          style="width:20px;text-align:center"></i> Our Menu</a>
+      <a href="#contact-section" onclick="toggleSidebar()"><i class="fa-solid fa-phone" style="color:var(--P)"></i>
+        Contact</a>
     </div>
     <div class="sidebar-contact" id="sidebar-contact"></div>
   </aside>
@@ -1679,9 +1821,10 @@
       <h1 id="hero-title">Welcome</h1>
       <p id="hero-subtitle">Fresh, delicious food made with love. Order online for delivery or pickup.</p>
       <div class="hero-ctas">
-        <button class="btn-primary" onclick="document.getElementById('menu').scrollIntoView({behavior:'smooth'})">🍽️
+        <button class="btn-primary" onclick="document.getElementById('menu').scrollIntoView({behavior:'smooth'})"><i
+            class="fa-solid fa-utensils"></i>
           View Menu</button>
-        <a class="btn-outline" href="#about">ℹ️ Learn More</a>
+        <a class="btn-outline" href="#about"><i class="fa-solid fa-circle-info"></i> Learn More</a>
       </div>
       <div class="hero-features" id="hero-features"></div>
     </div>
@@ -1691,22 +1834,22 @@
   <div class="container">
     <div class="info-grid" id="info-cards">
       <div class="info-card">
-        <div class="info-card-icon">🚚</div>
+        <div class="info-card-icon"><i class="fa-solid fa-truck" style="color:var(--P)"></i></div>
         <div class="info-card-title">Fast Delivery</div>
         <div class="info-card-desc" id="info-delivery">30 min delivery</div>
       </div>
       <div class="info-card">
-        <div class="info-card-icon">🥡</div>
+        <div class="info-card-icon"><i class="fa-solid fa-box-open" style="color:var(--P)"></i></div>
         <div class="info-card-title">Pickup Ready</div>
         <div class="info-card-desc">Order and collect</div>
       </div>
       <div class="info-card">
-        <div class="info-card-icon">💳</div>
+        <div class="info-card-icon"><i class="fa-solid fa-credit-card" style="color:var(--P)"></i></div>
         <div class="info-card-title">Pay Online</div>
         <div class="info-card-desc">Card & cash accepted</div>
       </div>
       <div class="info-card">
-        <div class="info-card-icon">⭐</div>
+        <div class="info-card-icon"><i class="fa-solid fa-star" style="color:var(--P)"></i></div>
         <div class="info-card-title">Top Rated</div>
         <div class="info-card-desc">Loved by customers</div>
       </div>
@@ -1749,60 +1892,75 @@
         <div class="section-title">Explore Our Dishes</div>
         <div class="section-desc">Handcrafted with the freshest ingredients</div>
       </div>
-      <div class="cat-scroll">
-        <div class="cat-tabs" id="cat-tabs"></div>
+      <div class="menu-layout">
+        <div class="menu-sidebar">
+          <div class="cat-list" id="cat-tabs"></div>
+        </div>
+        <div class="menu-content">
+          <div id="product-grid"></div>
+        </div>
       </div>
-      <div id="product-grid"></div>
     </div>
   </section>
 
-  <!-- PIZZA BUILDER -->
-  <section id="pizza-section" class="section">
-    <div class="container">
-      <div class="section-header">
-        <div class="section-tag">🍕 Build Your Pizza</div>
-        <div class="section-title">Create Your Perfect Pizza</div>
-        <div class="section-desc">Choose your size, pick your toppings, and enjoy!</div>
+  <!-- PIZZA MODAL -->
+  <div class="modal-overlay" id="pizza-modal">
+    <div class="modal" style="max-width: 680px">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-pizza-slice" style="margin-right:8px;color:var(--P)"></i> Build Your Pizza</h3>
+        <button class="modal-close" onclick="closePizzaModal()"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <div class="pizza-builder" id="pizza-builder" style="display:none">
-        <div class="pb-section">
-          <div class="pb-section-title">1. Choose Your Pizza</div>
-          <div id="pb-pizza-select"></div>
-        </div>
-        <div class="pb-section">
-          <div class="pb-section-title">2. Pick Your Size</div>
-          <div class="pb-sizes" id="pb-sizes">
-            <div class="pb-size active" onclick="selectSize('small',this)" data-size="small">
-              <div class="pb-size-icon">🍕</div>
-              <div class="pb-size-name">Small</div>
-              <div class="pb-size-info">8" - 2 Persons</div>
-              <div class="pb-size-price" id="price-small">--</div>
+      <div class="modal-body pb-modal-body" style="padding: 24px 28px;">
+        <div class="pizza-builder" id="pizza-builder" style="border:none;padding:0;margin:0;">
+          <div class="pb-header"
+            style="display: flex; gap: 20px; align-items: center; margin-bottom: 24px; text-align: left;">
+            <div id="pb-pizza-img"
+              style="width: 80px; height: 80px; border-radius: 12px; background: var(--s2); overflow: hidden; flex-shrink: 0;">
+              <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:32px">
+                <i class="fa-solid fa-pizza-slice" style="color:var(--mu)"></i></div>
             </div>
-            <div class="pb-size" onclick="selectSize('medium',this)" data-size="medium">
-              <div class="pb-size-icon">🍕🍕</div>
-              <div class="pb-size-name">Medium</div>
-              <div class="pb-size-info">12" - 4 Persons</div>
-              <div class="pb-size-price" id="price-medium">--</div>
-            </div>
-            <div class="pb-size" onclick="selectSize('large',this)" data-size="large">
-              <div class="pb-size-icon">🍕🍕🍕</div>
-              <div class="pb-size-name">Large</div>
-              <div class="pb-size-info">16" - 6 Persons</div>
-              <div class="pb-size-price" id="price-large">--</div>
+            <div>
+              <h4 id="pb-pizza-name" style="font-size: 1.2rem; font-weight: 800; margin-bottom: 4px;">Pizza Name</h4>
+              <div id="pb-pizza-desc" style="font-size: 0.85rem; color: var(--mu);">Description</div>
             </div>
           </div>
+          <div class="pb-section">
+            <div class="pb-section-title">1. Pick Your Size</div>
+            <div class="pb-sizes" id="pb-sizes">
+              <div class="pb-size active" onclick="selectSize('small',this)" data-size="small">
+                <div class="pb-size-icon"><i class="fa-solid fa-pizza-slice"></i></div>
+                <div class="pb-size-name">Small</div>
+                <div class="pb-size-info">8" - 2 Persons</div>
+                <div class="pb-size-price" id="price-small">--</div>
+              </div>
+              <div class="pb-size" onclick="selectSize('medium',this)" data-size="medium">
+                <div class="pb-size-icon" style="font-size:24px"><i class="fa-solid fa-pizza-slice"></i><i
+                    class="fa-solid fa-pizza-slice"></i></div>
+                <div class="pb-size-name">Medium</div>
+                <div class="pb-size-info">12" - 4 Persons</div>
+                <div class="pb-size-price" id="price-medium">--</div>
+              </div>
+              <div class="pb-size" onclick="selectSize('large',this)" data-size="large">
+                <div class="pb-size-icon" style="font-size:20px"><i class="fa-solid fa-pizza-slice"></i><i
+                    class="fa-solid fa-pizza-slice"></i><i class="fa-solid fa-pizza-slice"></i></div>
+                <div class="pb-size-name">Large</div>
+                <div class="pb-size-info">16" - 6 Persons</div>
+                <div class="pb-size-price" id="price-large">--</div>
+              </div>
+            </div>
+          </div>
+          <div class="pb-section">
+            <div class="pb-section-title">2. Add Extra Toppings</div>
+            <div class="pb-addons" id="pb-addons"></div>
+          </div>
+          <div class="pb-total" style="margin-top:0"><span class="pb-total-label">Total Price</span><span
+              class="pb-total-price" id="pb-total">0.00</span></div>
+          <button class="pb-add-btn" onclick="addPizzaToCart()"><i class="fa-solid fa-cart-shopping"></i> Add to
+            Cart</button>
         </div>
-        <div class="pb-section">
-          <div class="pb-section-title">3. Add Extra Toppings</div>
-          <div class="pb-addons" id="pb-addons"></div>
-        </div>
-        <div class="pb-total"><span class="pb-total-label">Total Price</span><span class="pb-total-price"
-            id="pb-total">0.00</span></div>
-        <button class="pb-add-btn" onclick="addPizzaToCart()">🛒 Add to Cart</button>
       </div>
-      <div id="pizza-empty" style="text-align:center;color:var(--mu);padding:40px">No pizza items available yet.</div>
     </div>
-  </section>
+  </div>
 
   <!-- CONTACT -->
   <section id="contact-section" class="section">
@@ -1833,7 +1991,7 @@
         </div>
         <div class="footer-col">
           <div class="footer-col-title">Quick Links</div>
-          <a href="#hero">Home</a><a href="#about">About</a><a href="#menu">Menu</a><a href="#pizza-section">Pizza</a>
+          <a href="#hero">Home</a><a href="#about">About</a><a href="#menu">Menu</a>
         </div>
         <div class="footer-col footer-contact" id="footer-contact"></div>
         <div class="footer-col">
@@ -1851,8 +2009,8 @@
   <!-- CART PANEL -->
   <div class="cart-overlay" id="cart-overlay" onclick="closeCart()"></div>
   <div class="cart-panel" id="cart-panel">
-    <div class="cart-header"><span class="cart-title">🛒 Your Order</span><button class="cart-close"
-        onclick="closeCart()">✕</button></div>
+    <div class="cart-header"><span class="cart-title"><i class="fa-solid fa-cart-shopping"></i> Your Order</span><button
+        class="cart-close" onclick="closeCart()"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="cart-items" id="cart-items"></div>
     <div class="cart-footer" id="cart-footer"></div>
   </div>
@@ -1861,7 +2019,8 @@
   <div class="modal-overlay" id="checkout-modal">
     <div class="modal">
       <div class="modal-header">
-        <h3>Complete Your Order</h3><button class="modal-close" onclick="closeCheckout()">✕</button>
+        <h3>Complete Your Order</h3><button class="modal-close" onclick="closeCheckout()"><i
+            class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="modal-body" id="checkout-body">
         <div id="checkout-error" class="order-error"></div>
@@ -1876,23 +2035,23 @@
           </div>
           <div class="form-group"><label class="form-label">Order Type</label>
             <select class="form-select" id="co-type">
-              <option value="delivery">🚚 Delivery</option>
-              <option value="pickup">🥡 Pickup</option>
+              <option value="delivery">Delivery</option>
+              <option value="pickup">Pickup</option>
             </select>
           </div>
           <div class="form-group" id="co-address-group"><label class="form-label">Delivery Address *</label><input
               class="form-input" id="co-address" placeholder="Street, City"></div>
           <div class="form-group"><label class="form-label">Payment Method</label>
             <select class="form-select" id="co-payment">
-              <option value="cash">💵 Cash on Delivery</option>
-              <option value="card">💳 Card Payment</option>
+              <option value="cash">Cash on Delivery</option>
+              <option value="card">Card Payment</option>
             </select>
           </div>
           <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="co-notes"
               placeholder="Special requests..."></textarea></div>
         </div>
         <div id="checkout-success" class="order-success" style="display:none">
-          <div class="order-success-icon">🎉</div>
+          <div class="order-success-icon"><i class="fa-solid fa-circle-check" style="color:#22c55e"></i></div>
           <h3>Order Placed!</h3>
           <p id="success-msg">Your order is being prepared. You will receive a confirmation shortly.</p>
         </div>
@@ -1901,6 +2060,12 @@
         <button class="cart-checkout-btn" id="checkout-submit" onclick="submitOrder()">Place Order</button>
       </div>
     </div>
+  </div>
+
+  <!-- FLOAT CART BUTTON -->
+  <div class="float-cart-btn" id="float-cart-btn" onclick="openCart()">
+    <i class="fa-solid fa-cart-shopping"></i>
+    <div class="float-cart-count" id="float-cart-count">0</div>
   </div>
 
   <!-- TOAST -->
@@ -1912,23 +2077,23 @@
     let pizzaProducts = [], selectedPizza = null, selectedSize = 'small', selectedAddons = new Set();
     const PIZZA_SIZES = { small: { label: 'Small', info: '8" - 2 Persons', icon: '🍕', multiplier: 1 }, medium: { label: 'Medium', info: '12" - 4 Persons', icon: '🍕🍕', multiplier: 1.5 }, large: { label: 'Large', info: '16" - 6 Persons', icon: '🍕🍕🍕', multiplier: 2 } };
     const PIZZA_ADDONS = [
-      { id: 'cheese', name: 'Extra Cheese', icon: '🧀', price: 2.50 },
-      { id: 'pepperoni', name: 'Pepperoni', icon: '🥓', price: 3.00 },
-      { id: 'mushrooms', name: 'Mushrooms', icon: '🍄', price: 2.00 },
-      { id: 'olives', name: 'Olives', icon: '🫒', price: 1.50 },
-      { id: 'peppers', name: 'Bell Peppers', icon: '🫑', price: 1.50 },
-      { id: 'onions', name: 'Onions', icon: '🧅', price: 1.00 },
-      { id: 'jalapenos', name: 'Jalapeños', icon: '🌶️', price: 2.00 },
-      { id: 'chicken', name: 'Grilled Chicken', icon: '🍗', price: 4.00 },
-      { id: 'beef', name: 'Ground Beef', icon: '🥩', price: 4.50 },
-      { id: 'corn', name: 'Sweet Corn', icon: '🌽', price: 1.50 }
+      { id: 'cheese', name: 'Extra Cheese', icon: '<i class="fa-solid fa-cheese" style="color:#f59e0b"></i>', price: 2.50 },
+      { id: 'pepperoni', name: 'Pepperoni', icon: '<i class="fa-solid fa-bacon" style="color:#ef4444"></i>', price: 3.00 },
+      { id: 'mushrooms', name: 'Mushrooms', icon: '<i class="fa-solid fa-leaf" style="color:#22c55e"></i>', price: 2.00 },
+      { id: 'olives', name: 'Olives', icon: '<i class="fa-solid fa-circle" style="color:#1e293b"></i>', price: 1.50 },
+      { id: 'peppers', name: 'Bell Peppers', icon: '<i class="fa-solid fa-pepper-hot" style="color:#22c55e"></i>', price: 1.50 },
+      { id: 'onions', name: 'Onions', icon: '<i class="fa-solid fa-seedling" style="color:#d946ef"></i>', price: 1.00 },
+      { id: 'jalapenos', name: 'Jalapeños', icon: '<i class="fa-solid fa-fire" style="color:#ef4444"></i>', price: 2.00 },
+      { id: 'chicken', name: 'Grilled Chicken', icon: '<i class="fa-solid fa-drumstick-bite" style="color:#f97316"></i>', price: 4.00 },
+      { id: 'beef', name: 'Ground Beef', icon: '<i class="fa-solid fa-cow" style="color:#7c2d12"></i>', price: 4.50 },
+      { id: 'corn', name: 'Sweet Corn', icon: '<i class="fa-solid fa-wheat-awn" style="color:#eab308"></i>', price: 1.50 }
     ];
     const currency = () => storeData?.config?.currency || storeData?.tenant?.currency || 'CHF';
     const fmt = v => `${currency()} ${Number(v).toFixed(2)}`;
 
     // Theme
     if (isDark) document.body.classList.add('dark');
-    function toggleTheme() { isDark = !isDark; document.body.classList.toggle('dark', isDark); document.getElementById('theme-btn').textContent = isDark ? '☀️' : '🌙'; localStorage.setItem('store_dark', isDark) }
+    function toggleTheme() { isDark = !isDark; document.body.classList.toggle('dark', isDark); document.getElementById('theme-btn').textContent = isDark ? '☀️' : '<i class="fa-solid fa-moon" id="theme-icon"></i>'; localStorage.setItem('store_dark', isDark) }
 
     // Sidebar
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('open') }
@@ -1936,7 +2101,7 @@
     // Cart
     function openCart() { document.getElementById('cart-panel').classList.add('open'); document.getElementById('cart-overlay').classList.add('open'); renderCart() }
     function closeCart() { document.getElementById('cart-panel').classList.remove('open'); document.getElementById('cart-overlay').classList.remove('open') }
-    function updateCartCount() { const c = cart.reduce((s, i) => s + i.qty, 0); document.getElementById('cart-count').textContent = c }
+    function updateCartCount() { const c = cart.reduce((s, i) => s + i.qty, 0); document.getElementById('cart-count').textContent = c; document.getElementById('float-cart-count').textContent = c; if (c > 0) document.getElementById('float-cart-btn').classList.add('visible'); else document.getElementById('float-cart-btn').classList.remove('visible'); }
     function addToCart(product, qty = 1, size = null, addons = []) {
       const key = `${product.id}-${size || 'default'}-${addons.sort().join(',')}`;
       const existing = cart.find(i => i.key === key);
@@ -1950,7 +2115,7 @@
         const addonNames = addons.map(aId => { const a = PIZZA_ADDONS.find(x => x.id === aId); return a ? a.name : '' }).filter(Boolean);
         cart.push({ key, product, name, price, qty, size, addons: addonNames, image: product.image })
       }
-      updateCartCount(); showToast(`✅ ${product.name} added to cart!`);
+      updateCartCount(); showToast(`<i class="fa-solid fa-circle-check"></i> ${product.name} added to cart!`);
     }
     function removeFromCart(key) { cart = cart.filter(i => i.key !== key); updateCartCount(); renderCart() }
     function changeQty(key, delta) { const item = cart.find(i => i.key === key); if (item) { item.qty += delta; if (item.qty <= 0) removeFromCart(key); else renderCart() } updateCartCount() }
@@ -1962,7 +2127,7 @@
     function renderCart() {
       const items = document.getElementById('cart-items');
       const footer = document.getElementById('cart-footer');
-      if (!cart.length) { items.innerHTML = '<div class="cart-empty"><div class="cart-empty-icon">🛒</div><p>Your cart is empty</p></div>'; footer.innerHTML = ''; return }
+      if (!cart.length) { items.innerHTML = '<div class="cart-empty"><div class="cart-empty-icon"><i class="fa-solid fa-cart-shopping"></i></div><p>Your cart is empty</p></div>'; footer.innerHTML = ''; return }
       items.innerHTML = cart.map(i => `<div class="cart-item">
     <div class="cart-item-img">${i.image ? `<img src="${i.image}" alt="">` : ''}</div>
     <div class="cart-item-info"><div class="cart-item-name">${i.name}</div>
@@ -1995,10 +2160,10 @@
       selectedSize = 'small'; document.querySelectorAll('.pb-size').forEach(s => s.classList.remove('active')); document.querySelector('[data-size="small"]').classList.add('active');
       selectedAddons.clear(); document.querySelectorAll('.pb-addon').forEach(a => a.classList.remove('selected')); updatePizzaTotal();
     }
-    function addPizzaToCart() { if (!selectedPizza) { showToast('❌ Please select a pizza first'); return } addToCart(selectedPizza, 1, selectedSize, [...selectedAddons]) }
+    function addPizzaToCart() { if (!selectedPizza) { showToast('<i class="fa-solid fa-circle-exclamation"></i> Please select a pizza first'); return } addToCart(selectedPizza, 1, selectedSize, [...selectedAddons]) }
 
     // Checkout
-    function openCheckout() { if (!cart.length) { showToast('❌ Your cart is empty'); return } closeCart(); document.getElementById('checkout-modal').classList.add('open'); document.getElementById('checkout-form').style.display = ''; document.getElementById('checkout-success').style.display = 'none'; document.getElementById('checkout-footer').style.display = ''; document.getElementById('checkout-error').style.display = 'none' }
+    function openCheckout() { if (!cart.length) { showToast('<i class="fa-solid fa-circle-exclamation"></i> Your cart is empty'); return } closeCart(); document.getElementById('checkout-modal').classList.add('open'); document.getElementById('checkout-form').style.display = ''; document.getElementById('checkout-success').style.display = 'none'; document.getElementById('checkout-footer').style.display = ''; document.getElementById('checkout-error').style.display = 'none' }
     function closeCheckout() { document.getElementById('checkout-modal').classList.remove('open') }
     document.getElementById('co-type')?.addEventListener('change', function () { document.getElementById('co-address-group').style.display = this.value === 'pickup' ? 'none' : '' });
 
@@ -2054,21 +2219,21 @@
         // Footer & contact
         if (c?.footerText) document.getElementById('footer-desc').textContent = c.footerText;
         const contactHtml = []; const sidebarContactHtml = [];
-        if (c?.phone) { document.getElementById('tb-phone').textContent = c.phone; document.getElementById('tb-phone').href = 'tel:' + c.phone; contactHtml.push(`<a href="tel:${c.phone}" style="display:flex;align-items:center;gap:10px;padding:14px;background:var(--s2);border-radius:12px;border:1px solid var(--bd)"><span style="font-size:20px">📞</span><span><strong>Phone</strong><br><span style="color:var(--mu);font-size:.85rem">${c.phone}</span></span></a>`); sidebarContactHtml.push(`📞 <a href="tel:${c.phone}">${c.phone}</a>`) }
-        if (c?.email) { document.getElementById('tb-email').textContent = c.email; document.getElementById('tb-email').href = 'mailto:' + c.email; contactHtml.push(`<a href="mailto:${c.email}" style="display:flex;align-items:center;gap:10px;padding:14px;background:var(--s2);border-radius:12px;border:1px solid var(--bd)"><span style="font-size:20px">✉️</span><span><strong>Email</strong><br><span style="color:var(--mu);font-size:.85rem">${c.email}</span></span></a>`); sidebarContactHtml.push(`✉️ <a href="mailto:${c.email}">${c.email}</a>`) }
-        if (c?.address) contactHtml.push(`<div style="display:flex;align-items:center;gap:10px;padding:14px;background:var(--s2);border-radius:12px;border:1px solid var(--bd)"><span style="font-size:20px">📍</span><span><strong>Address</strong><br><span style="color:var(--mu);font-size:.85rem">${c.address}</span></span></div>`);
-        if (c?.openingHours) { document.getElementById('tb-hours').textContent = '🕐 ' + c.openingHours; document.getElementById('footer-hours').textContent = c.openingHours; contactHtml.push(`<div style="display:flex;align-items:center;gap:10px;padding:14px;background:var(--s2);border-radius:12px;border:1px solid var(--bd)"><span style="font-size:20px">🕐</span><span><strong>Hours</strong><br><span style="color:var(--mu);font-size:.85rem">${c.openingHours}</span></span></div>`) }
+        if (c?.phone) { document.getElementById('tb-phone').textContent = c.phone; document.getElementById('tb-phone').href = 'tel:' + c.phone; contactHtml.push(`<a href="tel:${c.phone}" style="display:flex;align-items:center;gap:10px;padding:14px;background:var(--s2);border-radius:12px;border:1px solid var(--bd)"><span style="font-size:20px"><i class="fa-solid fa-phone" style="color:var(--P)"></i></span><span><strong>Phone</strong><br><span style="color:var(--mu);font-size:.85rem">${c.phone}</span></span></a>`); sidebarContactHtml.push(`<i class="fa-solid fa-phone" style="color:var(--P)"></i> <a href="tel:${c.phone}">${c.phone}</a>`) }
+        if (c?.email) { document.getElementById('tb-email').textContent = c.email; document.getElementById('tb-email').href = 'mailto:' + c.email; contactHtml.push(`<a href="mailto:${c.email}" style="display:flex;align-items:center;gap:10px;padding:14px;background:var(--s2);border-radius:12px;border:1px solid var(--bd)"><span style="font-size:20px"><i class="fa-solid fa-envelope" style="color:var(--P)"></i></span><span><strong>Email</strong><br><span style="color:var(--mu);font-size:.85rem">${c.email}</span></span></a>`); sidebarContactHtml.push(`<i class="fa-solid fa-envelope" style="color:var(--P)"></i> <a href="mailto:${c.email}">${c.email}</a>`) }
+        if (c?.address) contactHtml.push(`<div style="display:flex;align-items:center;gap:10px;padding:14px;background:var(--s2);border-radius:12px;border:1px solid var(--bd)"><span style="font-size:20px"><i class="fa-solid fa-location-dot" style="color:var(--P)"></i></span><span><strong>Address</strong><br><span style="color:var(--mu);font-size:.85rem">${c.address}</span></span></div>`);
+        if (c?.openingHours) { document.getElementById('tb-hours').textContent = '<i class="fa-regular fa-clock" style="color:var(--P)"></i> ' + c.openingHours; document.getElementById('footer-hours').textContent = c.openingHours; contactHtml.push(`<div style="display:flex;align-items:center;gap:10px;padding:14px;background:var(--s2);border-radius:12px;border:1px solid var(--bd)"><span style="font-size:20px"><i class="fa-regular fa-clock" style="color:var(--P)"></i></span><span><strong>Hours</strong><br><span style="color:var(--mu);font-size:.85rem">${c.openingHours}</span></span></div>`) }
         document.getElementById('contact-info').innerHTML = contactHtml.join('');
         document.getElementById('sidebar-contact').innerHTML = sidebarContactHtml.join('') + '<div class="sidebar-social" id="sb-social"></div>';
         // Social
         const socialHtml = []; const footerContactHtml = ['<div class="footer-col-title">Contact</div>'];
-        if (c?.phone) footerContactHtml.push(`<a href="tel:${c.phone}">📞 ${c.phone}</a>`);
-        if (c?.email) footerContactHtml.push(`<a href="mailto:${c.email}">✉️ ${c.email}</a>`);
-        if (c?.address) footerContactHtml.push(`<span>📍 ${c.address}</span>`);
+        if (c?.phone) footerContactHtml.push(`<a href="tel:${c.phone}"><i class="fa-solid fa-phone" style="color:var(--P)"></i> ${c.phone}</a>`);
+        if (c?.email) footerContactHtml.push(`<a href="mailto:${c.email}"><i class="fa-solid fa-envelope" style="color:var(--P)"></i> ${c.email}</a>`);
+        if (c?.address) footerContactHtml.push(`<span><i class="fa-solid fa-location-dot" style="color:var(--P)"></i> ${c.address}</span>`);
         document.getElementById('footer-contact').innerHTML = footerContactHtml.join('');
-        if (c?.socialFacebook) socialHtml.push(`<a href="${c.socialFacebook}" target="_blank" title="Facebook">📘</a>`);
-        if (c?.socialInstagram) socialHtml.push(`<a href="${c.socialInstagram}" target="_blank" title="Instagram">📸</a>`);
-        if (c?.socialWhatsapp) socialHtml.push(`<a href="https://wa.me/${c.socialWhatsapp.replace(/[^0-9]/g, '')}" target="_blank" title="WhatsApp">💬</a>`);
+        if (c?.socialFacebook) socialHtml.push(`<a href="${c.socialFacebook}" target="_blank" title="Facebook"><i class="fa-brands fa-facebook"></i></a>`);
+        if (c?.socialInstagram) socialHtml.push(`<a href="${c.socialInstagram}" target="_blank" title="Instagram"><i class="fa-brands fa-instagram"></i></a>`);
+        if (c?.socialWhatsapp) socialHtml.push(`<a href="https://wa.me/${c.socialWhatsapp.replace(/[^0-9]/g, '')}" target="_blank" title="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>`);
         document.getElementById('footer-social').innerHTML = socialHtml.join('');
         document.getElementById('tb-social-links').innerHTML = socialHtml.map(s => s.replace('style="', 'style="width:28px;height:28px;font-size:14px;')).join(' ');
         if (document.getElementById('sb-social')) document.getElementById('sb-social').innerHTML = socialHtml.join('');
@@ -2076,49 +2241,78 @@
         if (c?.estimatedDeliveryTime) document.getElementById('info-delivery').textContent = `${c.estimatedDeliveryTime} min delivery`;
         // Hero features
         const feats = [];
-        if (c?.enableDelivery) feats.push('<div class="hero-feat"><span class="hero-feat-icon">🚚</span>Delivery</div>');
-        if (c?.enablePickup) feats.push('<div class="hero-feat"><span class="hero-feat-icon">🥡</span>Pickup</div>');
-        if (c?.acceptCard) feats.push('<div class="hero-feat"><span class="hero-feat-icon">💳</span>Card Payment</div>');
+        if (c?.enableDelivery) feats.push('<div class="hero-feat"><span class="hero-feat-icon"><i class="fa-solid fa-truck" style="color:var(--P)"></i></span>Delivery</div>');
+        if (c?.enablePickup) feats.push('<div class="hero-feat"><span class="hero-feat-icon"><i class="fa-solid fa-box-open" style="color:var(--P)"></i></span>Pickup</div>');
+        if (c?.acceptCard) feats.push('<div class="hero-feat"><span class="hero-feat-icon"><i class="fa-solid fa-credit-card" style="color:var(--P)"></i></span>Card Payment</div>');
         document.getElementById('hero-features').innerHTML = feats.join('');
         // Categories & Products
         renderCategories(cats, p); renderProducts(p, cats);
-        // Pizza builder
-        pizzaProducts = p.filter(pr => { const cat = cats.find(c2 => c2.id === pr.categoryId); return cat && (cat.name.toLowerCase().includes('pizza') || cat.icon?.includes('pizza')); });
-        if (pizzaProducts.length) {
-          document.getElementById('pizza-builder').style.display = ''; document.getElementById('pizza-empty').style.display = 'none';
-          document.getElementById('pb-pizza-select').innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:16px">' + pizzaProducts.map((pp, i) => `<div class="pb-size pb-pizza-item${i === 0 ? ' active' : ''}" onclick="selectPizzaProduct(pizzaProducts[${i}],this)" style="cursor:pointer"><div style="font-size:28px">🍕</div><div class="pb-size-name">${pp.name}</div><div class="pb-size-price">${fmt(pp.price)}</div></div>`).join('') + '</div>';
-          selectedPizza = pizzaProducts[0]; Object.keys(PIZZA_SIZES).forEach(s => { document.getElementById('price-' + s).textContent = fmt(Number(selectedPizza.price) * PIZZA_SIZES[s].multiplier) });
-          document.getElementById('pb-addons').innerHTML = PIZZA_ADDONS.map(a => `<div class="pb-addon" onclick="toggleAddon('${a.id}',this)"><span class="pb-addon-icon">${a.icon}</span><div class="pb-addon-info"><div class="pb-addon-name">${a.name}</div><div class="pb-addon-price">+${fmt(a.price)}</div></div><div class="pb-addon-check">✓</div></div>`).join('');
-          updatePizzaTotal();
-        }
+
       } catch (e) { console.error('Failed to load store:', e) }
     }
     function renderCategories(cats, products) {
       const tabs = document.getElementById('cat-tabs');
       const allCount = products.filter(p => p.isActive).length;
-      let html = `<div class="cat-tab active" onclick="filterCat('all',this)">All <span class="cat-count">${allCount}</span></div>`;
+      let html = `<div class="cat-item active" onclick="filterCat('all',this)">
+        <div class="cat-item-info"><span class="cat-item-icon"><i class="fa-solid fa-layer-group"></i></span><span class="cat-item-name">All Items</span></div>
+        <span class="cat-count">${allCount}</span>
+      </div>`;
       cats.filter(c => c.isActive !== false).forEach(c => {
         const count = products.filter(p => p.categoryId === c.id && p.isActive).length;
-        if (count) html += `<div class="cat-tab" onclick="filterCat(${c.id},this)">${c.icon || '📁'} ${c.name} <span class="cat-count">${count}</span></div>`;
+        if (count) html += `<div class="cat-item" onclick="filterCat(${c.id},this)">
+          <div class="cat-item-info"><span class="cat-item-icon"><i class="fa-solid fa-utensils"></i></span><span class="cat-item-name">${c.name}</span></div>
+          <span class="cat-count">${count}</span>
+        </div>`;
       });
       tabs.innerHTML = html;
     }
     function filterCat(catId, el) {
-      selectedCat = catId; document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active')); el.classList.add('active');
+      selectedCat = catId; document.querySelectorAll('.cat-item').forEach(t => t.classList.remove('active')); el.classList.add('active');
       document.querySelectorAll('.product-card').forEach(c => { c.style.display = (catId === 'all' || Number(c.dataset.cat) === catId) ? '' : 'none' });
+    });
     }
     function renderProducts(products, cats) {
       const grid = document.getElementById('product-grid');
       grid.innerHTML = products.filter(p => p.isActive).map(p => {
         const cat = cats.find(c => c.id === p.categoryId);
-        return `<div class="product-card" data-cat="${p.categoryId}" onclick="addToCart(${JSON.stringify(p).replace(/"/g, '&quot;')})">
-      <div class="product-img">${p.image ? `<img src="${p.image}" alt="${p.name}" loading="lazy">` : `<div class="no-img">${cat?.icon || '🍽️'}</div>`}${cat ? `<div class="product-badge">${cat.name}</div>` : ''}</div>
+        const isPizza = cat && (cat.name.toLowerCase().includes('pizza') || (cat.icon && cat.icon.includes('pizza')));
+        const action = isPizza ? `openPizzaModal(${JSON.stringify(p).replace(/"/g, '&quot;')})` : `addToCart(${JSON.stringify(p).replace(/"/g, '&quot;')})`;
+        const btnIcon = isPizza ? 'fa-pizza-slice' : 'fa-plus';
+        return `<div class="product-card" data-cat="${p.categoryId}" onclick="${action}">
+      <div class="product-img">${p.image ? `<img src="${p.image}" alt="${p.name}" loading="lazy">` : `<div class="no-img"><i class="fa-solid fa-utensils" style="color:var(--mu)"></i></div>`}${cat ? `<div class="product-badge">${cat.name}</div>` : ''}</div>
       <div class="product-info"><div class="product-name">${p.name}</div><div class="product-desc">${p.description || ''}</div>
-      <div class="product-bottom"><span class="product-price">${fmt(p.price)}</span><button class="product-add" onclick="event.stopPropagation();addToCart(${JSON.stringify(p).replace(/"/g, '&quot;')})">+</button></div></div></div>`
+      <div class="product-bottom"><span class="product-price">${fmt(p.price)}</span><button class="product-add" onclick="event.stopPropagation();${action}"><i class="fa-solid ${btnIcon}"></i></button></div></div></div>`
       }).join('');
     }
+
+    function openPizzaModal(product) {
+      selectedPizza = product;
+      document.getElementById('pb-pizza-name').textContent = product.name;
+      document.getElementById('pb-pizza-desc').textContent = product.description || '';
+      if (product.image) {
+        document.getElementById('pb-pizza-img').innerHTML = `<img src="${product.image}" style="width:100%;height:100%;object-fit:cover">`;
+      } else {
+        document.getElementById('pb-pizza-img').innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--mu)"><i class="fa-solid fa-pizza-slice"></i></div>';
+      }
+      Object.keys(PIZZA_SIZES).forEach(s => { document.getElementById('price-' + s).textContent = fmt(Number(product.price) * PIZZA_SIZES[s].multiplier) });
+      selectedSize = 'small';
+      document.querySelectorAll('.pb-size').forEach(s => s.classList.remove('active'));
+      document.querySelector('[data-size="small"]').classList.add('active');
+      selectedAddons.clear();
+      document.getElementById('pb-addons').innerHTML = PIZZA_ADDONS.map(a => `<div class="pb-addon" onclick="toggleAddon('${a.id}',this)"><span class="pb-addon-icon" style="font-size:16px;">${a.icon}</span><div class="pb-addon-info"><div class="pb-addon-name">${a.name}</div><div class="pb-addon-price">+${fmt(a.price)}</div></div><div class="pb-addon-check"><i class="fa-solid fa-check"></i></div></div>`).join('');
+      updatePizzaTotal();
+      document.getElementById('pizza-modal').classList.add('open');
+    }
+
+    function closePizzaModal() { document.getElementById('pizza-modal').classList.remove('open'); }
+
+    function addPizzaToCart() {
+      if (!selectedPizza) return;
+      addToCart(selectedPizza, 1, selectedSize, [...selectedAddons]);
+      closePizzaModal();
+    }
     // Theme button
-    document.getElementById('theme-btn').textContent = isDark ? '☀️' : '🌙';
+    document.getElementById('theme-btn').textContent = isDark ? '☀️' : '<i class="fa-solid fa-moon" id="theme-icon"></i>';
     loadStore();
   </script>
 

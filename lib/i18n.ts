@@ -156,6 +156,14 @@ const en = {
   recentMovements: "Recent Movements",
   noMovements: "No inventory movements yet",
   loadingPredictions: "Loading predictions...",
+  yesterday: "Yesterday",
+  specificDay: "Specific Day",
+  quickActions: "Quick Actions",
+  viewAll: "View All",
+  keyPerformanceIndicators: "Key Performance Indicators",
+  totalStockValue: "Total Stock Value",
+  lowStockItems: "Low Stock Items",
+  today: "Today",
 
   // Settings
   management: "Management",
@@ -784,6 +792,14 @@ const ar: typeof en = {
   recentMovements: "الحركات الأخيرة",
   noMovements: "لا توجد حركات مخزون بعد",
   loadingPredictions: "جاري تحميل التوقعات...",
+  yesterday: "أمس",
+  specificDay: "يوم محدد",
+  quickActions: "إجراءات سريعة",
+  viewAll: "عرض الكل",
+  keyPerformanceIndicators: "مؤشرات الأداء الرئيسية",
+  totalStockValue: "إجمالي قيمة المخزون",
+  lowStockItems: "عناصر المخزون المنخفض",
+  today: "اليوم",
 
   // Settings
   management: "الإدارة",
@@ -1412,6 +1428,14 @@ const de: typeof en = {
   recentMovements: "Aktuelle Bewegungen",
   noMovements: "Noch keine Lagerbewegungen",
   loadingPredictions: "Prognosen laden...",
+  yesterday: "Gestern",
+  specificDay: "Bestimmter Tag",
+  quickActions: "Schnellaktionen",
+  viewAll: "Alle anzeigen",
+  keyPerformanceIndicators: "Leistungskennzahlen (KPI)",
+  totalStockValue: "Gesamter Lagerwert",
+  lowStockItems: "Niedrige Lagerbestände",
+  today: "Heute",
 
   // Settings
   management: "Verwaltung",

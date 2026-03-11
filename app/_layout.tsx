@@ -12,7 +12,7 @@ import { AuthProvider } from "@/lib/auth-context";
 import { CartProvider } from "@/lib/cart-context";
 import { LanguageProvider } from "@/lib/language-context";
 import { LicenseProvider, useLicense } from "@/lib/license-context";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, Feather } from "@expo/vector-icons";
 import * as Font from "expo-font";
 
 SplashScreen.preventAutoHideAsync();
@@ -29,6 +29,7 @@ function RootLayoutNav() {
       try {
         await Font.loadAsync({
           ...Ionicons.font,
+          ...Feather.font,
         });
       } catch (e) {
         console.warn("Error loading fonts:", e);

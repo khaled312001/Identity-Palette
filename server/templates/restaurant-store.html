@@ -2220,9 +2220,18 @@
     // Load Store Data
     async function loadStore() {
       try {
+        console.log(`[STORE] Loading data for SLUG: ${SLUG}`);
         const r = await fetch(`/api/store-public/${SLUG}`);
-        if (!r.ok) throw new Error('Store not found');
-        storeData = await r.json(); const { config: c, tenant: t, products: p, categories: cats } = storeData;
+        if (!r.ok) {
+          console.error(`[STORE] Fetch failed: Status ${r.status} ${r.statusText}`);
+          if (r.status === 429) {
+            console.error(`[STORE] Rate limited. Please wait a few seconds.`);
+          }
+          throw new Error('Store not found');
+        }
+        storeData = await r.json();
+        console.log(`[STORE] Data loaded successfully:`, storeData);
+        const { config: c, tenant: t, products: p, categories: cats } = storeData;
         document.title = t?.businessName || 'Restaurant';
         const storeName = t?.businessName || 'Pizza Lemon';
         const logoUrl = 'https://pizzalemon.ch/lemon/image/catalog/Pizza-Lemon-Logo.png';

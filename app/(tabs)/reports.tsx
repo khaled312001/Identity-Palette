@@ -10,7 +10,10 @@ import {
   Dimensions,
   TextInput,
   Linking,
+  Modal,
 } from "react-native";
+import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop, Circle, G, Rect } from "react-native-svg";
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameDay, isSameMonth, parseISO } from "date-fns";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -141,50 +144,210 @@ function DonutChart({ data, size = 140 }: { data: { label: string; value: number
   );
 }
 
-function MiniLineChart({ data, height = 100, color = Colors.accent }: { data: number[]; height?: number; color?: string }) {
+function MiniLineChart({ data, height = 140, color = Colors.accent }: { data: number[]; height?: number; color?: string }) {
   if (data.length < 2) return null;
   const maxVal = Math.max(...data, 1);
   const minVal = Math.min(...data, 0);
   const range = maxVal - minVal || 1;
-  const stepX = 100 / (data.length - 1);
+  const [chartWidth, setChartWidth] = useState(Dimensions.get("window").width - 60);
+  const stepX = chartWidth / (data.length - 1);
+
   const points = data.map((v, i) => ({
     x: i * stepX,
-    y: 100 - ((v - minVal) / range) * 80 - 10,
+    y: height - ((v - minVal) / range) * (height * 0.7) - 20,
   }));
 
-  if (Platform.OS === "web") {
-    const pathD = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-    const areaD = `${pathD} L ${points[points.length - 1].x} 100 L ${points[0].x} 100 Z`;
-    return (
-      <View style={{ height, overflow: "hidden" }}>
-        <svg width="100%" height={height} viewBox="0 0 100 100" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id={`grad-${color.replace("#", "")}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-              <stop offset="100%" stopColor={color} stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path d={areaD} fill={`url(#grad-${color.replace("#", "")})`} />
-          <path d={pathD} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" />
-          {points.map((p, i) => (
-            <circle key={i} cx={p.x} cy={p.y} r="3" fill={color} vectorEffect="non-scaling-stroke" />
-          ))}
-        </svg>
-      </View>
-    );
-  }
+  const getPathData = () => {
+    if (points.length === 0) return "";
+    let d = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[Math.max(i - 1, 0)];
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const p3 = points[Math.min(i + 2, points.length - 1)];
+
+      const cp1X = p1.x + (p2.x - p0.x) / 6;
+      const cp1Y = p1.y + (p2.y - p0.y) / 6;
+      const cp2X = p2.x - (p3.x - p1.x) / 6;
+      const cp2Y = p2.y - (p3.y - p1.y) / 6;
+
+      d += ` C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${p2.x} ${p2.y}`;
+    }
+    return d;
+  };
+
+  const linePath = getPathData();
+  const areaPath = `${linePath} L ${points[points.length - 1].x} ${height} L ${points[0].x} ${height} Z`;
 
   return (
-    <View style={{ height, flexDirection: "row", alignItems: "flex-end", gap: 2, paddingHorizontal: 2 }}>
-      {data.map((v, i) => {
-        const barH = Math.max(((v - minVal) / range) * (height - 20), 2);
-        return (
-          <View key={i} style={{ flex: 1, alignItems: "center", justifyContent: "flex-end" }}>
-            <View style={{ width: "80%", height: barH, backgroundColor: color, borderRadius: 3, opacity: 0.7 + (i / data.length) * 0.3 }} />
-          </View>
-        );
-      })}
+    <View
+      onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}
+      style={{ height, width: "100%", paddingHorizontal: 0 }}
+    >
+      <Svg height={height} width="100%" style={{ overflow: "visible" }}>
+        <Defs>
+          <SvgLinearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0%" stopColor={color} stopOpacity="0.4" />
+            <Stop offset="100%" stopColor={color} stopOpacity="0" />
+          </SvgLinearGradient>
+          <SvgLinearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0%" stopColor={color} stopOpacity="0.8" />
+            <Stop offset="100%" stopColor={color} />
+          </SvgLinearGradient>
+        </Defs>
+
+        {/* Fill area */}
+        <Path d={areaPath} fill="url(#areaGradient)" />
+
+        {/* Glow Line Placeholder (using multiple paths for blur-like effect) */}
+        <Path
+          d={linePath}
+          fill="none"
+          stroke={color}
+          strokeWidth="6"
+          strokeOpacity="0.1"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {/* Main Line */}
+        <Path
+          d={linePath}
+          fill="none"
+          stroke="url(#lineGradient)"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {/* Points */}
+        {points.map((p, i) => (
+          <G key={i}>
+            <Circle cx={p.x} cy={p.y} r="6" fill={color} fillOpacity="0.2" />
+            <Circle cx={p.x} cy={p.y} r="3" fill="#fff" />
+          </G>
+        ))}
+      </Svg>
     </View>
+  );
+}
+
+function DatePickerModal({
+  visible,
+  onClose,
+  onSelect,
+  currentDate
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSelect: (date: string) => void;
+  currentDate?: string;
+}) {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const selectedDate = currentDate ? parseISO(currentDate) : new Date();
+
+  const renderHeader = () => {
+    return (
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <Pressable onPress={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+          <Ionicons name="chevron-back" size={24} color={Colors.accent} />
+        </Pressable>
+        <Text style={{ color: "#fff", fontSize: 18, fontWeight: "800" }}>
+          {format(currentMonth, "MMMM yyyy")}
+        </Text>
+        <Pressable onPress={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+          <Ionicons name="chevron-forward" size={24} color={Colors.accent} />
+        </Pressable>
+      </View>
+    );
+  };
+
+  const renderDays = () => {
+    const days = [];
+    const dateNames = ["S", "M", "T", "W", "T", "F", "S"];
+    for (let i = 0; i < 7; i++) {
+      days.push(
+        <View key={i} style={{ flex: 1, alignItems: "center" }}>
+          <Text style={{ color: Colors.textMuted, fontSize: 12, fontWeight: "600" }}>{dateNames[i]}</Text>
+        </View>
+      );
+    }
+    return <View style={{ flexDirection: "row", marginBottom: 10 }}>{days}</View>;
+  };
+
+  const renderCells = () => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(monthStart);
+    const startDate = startOfWeek(monthStart);
+    const endDate = endOfWeek(monthEnd);
+
+    const rows = [];
+    let days = [];
+    let day = startDate;
+    let formattedDate = "";
+
+    while (day <= endDate) {
+      for (let i = 0; i < 7; i++) {
+        formattedDate = format(day, "d");
+        const cloneDay = day;
+        const isSelected = isSameDay(day, selectedDate);
+        const isCurrentMonth = isSameMonth(day, monthStart);
+
+        days.push(
+          <Pressable
+            key={day.toString()}
+            style={{
+              flex: 1,
+              aspectRatio: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: isSelected ? Colors.accent : "transparent",
+              borderRadius: 8,
+              margin: 2,
+              opacity: isCurrentMonth ? 1 : 0.3
+            }}
+            onPress={() => {
+              onSelect(format(cloneDay, "yyyy-MM-dd"));
+              onClose();
+            }}
+          >
+            <Text style={{
+              color: isSelected ? Colors.textDark : "#fff",
+              fontWeight: isSelected ? "800" : "400",
+              fontSize: 14
+            }}>
+              {formattedDate}
+            </Text>
+          </Pressable>
+        );
+        day = addDays(day, 1);
+      }
+      rows.push(
+        <View key={day.toString()} style={{ flexDirection: "row" }}>
+          {days}
+        </View>
+      );
+      days = [];
+    }
+    return <View>{rows}</View>;
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.8)", justifyContent: "center", alignItems: "center", padding: 20 }}>
+        <View style={{ backgroundColor: Colors.surface, borderRadius: 24, padding: 20, width: "100%", maxWidth: 400, borderWidth: 1, borderColor: Colors.cardBorder }}>
+          {renderHeader()}
+          {renderDays()}
+          {renderCells()}
+          <Pressable
+            onPress={onClose}
+            style={{ marginTop: 20, padding: 12, backgroundColor: Colors.surfaceLight, borderRadius: 12, alignItems: "center" }}
+          >
+            <Text style={{ color: "#fff", fontWeight: "700" }}>Close</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -232,6 +395,7 @@ export default function ReportsScreen() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [specificDate, setSpecificDate] = useState(new Date().toISOString().split("T")[0]);
+  const [showDatePicker, setShowDatePicker] = useState<"specific" | "from" | "to" | null>(null);
 
   const { data: stats } = useQuery<any>({
     queryKey: ["/api/dashboard"],
@@ -635,23 +799,23 @@ export default function ReportsScreen() {
           {/* Specific Day Selector */}
           {periodFilter === "specific" && (
             <View style={{ marginTop: 16, backgroundColor: Colors.surface + "40", borderRadius: 12, padding: 12 }}>
-              <Text style={[{ color: Colors.textMuted, fontSize: 11, marginBottom: 8, fontWeight: "600" }, rtlTextAlign, rtlText]}>SELECT DATE (YYYY-MM-DD)</Text>
+              <Text style={[{ color: Colors.textMuted, fontSize: 11, marginBottom: 8, fontWeight: "600" }, rtlTextAlign, rtlText]}>{t("specificDay" as any)} (AGENDA)</Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <View style={{ flex: 1, flexDirection: "row", alignItems: "center", backgroundColor: Colors.surfaceLight, borderRadius: 10, borderWidth: 1, borderColor: Colors.cardBorder, paddingHorizontal: 12 }}>
-                  <Ionicons name="calendar-outline" size={18} color={Colors.accent} />
-                  <TextInput
-                    style={[{ flex: 1, paddingVertical: 10, color: Colors.text, fontSize: 15, marginLeft: 8 }, rtlTextAlign, rtlText]}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={Colors.textMuted}
-                    value={specificDate}
-                    onChangeText={setSpecificDate}
-                  />
-                </View>
+                <Pressable
+                  onPress={() => setShowDatePicker("specific")}
+                  style={{ flex: 1, flexDirection: "row", alignItems: "center", backgroundColor: Colors.surfaceLight, borderRadius: 10, borderWidth: 1, borderColor: Colors.cardBorder, paddingHorizontal: 15, paddingVertical: 12 }}
+                >
+                  <Ionicons name="calendar" size={18} color={Colors.accent} />
+                  <Text style={[{ flex: 1, color: Colors.text, fontSize: 15, marginLeft: 10 }, rtlTextAlign, rtlText]}>
+                    {specificDate ? format(parseISO(specificDate), "MMMM d, yyyy") : "Select Date"}
+                  </Text>
+                  <Ionicons name="chevron-down" size={14} color={Colors.textMuted} />
+                </Pressable>
                 <Pressable
                   onPress={() => setSpecificDate(new Date().toISOString().split("T")[0])}
-                  style={{ backgroundColor: Colors.accent + "20", padding: 10, borderRadius: 10 }}
+                  style={{ backgroundColor: Colors.accent + "20", padding: 12, borderRadius: 10 }}
                 >
-                  <Text style={{ color: Colors.accent, fontWeight: "700", fontSize: 12 }}>Today</Text>
+                  <Text style={{ color: Colors.accent, fontWeight: "700", fontSize: 12 }}>{t("today" as any)}</Text>
                 </Pressable>
               </View>
             </View>
@@ -664,23 +828,27 @@ export default function ReportsScreen() {
               <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 10 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={[{ color: Colors.textSecondary, fontSize: 10, marginBottom: 4 }, rtlTextAlign]}>{t("from")}</Text>
-                  <TextInput
-                    style={[{ backgroundColor: Colors.surfaceLight, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: Colors.text, fontSize: 14, borderWidth: 1, borderColor: Colors.cardBorder }, rtlTextAlign, rtlText]}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={Colors.textMuted}
-                    value={dateFrom}
-                    onChangeText={setDateFrom}
-                  />
+                  <Pressable
+                    onPress={() => setShowDatePicker("from")}
+                    style={[{ backgroundColor: Colors.surfaceLight, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1, borderColor: Colors.cardBorder }, rtlTextAlign]}
+                  >
+                    <Text style={{ color: dateFrom ? Colors.text : Colors.textMuted, fontSize: 13 }}>
+                      {dateFrom ? format(parseISO(dateFrom), "MMM d, yy") : "Start"}
+                    </Text>
+                    <Ionicons name="calendar-outline" size={14} color={Colors.accent} />
+                  </Pressable>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[{ color: Colors.textSecondary, fontSize: 10, marginBottom: 4 }, rtlTextAlign]}>{t("to")}</Text>
-                  <TextInput
-                    style={[{ backgroundColor: Colors.surfaceLight, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: Colors.text, fontSize: 14, borderWidth: 1, borderColor: Colors.cardBorder }, rtlTextAlign, rtlText]}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={Colors.textMuted}
-                    value={dateTo}
-                    onChangeText={setDateTo}
-                  />
+                  <Pressable
+                    onPress={() => setShowDatePicker("to")}
+                    style={[{ backgroundColor: Colors.surfaceLight, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1, borderColor: Colors.cardBorder }, rtlTextAlign]}
+                  >
+                    <Text style={{ color: dateTo ? Colors.text : Colors.textMuted, fontSize: 13 }}>
+                      {dateTo ? format(parseISO(dateTo), "MMM d, yy") : "End"}
+                    </Text>
+                    <Ionicons name="calendar-outline" size={14} color={Colors.accent} />
+                  </Pressable>
                 </View>
               </View>
             </View>
@@ -748,6 +916,16 @@ export default function ReportsScreen() {
               </View>
             </GlassCard>
           }
+        />
+        <DatePickerModal
+          visible={!!showDatePicker}
+          onClose={() => setShowDatePicker(null)}
+          currentDate={showDatePicker === "from" ? dateFrom : showDatePicker === "to" ? dateTo : specificDate}
+          onSelect={(date) => {
+            if (showDatePicker === "specific") setSpecificDate(date);
+            else if (showDatePicker === "from") setDateFrom(date);
+            else if (showDatePicker === "to") setDateTo(date);
+          }}
         />
       </>
     );

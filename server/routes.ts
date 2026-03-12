@@ -1787,8 +1787,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!tenant) {
         return res.status(404).json({ error: "Store not found" });
       }
-      const products = await storage.getProductsByTenant(tenantId);
       const categories = sortCategoriesByPriority(await storage.getCategories(tenantId));
+      const products = await storage.getProductsByTenant(tenantId);
+
+      const categoryOrder = categories.map((c: any) => c.id);
+      products.sort((a: any, b: any) => categoryOrder.indexOf(a.categoryId) - categoryOrder.indexOf(b.categoryId));
+
       const config = await storage.getLandingPageConfig(tenantId);
       res.json({
         store: {
@@ -1828,6 +1832,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const categories = sortCategoriesByPriority(await storage.getCategories(config.tenantId));
+
+      // Sort products by category index
+      const categoryOrder = categories.map((c: any) => c.id);
+      products.sort((a: any, b: any) => categoryOrder.indexOf(a.categoryId) - categoryOrder.indexOf(b.categoryId));
+
       res.json({ config, tenant, products, categories });
     } catch (e: any) {
       console.error(`[API] Public store error for ${req.params.slug}:`, e);

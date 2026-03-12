@@ -157,6 +157,7 @@ export default function ProductsScreen() {
       imagePath = await uploadImage(productImage);
     }
     const productData: any = {
+      tenantId: tenantId || undefined,
       name: form.name, price: form.price, sku: form.sku || undefined,
       barcode: form.barcode || undefined, costPrice: form.costPrice || undefined,
       categoryId: form.categoryId ? Number(form.categoryId) : undefined, unit: form.unit, expiryDate: form.expiryDate || undefined,
@@ -552,7 +553,7 @@ export default function ProductsScreen() {
                 if (categoryImage && !categoryImage.startsWith("/objects")) {
                   imagePath = await uploadImage(categoryImage);
                 }
-                createCategoryMutation.mutate({ name: catForm.name, color: catForm.color, icon: catForm.icon, image: imagePath || undefined });
+                createCategoryMutation.mutate({ tenantId: tenantId || undefined, name: catForm.name, color: catForm.color, icon: catForm.icon, image: imagePath || undefined });
               }}>
                 <LinearGradient colors={[Colors.accent, Colors.gradientMid]} style={styles.saveBtnGradient}>
                   <Text style={styles.saveBtnText}>{editCategory ? t("update") : t("create")} {t("category")}</Text>

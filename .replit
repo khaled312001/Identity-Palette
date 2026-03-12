@@ -6,7 +6,7 @@ channel = "stable-25_05"
 packages = ["chromium", "nss", "atk", "cups", "libdrm", "libxkbcommon", "xorg.libXext", "xorg.libX11", "xorg.libXcomposite", "xorg.libXcursor", "xorg.libXdamage", "xorg.libXfixes", "xorg.libXi", "xorg.libXrandr", "xorg.libXrender", "xorg.libXtst", "xorg.libxshmfence", "mesa", "expat", "glib", "nspr", "alsaLib", "pango", "cairo", "dbus", "fontconfig", "freetype", "udev"]
 
 [deployment]
-deploymentTarget = "cloudrun"
+deploymentTarget = "autoscale"
 build = ["sh", "-c", "npm run expo:static:build && npm run server:build"]
 run = ["npm", "run", "server:prod"]
 

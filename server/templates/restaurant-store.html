@@ -15,9 +15,21 @@
   <script src="https://js.stripe.com/v3/"></script>
   <style>
     :root {
-      --P: {{PRIMARY_COLOR}};
+      --P: {
+          {
+          PRIMARY_COLOR
+        }
+      }
 
-      --A: {{ACCENT_COLOR}};
+      ;
+
+      --A: {
+          {
+          ACCENT_COLOR
+        }
+      }
+
+      ;
       --bg: #f8f9fc;
       --s1: #ffffff;
       --s2: #f1f3f9;
@@ -812,53 +824,83 @@
     /* ── FLOAT CART ── */
     .rs-float-cart-btn {
       position: fixed;
-      bottom: 30px;
-      right: 30px;
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--P), var(--A));
-      color: #fff;
+      bottom: 28px;
+      right: 28px;
       display: flex;
       align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      gap: 10px;
+      padding: 14px 22px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--P), var(--A));
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.3);
       cursor: pointer;
       z-index: 150;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
       opacity: 0;
       visibility: hidden;
-      transform: scale(0.8) translateY(20px);
+      transform: translateY(30px) scale(0.9);
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
     }
 
-    .rs-float-cart-btn.visible {
+    .rs-float-cart-btn.rs-visible {
       opacity: 1;
       visibility: visible;
-      transform: scale(1) translateY(0);
+      transform: translateY(0) scale(1);
     }
 
     .rs-float-cart-btn:hover {
-      transform: scale(1.1) translateY(-4px);
-      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+    }
+
+    .rs-float-cart-btn.rs-pulse {
+      animation: rs-cartPulse 0.5s ease;
+    }
+
+    @keyframes rs-cartPulse {
+      0% {
+        transform: translateY(0) scale(1);
+      }
+
+      30% {
+        transform: translateY(-6px) scale(1.12);
+      }
+
+      60% {
+        transform: translateY(2px) scale(0.98);
+      }
+
+      100% {
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .rs-float-cart-icon {
+      font-size: 18px;
+      position: relative;
     }
 
     .rs-float-cart-count {
-      position: absolute;
-      top: -5px;
-      right: -5px;
-      background: #fff;
-      color: var(--txt);
-      font-size: 11px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
+      padding: 2px 9px;
+      min-width: 22px;
+      text-align: center;
+    }
+
+    .rs-float-cart-total {
+      font-size: 13px;
       font-weight: 800;
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 2px solid var(--A);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      letter-spacing: 0.3px;
+      border-left: 1px solid rgba(255, 255, 255, 0.25);
+      padding-left: 10px;
     }
 
     \n
@@ -2010,8 +2052,8 @@
   <!-- CART PANEL -->
   <div class="rs-cart-overlay" id="cart-overlay" onclick="closeCart()"></div>
   <div class="rs-cart-panel" id="cart-panel">
-    <div class="rs-cart-header"><span class="rs-cart-title"><i class="fa-solid fa-cart-shopping"></i> Your Order</span><button
-        class="rs-cart-close" onclick="closeCart()"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="rs-cart-header"><span class="rs-cart-title"><i class="fa-solid fa-cart-shopping"></i> Your
+        Order</span><button class="rs-cart-close" onclick="closeCart()"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="rs-cart-items" id="cart-items"></div>
     <div class="rs-cart-footer" id="cart-footer"></div>
   </div>
@@ -2026,13 +2068,13 @@
       <div class="rs-modal-body" id="checkout-body">
         <div id="checkout-error" class="rs-order-error"></div>
         <div id="checkout-form">
-          <div class="rs-form-group"><label class="rs-form-label">Your Name *</label><input class="rs-form-input" id="co-name"
-              required placeholder="Full name"></div>
+          <div class="rs-form-group"><label class="rs-form-label">Your Name *</label><input class="rs-form-input"
+              id="co-name" required placeholder="Full name"></div>
           <div class="rs-form-row">
-            <div class="rs-form-group"><label class="rs-form-label">Phone *</label><input class="rs-form-input" id="co-phone"
-                required placeholder="+1 234 567 890"></div>
-            <div class="rs-form-group"><label class="rs-form-label">Email</label><input class="rs-form-input" id="co-email"
-                type="email" placeholder="you@email.com"></div>
+            <div class="rs-form-group"><label class="rs-form-label">Phone *</label><input class="rs-form-input"
+                id="co-phone" required placeholder="+1 234 567 890"></div>
+            <div class="rs-form-group"><label class="rs-form-label">Email</label><input class="rs-form-input"
+                id="co-email" type="email" placeholder="you@email.com"></div>
           </div>
           <div class="rs-form-group"><label class="rs-form-label">Order Type</label>
             <select class="rs-form-select" id="co-type">
@@ -2048,8 +2090,8 @@
               <option value="card">Card Payment</option>
             </select>
           </div>
-          <div class="rs-form-group"><label class="rs-form-label">Notes</label><textarea class="rs-form-textarea" id="co-notes"
-              placeholder="Special requests..."></textarea></div>
+          <div class="rs-form-group"><label class="rs-form-label">Notes</label><textarea class="rs-form-textarea"
+              id="co-notes" placeholder="Special requests..."></textarea></div>
         </div>
         <div id="checkout-success" class="rs-order-success" style="display:none">
           <div class="rs-order-success-icon"><i class="fa-solid fa-circle-check" style="color:#22c55e"></i></div>
@@ -2065,8 +2107,9 @@
 
   <!-- FLOAT CART BUTTON -->
   <div class="rs-float-cart-btn" id="float-cart-btn" onclick="openCart()">
-    <i class="fa-solid fa-cart-shopping"></i>
-    <div class="rs-float-cart-count" id="float-cart-count">0</div>
+    <span class="rs-float-cart-icon"><i class="fa-solid fa-cart-shopping"></i></span>
+    <span class="rs-float-cart-count" id="float-cart-count">0</span>
+    <span class="rs-float-cart-total" id="float-cart-total"></span>
   </div>
 
   <!-- TOAST -->
@@ -2092,6 +2135,47 @@
     const currency = () => storeData?.config?.currency || storeData?.tenant?.currency || 'CHF';
     const fmt = v => `${currency()} ${Number(v).toFixed(2)}`;
 
+    // Click Sound (Web Audio API)
+    let audioCtx = null;
+    function playClick() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.06);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.12);
+      } catch (e) { }
+    }
+    function playAddSound() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1400, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.18);
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.18);
+      } catch (e) { }
+    }
+    function pulseFloatCart() {
+      const btn = document.getElementById('float-cart-btn');
+      btn.classList.remove('rs-pulse');
+      void btn.offsetWidth;
+      btn.classList.add('rs-pulse');
+    }
+
     // Theme
     if (isDark) document.body.classList.add('rs-dark');
     function toggleTheme() {
@@ -2112,7 +2196,7 @@
     // Cart
     function openCart() { document.getElementById('cart-panel').classList.add('rs-open'); document.getElementById('cart-overlay').classList.add('rs-open'); renderCart() }
     function closeCart() { document.getElementById('cart-panel').classList.remove('rs-open'); document.getElementById('cart-overlay').classList.remove('rs-open') }
-    function updateCartCount() { const c = cart.reduce((s, i) => s + i.qty, 0); document.getElementById('cart-count').textContent = c; document.getElementById('float-cart-count').textContent = c; if (c > 0) document.getElementById('float-cart-btn').classList.add('rs-visible'); else document.getElementById('float-cart-btn').classList.remove('rs-visible'); }
+    function updateCartCount() { const c = cart.reduce((s, i) => s + i.qty, 0); document.getElementById('cart-count').textContent = c; document.getElementById('float-cart-count').textContent = c; const t = getCartTotal(); document.getElementById('float-cart-total').textContent = c > 0 ? fmt(t.total) : ''; if (c > 0) document.getElementById('float-cart-btn').classList.add('rs-visible'); else document.getElementById('float-cart-btn').classList.remove('rs-visible'); }
     function addToCart(product, qty = 1, size = null, addons = []) {
       const key = `${product.id}-${size || 'default'}-${addons.sort().join(',')}`;
       const existing = cart.find(i => i.key === key);
@@ -2126,10 +2210,10 @@
         const addonNames = addons.map(aId => { const a = PIZZA_ADDONS.find(x => x.id === aId); return a ? a.name : '' }).filter(Boolean);
         cart.push({ key, product, name, price, qty, size, addons: addonNames, image: product.image })
       }
-      updateCartCount(); showToast(`<i class="fa-solid fa-circle-check"></i> ${product.name} added to cart!`);
+      updateCartCount(); playAddSound(); pulseFloatCart(); showToast(`<i class="fa-solid fa-circle-check"></i> ${product.name} added to cart!`);
     }
-    function removeFromCart(key) { cart = cart.filter(i => i.key !== key); updateCartCount(); renderCart() }
-    function changeQty(key, delta) { const item = cart.find(i => i.key === key); if (item) { item.qty += delta; if (item.qty <= 0) removeFromCart(key); else renderCart() } updateCartCount() }
+    function removeFromCart(key) { cart = cart.filter(i => i.key !== key); playClick(); updateCartCount(); renderCart() }
+    function changeQty(key, delta) { const item = cart.find(i => i.key === key); if (item) { item.qty += delta; playClick(); if (item.qty <= 0) removeFromCart(key); else renderCart() } updateCartCount() }
     function getCartTotal() {
       const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
       const delivery = storeData?.config?.deliveryFee ? Number(storeData.config.deliveryFee) : 0;
@@ -2157,8 +2241,8 @@
     function showToast(msg) { const t = document.getElementById('toast'); t.innerHTML = msg; t.classList.add('rs-show'); setTimeout(() => t.classList.remove('rs-show'), 2500) }
 
     // Pizza Builder
-    function selectSize(size, el) { selectedSize = size; document.querySelectorAll('.rs-pb-size').forEach(s => s.classList.remove('rs-active')); el.classList.add('rs-active'); updatePizzaTotal() }
-    function toggleAddon(id, el) { if (selectedAddons.has(id)) selectedAddons.delete(id); else selectedAddons.add(id); el.classList.toggle('rs-selected'); updatePizzaTotal() }
+    function selectSize(size, el) { playClick(); selectedSize = size; document.querySelectorAll('.rs-pb-size').forEach(s => s.classList.remove('rs-active')); el.classList.add('rs-active'); updatePizzaTotal() }
+    function toggleAddon(id, el) { playClick(); if (selectedAddons.has(id)) selectedAddons.delete(id); else selectedAddons.add(id); el.classList.toggle('rs-selected'); updatePizzaTotal() }
     function updatePizzaTotal() {
       if (!selectedPizza) return;
       const base = Number(selectedPizza.price) * PIZZA_SIZES[selectedSize].multiplier;
@@ -2296,7 +2380,7 @@
       tabs.innerHTML = html;
     }
     function filterCat(catId, el) {
-      selectedCat = catId; document.querySelectorAll('.rs-cat-item').forEach(t => t.classList.remove('rs-active')); el.classList.add('rs-active');
+      playClick(); selectedCat = catId; document.querySelectorAll('.rs-cat-item').forEach(t => t.classList.remove('rs-active')); el.classList.add('rs-active');
       document.querySelectorAll('.rs-product-card').forEach(c => { c.style.display = (catId === 'all' || Number(c.dataset.cat) === catId) ? '' : 'none' });
     }
     function renderProducts(products, cats) {

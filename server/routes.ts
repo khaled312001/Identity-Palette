@@ -1761,6 +1761,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
 
+  // Helper: sort categories by keyword-based priority
+  function sortCategoriesByPriority(cats: any[]) {
+    const getPriority = (name: string) => {
+      const n = name.toLowerCase();
+      if (/pizza|بيتزا/.test(n)) return 1;
+      if (/burger|burg|sandwich|wrap|grill|shawarma|شاورما/.test(n)) return 2;
+      if (/pasta|meal|main|plate|chicken|meat|fish|دجاج|لحم|سمك/.test(n)) return 3;
+      if (/appetizer|starter|مقبلات|فاتح/.test(n)) return 6;
+      if (/salad|سلطة/.test(n)) return 7;
+      if (/drink|beverage|juice|عصير|مشروب/.test(n)) return 8;
+      if (/dessert|sweet|حلوى|حلويات/.test(n)) return 9;
+      return 5; // default middle
+    };
+    return [...cats].sort((a, b) => getPriority(a.name) - getPriority(b.name) || (a.sortOrder || 0) - (b.sortOrder || 0));
+  }
+
   app.get("/api/store/:tenantId/menu", async (req, res) => {
     try {
       const tenantId = Number(req.params.tenantId);
@@ -1772,7 +1788,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Store not found" });
       }
       const products = await storage.getProductsByTenant(tenantId);
-      const categories = await storage.getCategories(tenantId);
+      const categories = sortCategoriesByPriority(await storage.getCategories(tenantId));
       const config = await storage.getLandingPageConfig(tenantId);
       res.json({
         store: {
@@ -1811,7 +1827,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }));
       }
 
-      const categories = await storage.getCategories(config.tenantId);
+      const categories = sortCategoriesByPriority(await storage.getCategories(config.tenantId));
       res.json({ config, tenant, products, categories });
     } catch (e: any) {
       console.error(`[API] Public store error for ${req.params.slug}:`, e);

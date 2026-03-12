@@ -1795,21 +1795,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/store-public/:slug", async (req, res) => {
     try {
       const { slug } = req.params;
-      console.log(`[API] Store Public Hit: ${slug}`);
       const config = await storage.getLandingPageConfigBySlug(slug);
-      if (!config) {
-        console.log(`[API] Config not found for slug: ${slug}`);
-        return res.status(404).json({ error: "Store config not found" });
-      }
-      if (!config.isPublished) {
-        console.log(`[API] Store not published: ${slug}`);
-        return res.status(404).json({ error: "Store not published" });
-      }
+      if (!config) return res.status(404).json({ error: "Store not found" });
+      if (!config.isPublished) return res.status(404).json({ error: "Store is currently unavailable" });
+
       const tenant = await storage.getTenant(config.tenantId);
       let products = await storage.getProductsByTenant(config.tenantId);
 
       const commissionRate = await storage.getCommissionRate();
-      console.log(`[API] Commission Rate: ${commissionRate}`);
       if (commissionRate > 0) {
         const factor = 1 + (commissionRate / 100);
         products = products.map((p: any) => ({
@@ -1819,11 +1812,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const categories = await storage.getCategories(config.tenantId);
-      console.log(`[API] Returning config, tenant, ${products.length} products, ${categories.length} categories`);
       res.json({ config, tenant, products, categories });
     } catch (e: any) {
-      console.error(`[API] Error in /api/store-public/${req.params.slug}:`, e);
-      res.status(500).json({ error: e.message });
+      console.error(`[API] Public store error for ${req.params.slug}:`, e);
+      res.status(500).json({ error: "Internal server error" });
     }
   });
 

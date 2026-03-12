@@ -15,21 +15,9 @@
   <script src="https://js.stripe.com/v3/"></script>
   <style>
     :root {
-      --P: {
-          {
-          PRIMARY_COLOR
-        }
-      }
+      --P: {{PRIMARY_COLOR}};
 
-      ;
-
-      --A: {
-          {
-          ACCENT_COLOR
-        }
-      }
-
-      ;
+      --A: {{ACCENT_COLOR}};
       --bg: #f8f9fc;
       --s1: #ffffff;
       --s2: #f1f3f9;
@@ -106,14 +94,14 @@
       text-decoration: none
     }
 
-    .container {
+    .rs-container {
       max-width: 1280px;
       margin: 0 auto;
       padding: 0 24px
     }
 
     /* ── TOP BAR ── */
-    .top-bar {
+    .rs-top-bar {
       background: var(--s1);
       border-bottom: 1px solid var(--bd);
       font-size: 12px;
@@ -123,7 +111,7 @@
       justify-content: center
     }
 
-    .top-bar .container {
+    .rs-top-bar .rs-container {
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -131,25 +119,25 @@
       flex-wrap: wrap
     }
 
-    .top-bar a {
+    .rs-top-bar a {
       color: var(--P);
       font-weight: 600;
       transition: opacity .2s
     }
 
-    .top-bar a:hover {
+    .rs-top-bar a:hover {
       opacity: .8
     }
 
-    .top-bar-left,
-    .top-bar-right {
+    .rs-top-bar-left,
+    .rs-top-bar-right {
       display: flex;
       align-items: center;
       gap: 16px;
       flex-wrap: wrap
     }
 
-    .top-bar-item {
+    .rs-top-bar-item {
       display: flex;
       align-items: center;
       gap: 5px
@@ -175,27 +163,27 @@
       box-shadow: 0 4px 30px rgba(0, 0, 0, .4)
     }
 
-    .nav-inner {
+    .rs-nav-inner {
       display: flex;
       align-items: center;
       justify-content: space-between;
       height: 64px
     }
 
-    .nav-logo img {
+    .rs-nav-logo img {
       height: 44px;
       width: auto;
       object-fit: contain;
       display: block
     }
 
-    .nav-links {
+    .rs-nav-links {
       display: flex;
       gap: 28px;
       align-items: center
     }
 
-    .nav-links a {
+    .rs-nav-links a {
       font-size: .88rem;
       font-weight: 500;
       color: var(--mu);
@@ -203,12 +191,12 @@
       position: relative
     }
 
-    .nav-links a:hover,
-    .nav-links a.active {
+    .rs-nav-links a:hover,
+    .rs-nav-links a.active {
       color: var(--P)
     }
 
-    .nav-links a.active::after {
+    .rs-nav-links a.active::after {
       content: '';
       position: absolute;
       bottom: -4px;
@@ -219,7 +207,7 @@
       border-radius: 1px
     }
 
-    .nav-actions {
+    .rs-nav-actions {
       display: flex;
       align-items: center;
       gap: 10px
@@ -247,7 +235,7 @@
       border-color: var(--P);
     }
 
-    .cart-btn {
+    .rs-cart-btn {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -264,12 +252,12 @@
       box-shadow: 0 4px 12px var(--P)33;
     }
 
-    .cart-btn:hover {
+    .rs-cart-btn:hover {
       transform: translateY(-2px);
       box-shadow: 0 8px 24px rgba(0, 0, 0, .2)
     }
 
-    .cart-count {
+    .rs-cart-count {
       background: rgba(255, 255, 255, .25);
       border-radius: 999px;
       font-size: 10px;
@@ -279,7 +267,7 @@
       text-align: center
     }
 
-    .hamburger {
+    .rs-hamburger {
       display: none;
       flex-direction: column;
       gap: 5px;
@@ -289,7 +277,7 @@
       border: none
     }
 
-    .hamburger span {
+    .rs-hamburger span {
       display: block;
       width: 22px;
       height: 2px;
@@ -299,7 +287,7 @@
     }
 
     /* ── SIDEBAR (mobile) ── */
-    .sidebar-overlay {
+    .rs-sidebar-overlay {
       display: none;
       position: fixed;
       inset: 0;
@@ -309,12 +297,12 @@
       transition: opacity .3s
     }
 
-    .sidebar-overlay.open {
+    .rs-sidebar-overlay.open {
       display: block;
       opacity: 1
     }
 
-    .sidebar {
+    .rs-sidebar {
       position: fixed;
       top: 0;
       left: -280px;
@@ -328,11 +316,11 @@
       border-right: 1px solid var(--bd)
     }
 
-    .sidebar.open {
+    .rs-sidebar.open {
       left: 0
     }
 
-    .sidebar-close {
+    .rs-sidebar-close {
       background: none;
       border: none;
       font-size: 24px;
@@ -343,7 +331,7 @@
       right: 16px
     }
 
-    .sidebar-logo img {
+    .rs-sidebar-logo img {
       height: 40px;
       width: auto;
       object-fit: contain;
@@ -351,13 +339,13 @@
       margin-bottom: 32px
     }
 
-    .sidebar-nav {
+    .rs-sidebar-nav {
       display: flex;
       flex-direction: column;
       gap: 4px
     }
 
-    .sidebar-nav a {
+    .rs-sidebar-nav a {
       padding: 12px 16px;
       border-radius: 12px;
       font-size: .9rem;
@@ -366,13 +354,13 @@
       transition: var(--t)
     }
 
-    .sidebar-nav a:hover,
-    .sidebar-nav a.active {
+    .rs-sidebar-nav a:hover,
+    .rs-sidebar-nav a.active {
       background: linear-gradient(135deg, var(--P)15, var(--A)08);
       color: var(--P)
     }
 
-    .sidebar-contact {
+    .rs-sidebar-contact {
       margin-top: 32px;
       padding-top: 24px;
       border-top: 1px solid var(--bd);
@@ -383,17 +371,17 @@
       gap: 12px
     }
 
-    .sidebar-contact a {
+    .rs-sidebar-contact a {
       color: var(--P)
     }
 
-    .sidebar-social {
+    .rs-sidebar-social {
       display: flex;
       gap: 12px;
       margin-top: 8px
     }
 
-    .sidebar-social a {
+    .rs-sidebar-social a {
       width: 36px;
       height: 36px;
       border-radius: 50%;
@@ -406,7 +394,7 @@
       transition: var(--t)
     }
 
-    .sidebar-social a:hover {
+    .rs-sidebar-social a:hover {
       background: var(--P);
       color: #fff;
       border-color: var(--P)
@@ -461,7 +449,7 @@
       }
     }
 
-    .hero-tag {
+    .rs-hero-tag {
       display: inline-flex;
       align-items: center;
       gap: 8px;
@@ -477,7 +465,7 @@
       margin-bottom: 24px
     }
 
-    #hero-bg.has-image~#hero-content .hero-tag {
+    #hero-bg.has-image~#hero-content .rs-hero-tag {
       background: rgba(0, 0, 0, .4);
       border-color: rgba(255, 255, 255, .2);
       color: #fff
@@ -523,13 +511,13 @@
       text-shadow: 0 1px 6px rgba(0, 0, 0, .5)
     }
 
-    .hero-ctas {
+    .rs-hero-ctas {
       display: flex;
       gap: 12px;
       flex-wrap: wrap
     }
 
-    .btn-primary {
+    .rs-btn-primary {
       display: inline-flex;
       align-items: center;
       gap: 10px;
@@ -545,12 +533,12 @@
       box-shadow: 0 6px 20px var(--P)40;
     }
 
-    .btn-primary:hover {
+    .rs-btn-primary:hover {
       transform: translateY(-3px);
       box-shadow: 0 12px 36px var(--P)60;
     }
 
-    .btn-outline {
+    .rs-btn-outline {
       display: inline-flex;
       align-items: center;
       gap: 8px;
@@ -565,25 +553,25 @@
       transition: all .3s
     }
 
-    .btn-outline:hover {
+    .rs-btn-outline:hover {
       border-color: var(--P);
       background: var(--s3)
     }
 
-    #hero-bg.has-image~#hero-content .btn-outline {
+    #hero-bg.has-image~#hero-content .rs-btn-outline {
       background: rgba(255, 255, 255, .12);
       border-color: rgba(255, 255, 255, .3);
       color: #fff
     }
 
-    .hero-features {
+    .rs-hero-features {
       display: flex;
       gap: 32px;
       margin-top: 48px;
       flex-wrap: wrap
     }
 
-    .hero-feat {
+    .rs-hero-feat {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -592,25 +580,25 @@
       color: var(--mu)
     }
 
-    #hero-bg.has-image~#hero-content .hero-feat {
+    #hero-bg.has-image~#hero-content .rs-hero-feat {
       color: rgba(255, 255, 255, .8)
     }
 
-    .hero-feat-icon {
+    .rs-hero-feat-icon {
       font-size: 20px
     }
 
     /* ── SECTIONS ── */
-    .section {
+    .rs-section {
       padding: 80px 0
     }
 
-    .section-header {
+    .rs-section-header {
       text-align: center;
       margin-bottom: 48px
     }
 
-    .section-tag {
+    .rs-section-tag {
       display: inline-block;
       background: linear-gradient(135deg, var(--P)18, var(--A)08);
       border: 1px solid var(--P)35;
@@ -624,7 +612,7 @@
       margin-bottom: 14px
     }
 
-    .section-title {
+    .rs-section-title {
       font-family: var(--font-d);
       font-size: clamp(1.8rem, 4vw, 2.8rem);
       font-weight: 900;
@@ -635,7 +623,7 @@
       -webkit-text-fill-color: transparent
     }
 
-    .section-desc {
+    .rs-section-desc {
       color: var(--mu);
       font-size: .95rem;
       max-width: 560px;
@@ -644,63 +632,63 @@
     }
 
     /* ── ABOUT ── */
-    .about-grid {
+    .rs-about-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 48px;
       align-items: center
     }
 
-    .about-img {
+    .rs-about-img {
       border-radius: var(--r);
       overflow: hidden;
       aspect-ratio: 4/3;
       background: var(--s2)
     }
 
-    .about-img img {
+    .rs-about-img img {
       width: 100%;
       height: 100%;
       object-fit: cover
     }
 
-    .about-text h3 {
+    .rs-about-text h3 {
       font-family: var(--font-d);
       font-size: 1.6rem;
       font-weight: 900;
       margin-bottom: 16px
     }
 
-    .about-text p {
+    .rs-about-text p {
       color: var(--mu);
       line-height: 1.8;
       margin-bottom: 16px
     }
 
-    .about-stats {
+    .rs-about-stats {
       display: flex;
       gap: 24px;
       margin-top: 24px
     }
 
-    .about-stat {
+    .rs-about-stat {
       text-align: center
     }
 
-    .about-stat-num {
+    .rs-about-stat-num {
       font-size: 1.6rem;
       font-weight: 900;
       color: var(--P)
     }
 
-    .about-stat-lbl {
+    .rs-about-stat-lbl {
       font-size: .75rem;
       color: var(--mu);
       font-weight: 600
     }
 
     /* ── INFO CARDS ── */
-    .info-grid {
+    .rs-info-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 16px;
@@ -709,7 +697,7 @@
       z-index: 3
     }
 
-    .info-card {
+    .rs-info-card {
       background: var(--s1);
       border: 1px solid var(--bd);
       border-radius: var(--r);
@@ -718,60 +706,60 @@
       transition: var(--t)
     }
 
-    .info-card:hover {
+    .rs-info-card:hover {
       transform: translateY(-4px);
       box-shadow: var(--shadow)
     }
 
-    .info-card-icon {
+    .rs-info-card-icon {
       font-size: 28px;
       margin-bottom: 10px
     }
 
-    .info-card-title {
+    .rs-info-card-title {
       font-weight: 700;
       font-size: .9rem;
       margin-bottom: 4px
     }
 
-    .info-card-desc {
+    .rs-info-card-desc {
       font-size: .78rem;
       color: var(--mu)
     }
 
 
     /* ── MENU LAYOUT ── */
-    .menu-layout {
+    .rs-menu-layout {
       display: flex;
       flex-direction: column;
       gap: 32px;
     }
 
     @media(min-width: 992px) {
-      .menu-layout {
+      .rs-menu-layout {
         flex-direction: row;
       }
 
-      .menu-sidebar {
+      .rs-menu-sidebar {
         width: 260px;
         flex-shrink: 0;
         position: sticky;
         top: 100px;
       }
 
-      .menu-content {
+      .rs-menu-content {
         flex: 1;
         min-width: 0;
       }
     }
 
-    .cat-list {
+    .rs-cat-list {
       display: flex;
       flex-direction: column;
       gap: 6px;
     }
 
-    .cat-item {
+    .rs-cat-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -786,43 +774,43 @@
       transition: all .25s;
     }
 
-    .cat-item:hover {
+    .rs-cat-item:hover {
       border-color: var(--P)66;
       color: var(--txt);
       transform: translateX(4px);
     }
 
-    .cat-item.active {
+    .rs-cat-item.active {
       background: linear-gradient(135deg, var(--P)20, var(--A)10);
       border-color: var(--P);
       color: var(--P);
     }
 
-    .cat-item-info {
+    .rs-cat-item-info {
       display: flex;
       align-items: center;
       gap: 12px;
     }
 
-    .cat-item-icon {
+    .rs-cat-item-icon {
       width: 20px;
       text-align: center;
       font-size: 16px;
       opacity: 0.8;
     }
 
-    .pb-addon-check {
+    .rs-pb-addon-check {
       color: transparent;
     }
 
-    .pb-addon.selected .pb-addon-check {
+    .rs-pb-addon.selected .rs-pb-addon-check {
       background: var(--P);
       border-color: var(--P);
       color: #fff;
     }
 
     /* ── FLOAT CART ── */
-    .float-cart-btn {
+    .rs-float-cart-btn {
       position: fixed;
       bottom: 30px;
       right: 30px;
@@ -844,18 +832,18 @@
       transform: scale(0.8) translateY(20px);
     }
 
-    .float-cart-btn.visible {
+    .rs-float-cart-btn.visible {
       opacity: 1;
       visibility: visible;
       transform: scale(1) translateY(0);
     }
 
-    .float-cart-btn:hover {
+    .rs-float-cart-btn:hover {
       transform: scale(1.1) translateY(-4px);
       box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
     }
 
-    .float-cart-count {
+    .rs-float-cart-count {
       position: absolute;
       top: -5px;
       right: -5px;
@@ -876,25 +864,25 @@
     \n
 
     /* ── CATEGORIES ── */
-    .cat-scroll {
+    .rs-cat-scroll {
       overflow-x: auto;
       padding-bottom: 8px;
       scrollbar-width: none;
       margin-bottom: 32px
     }
 
-    .cat-scroll::-webkit-scrollbar {
+    .rs-cat-scroll::-webkit-scrollbar {
       display: none
     }
 
-    .cat-tabs {
+    .rs-cat-tabs {
       display: flex;
       gap: 10px;
       width: max-content;
       padding: 4px
     }
 
-    .cat-tab {
+    .rs-cat-tab {
       display: flex;
       align-items: center;
       gap: 6px;
@@ -910,18 +898,18 @@
       white-space: nowrap
     }
 
-    .cat-tab:hover {
+    .rs-cat-tab:hover {
       border-color: var(--P)66;
       color: var(--txt)
     }
 
-    .cat-tab.active {
+    .rs-cat-tab.active {
       background: linear-gradient(135deg, var(--P)20, var(--A)10);
       border-color: var(--P);
       color: var(--P)
     }
 
-    .cat-count {
+    .rs-cat-count {
       background: var(--P)20;
       color: var(--P);
       border-radius: 999px;
@@ -937,7 +925,7 @@
       gap: 22px
     }
 
-    .product-card {
+    .rs-product-card {
       background: var(--s1);
       border: 1px solid var(--bd);
       border-radius: 20px;
@@ -946,35 +934,35 @@
       transition: all .35s
     }
 
-    .product-card:hover {
+    .rs-product-card:hover {
       transform: translateY(-6px);
       border-color: var(--P)40;
       box-shadow: 0 12px 40px rgba(0, 0, 0, .12)
     }
 
-    body.dark .product-card:hover {
+    body.dark .rs-product-card:hover {
       box-shadow: 0 16px 50px rgba(0, 0, 0, .4)
     }
 
-    .product-img {
+    .rs-product-img {
       height: 190px;
       overflow: hidden;
       position: relative;
       background: var(--s2)
     }
 
-    .product-img img {
+    .rs-product-img img {
       width: 100%;
       height: 100%;
       object-fit: cover;
       transition: transform .5s
     }
 
-    .product-card:hover .product-img img {
+    .rs-product-card:hover .rs-product-img img {
       transform: scale(1.06)
     }
 
-    .no-img {
+    .rs-no-img {
       width: 100%;
       height: 100%;
       display: flex;
@@ -984,7 +972,7 @@
       background: linear-gradient(135deg, var(--s2), var(--s3))
     }
 
-    .product-badge {
+    .rs-product-badge {
       position: absolute;
       top: 12px;
       right: 12px;
@@ -997,17 +985,17 @@
       letter-spacing: .5px
     }
 
-    .product-info {
+    .rs-product-info {
       padding: 16px
     }
 
-    .product-name {
+    .rs-product-name {
       font-weight: 700;
       font-size: .95rem;
       margin-bottom: 4px
     }
 
-    .product-desc {
+    .rs-product-desc {
       font-size: .78rem;
       color: var(--mu);
       margin-bottom: 10px;
@@ -1018,19 +1006,19 @@
       overflow: hidden
     }
 
-    .product-bottom {
+    .rs-product-bottom {
       display: flex;
       justify-content: space-between;
       align-items: center
     }
 
-    .product-price {
+    .rs-product-price {
       font-size: 1.1rem;
       font-weight: 900;
       color: var(--P)
     }
 
-    .product-add {
+    .rs-product-add {
       width: 40px;
       height: 40px;
       border-radius: 50%;
@@ -1047,12 +1035,12 @@
       box-shadow: 0 4px 12px var(--P)33;
     }
 
-    .product-add:hover {
+    .rs-product-add:hover {
       transform: scale(1.15)
     }
 
     /* ── PIZZA BUILDER ── */
-    .pizza-builder {
+    .rs-pizza-builder {
       background: var(--s1);
       border: 1px solid var(--bd);
       border-radius: 24px;
@@ -1060,28 +1048,28 @@
       margin-top: 32px
     }
 
-    .pb-header {
+    .rs-pb-header {
       text-align: center;
       margin-bottom: 28px
     }
 
-    .pb-title {
+    .rs-pb-title {
       font-family: var(--font-d);
       font-size: 1.5rem;
       font-weight: 900;
       margin-bottom: 6px
     }
 
-    .pb-subtitle {
+    .rs-pb-subtitle {
       color: var(--mu);
       font-size: .85rem
     }
 
-    .pb-section {
+    .rs-pb-section {
       margin-bottom: 24px
     }
 
-    .pb-section-title {
+    .rs-pb-section-title {
       font-weight: 700;
       font-size: .85rem;
       color: var(--mu);
@@ -1090,13 +1078,13 @@
       margin-bottom: 12px
     }
 
-    .pb-sizes {
+    .rs-pb-sizes {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 12px
     }
 
-    .pb-size {
+    .rs-pb-size {
       padding: 16px;
       border-radius: 14px;
       background: var(--s2);
@@ -1106,45 +1094,45 @@
       transition: var(--t)
     }
 
-    .pb-size:hover {
+    .rs-pb-size:hover {
       border-color: var(--P)55
     }
 
-    .pb-size.active {
+    .rs-pb-size.active {
       border-color: var(--P);
       background: linear-gradient(135deg, var(--P)12, var(--A)06)
     }
 
-    .pb-size-icon {
+    .rs-pb-size-icon {
       font-size: 28px;
       margin-bottom: 6px
     }
 
-    .pb-size-name {
+    .rs-pb-size-name {
       font-weight: 700;
       font-size: .9rem;
       margin-bottom: 2px
     }
 
-    .pb-size-info {
+    .rs-pb-size-info {
       font-size: .72rem;
       color: var(--mu)
     }
 
-    .pb-size-price {
+    .rs-pb-size-price {
       font-weight: 800;
       color: var(--P);
       font-size: .95rem;
       margin-top: 4px
     }
 
-    .pb-addons {
+    .rs-pb-addons {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
       gap: 10px
     }
 
-    .pb-addon {
+    .rs-pb-addon {
       padding: 12px;
       border-radius: 12px;
       background: var(--s2);
@@ -1156,35 +1144,35 @@
       transition: var(--t)
     }
 
-    .pb-addon:hover {
+    .rs-pb-addon:hover {
       border-color: var(--P)55
     }
 
-    .pb-addon.selected {
+    .rs-pb-addon.selected {
       border-color: var(--P);
       background: linear-gradient(135deg, var(--P)12, var(--A)06)
     }
 
-    .pb-addon-icon {
+    .rs-pb-addon-icon {
       font-size: 20px
     }
 
-    .pb-addon-info {
+    .rs-pb-addon-info {
       flex: 1
     }
 
-    .pb-addon-name {
+    .rs-pb-addon-name {
       font-weight: 600;
       font-size: .82rem
     }
 
-    .pb-addon-price {
+    .rs-pb-addon-price {
       font-size: .75rem;
       color: var(--P);
       font-weight: 700
     }
 
-    .pb-addon-check {
+    .rs-pb-addon-check {
       width: 20px;
       height: 20px;
       border-radius: 6px;
@@ -1196,13 +1184,13 @@
       transition: var(--t)
     }
 
-    .pb-addon.selected .pb-addon-check {
+    .rs-pb-addon.selected .rs-pb-addon-check {
       background: var(--P);
       border-color: var(--P);
       color: #fff
     }
 
-    .pb-total {
+    .rs-pb-total {
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -1212,18 +1200,18 @@
       margin-top: 24px
     }
 
-    .pb-total-label {
+    .rs-pb-total-label {
       font-weight: 700;
       font-size: .95rem
     }
 
-    .pb-total-price {
+    .rs-pb-total-price {
       font-size: 1.4rem;
       font-weight: 900;
       color: var(--P)
     }
 
-    .pb-add-btn {
+    .rs-pb-add-btn {
       margin-top: 16px;
       width: 100%;
       padding: 16px;
@@ -1237,13 +1225,13 @@
       transition: var(--t)
     }
 
-    .pb-add-btn:hover {
+    .rs-pb-add-btn:hover {
       transform: translateY(-2px);
       box-shadow: 0 8px 28px var(--P)40
     }
 
     /* ── CART MODAL ── */
-    .cart-overlay {
+    .rs-cart-overlay {
       display: none;
       position: fixed;
       inset: 0;
@@ -1253,12 +1241,12 @@
       transition: opacity .3s
     }
 
-    .cart-overlay.open {
+    .rs-cart-overlay.open {
       display: block;
       opacity: 1
     }
 
-    .cart-panel {
+    .rs-cart-panel {
       position: fixed;
       top: 0;
       right: -420px;
@@ -1272,11 +1260,11 @@
       border-left: 1px solid var(--bd)
     }
 
-    .cart-panel.open {
+    .rs-cart-panel.open {
       right: 0
     }
 
-    .cart-header {
+    .rs-cart-header {
       padding: 20px 24px;
       border-bottom: 1px solid var(--bd);
       display: flex;
@@ -1284,12 +1272,12 @@
       align-items: center
     }
 
-    .cart-title {
+    .rs-cart-title {
       font-weight: 800;
       font-size: 1.1rem
     }
 
-    .cart-close {
+    .rs-cart-close {
       background: none;
       border: none;
       font-size: 24px;
@@ -1297,20 +1285,20 @@
       cursor: pointer
     }
 
-    .cart-items {
+    .rs-cart-items {
       flex: 1;
       overflow-y: auto;
       padding: 16px 24px
     }
 
-    .cart-item {
+    .rs-cart-item {
       display: flex;
       gap: 14px;
       padding: 14px 0;
       border-bottom: 1px solid var(--bd)
     }
 
-    .cart-item-img {
+    .rs-cart-item-img {
       width: 56px;
       height: 56px;
       border-radius: 10px;
@@ -1319,41 +1307,41 @@
       flex-shrink: 0
     }
 
-    .cart-item-img img {
+    .rs-cart-item-img img {
       width: 100%;
       height: 100%;
       object-fit: cover
     }
 
-    .cart-item-info {
+    .rs-cart-item-info {
       flex: 1
     }
 
-    .cart-item-name {
+    .rs-cart-item-name {
       font-weight: 700;
       font-size: .88rem;
       margin-bottom: 2px
     }
 
-    .cart-item-meta {
+    .rs-cart-item-meta {
       font-size: .75rem;
       color: var(--mu)
     }
 
-    .cart-item-price {
+    .rs-cart-item-price {
       font-weight: 800;
       color: var(--P);
       font-size: .9rem;
       margin-top: 4px
     }
 
-    .cart-item-qty {
+    .rs-cart-item-qty {
       display: flex;
       align-items: center;
       gap: 8px
     }
 
-    .qty-btn {
+    .rs-qty-btn {
       width: 30px;
       height: 30px;
       border-radius: 8px;
@@ -1369,30 +1357,30 @@
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
     }
 
-    .qty-btn:hover {
+    .rs-qty-btn:hover {
       background: var(--P);
       color: var(--btn-txt);
       border-color: var(--P);
       transform: scale(1.1);
     }
 
-    .cart-footer {
+    .rs-cart-footer {
       padding: 20px 24px;
       border-top: 1px solid var(--bd)
     }
 
-    .cart-totals {
+    .rs-cart-totals {
       margin-bottom: 16px
     }
 
-    .cart-total-row {
+    .rs-cart-total-row {
       display: flex;
       justify-content: space-between;
       font-size: .88rem;
       margin-bottom: 8px
     }
 
-    .cart-total-row.grand {
+    .rs-cart-total-row.grand {
       font-size: 1.1rem;
       font-weight: 900;
       color: var(--P);
@@ -1400,7 +1388,7 @@
       border-top: 1px solid var(--bd)
     }
 
-    .cart-checkout-btn {
+    .rs-cart-checkout-btn {
       width: 100%;
       padding: 16px;
       border-radius: 14px;
@@ -1414,17 +1402,17 @@
       box-shadow: 0 4px 15px var(--P)40;
     }
 
-    .cart-checkout-btn:hover {
+    .rs-cart-checkout-btn:hover {
       box-shadow: 0 8px 28px var(--P)40
     }
 
-    .cart-empty {
+    .rs-cart-empty {
       text-align: center;
       padding: 60px 0;
       color: var(--mu)
     }
 
-    .cart-empty-icon {
+    .rs-cart-empty-icon {
       font-size: 48px;
       margin-bottom: 12px
     }
@@ -1437,14 +1425,14 @@
       margin-top: 40px
     }
 
-    .footer-grid {
+    .rs-footer-grid {
       display: grid;
       grid-template-columns: 2fr 1fr 1fr 1fr;
       gap: 40px;
       margin-bottom: 40px
     }
 
-    .footer-brand {
+    .rs-footer-brand {
       font-family: var(--font-d);
       font-size: 1.3rem;
       font-weight: 900;
@@ -1455,19 +1443,19 @@
       -webkit-text-fill-color: transparent
     }
 
-    .footer-desc {
+    .rs-footer-desc {
       font-size: .83rem;
       color: var(--mu);
       line-height: 1.7;
       margin-bottom: 16px
     }
 
-    .footer-social {
+    .rs-footer-social {
       display: flex;
       gap: 10px
     }
 
-    .footer-social a {
+    .rs-footer-social a {
       width: 38px;
       height: 38px;
       border-radius: 50%;
@@ -1480,13 +1468,13 @@
       transition: var(--t)
     }
 
-    .footer-social a:hover {
+    .rs-footer-social a:hover {
       background: var(--P);
       color: #fff;
       border-color: var(--P)
     }
 
-    .footer-col-title {
+    .rs-footer-col-title {
       font-size: .72rem;
       font-weight: 800;
       text-transform: uppercase;
@@ -1495,7 +1483,7 @@
       margin-bottom: 14px
     }
 
-    .footer-col a {
+    .rs-footer-col a {
       display: block;
       font-size: .83rem;
       color: var(--mu);
@@ -1503,12 +1491,12 @@
       transition: color .2s
     }
 
-    .footer-col a:hover {
+    .rs-footer-col a:hover {
       color: var(--P)
     }
 
-    .footer-contact a,
-    .footer-contact span {
+    .rs-footer-contact a,
+    .rs-footer-contact span {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -1517,7 +1505,7 @@
       margin-bottom: 10px
     }
 
-    .footer-bottom {
+    .rs-footer-bottom {
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -1530,7 +1518,7 @@
     }
 
     /* ── CHECKOUT MODAL ── */
-    .modal-overlay {
+    .rs-modal-overlay {
       display: none;
       position: fixed;
       inset: 0;
@@ -1542,11 +1530,11 @@
       padding: 20px
     }
 
-    .modal-overlay.open {
+    .rs-modal-overlay.open {
       display: flex
     }
 
-    .modal {
+    .rs-modal {
       background: var(--s1);
       border: 1px solid var(--bd);
       border-radius: 24px;
@@ -1557,7 +1545,7 @@
       box-shadow: var(--shadow)
     }
 
-    .modal-header {
+    .rs-modal-header {
       padding: 24px 28px 18px;
       border-bottom: 1px solid var(--bd);
       display: flex;
@@ -1565,12 +1553,12 @@
       align-items: center
     }
 
-    .modal-header h3 {
+    .rs-modal-header h3 {
       font-weight: 800;
       font-size: 1.1rem
     }
 
-    .modal-close {
+    .rs-modal-close {
       background: none;
       border: none;
       font-size: 20px;
@@ -1578,15 +1566,15 @@
       cursor: pointer
     }
 
-    .modal-body {
+    .rs-modal-body {
       padding: 24px 28px
     }
 
-    .form-group {
+    .rs-form-group {
       margin-bottom: 16px
     }
 
-    .form-label {
+    .rs-form-label {
       display: block;
       font-size: .78rem;
       font-weight: 700;
@@ -1596,9 +1584,9 @@
       margin-bottom: 6px
     }
 
-    .form-input,
-    .form-select,
-    .form-textarea {
+    .rs-form-input,
+    .rs-form-select,
+    .rs-form-textarea {
       width: 100%;
       padding: 12px 14px;
       border-radius: 12px;
@@ -1611,31 +1599,31 @@
       font-family: var(--font-b)
     }
 
-    .form-input:focus,
-    .form-select:focus,
-    .form-textarea:focus {
+    .rs-form-input:focus,
+    .rs-form-select:focus,
+    .rs-form-textarea:focus {
       border-color: var(--P);
       background: var(--s1);
       box-shadow: 0 0 0 4px var(--P)15;
     }
 
-    .form-textarea {
+    .rs-form-textarea {
       min-height: 80px;
       resize: vertical
     }
 
-    .form-row {
+    .rs-form-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px
     }
 
-    .modal-footer {
+    .rs-modal-footer {
       padding: 18px 28px 24px;
       border-top: 1px solid var(--bd)
     }
 
-    .order-error {
+    .rs-order-error {
       padding: 10px 14px;
       border-radius: 10px;
       background: rgba(239, 68, 68, .1);
@@ -1646,30 +1634,30 @@
       display: none
     }
 
-    .order-success {
+    .rs-order-success {
       text-align: center;
       padding: 40px 20px
     }
 
-    .order-success-icon {
+    .rs-order-success-icon {
       font-size: 56px;
       margin-bottom: 14px
     }
 
-    .order-success h3 {
+    .rs-order-success h3 {
       font-size: 1.3rem;
       font-weight: 800;
       margin-bottom: 8px
     }
 
-    .order-success p {
+    .rs-order-success p {
       color: var(--mu);
       font-size: .88rem;
       line-height: 1.7
     }
 
     /* ── TOAST ── */
-    .toast {
+    .rs-toast {
       position: fixed;
       bottom: 24px;
       left: 50%;
@@ -1689,80 +1677,80 @@
       gap: 8px
     }
 
-    .toast.show {
+    .rs-toast.show {
       transform: translateX(-50%) translateY(0)
     }
 
     /* ── RESPONSIVE ── */
     @media(max-width:1024px) {
-      .about-grid {
+      .rs-about-grid {
         grid-template-columns: 1fr
       }
 
-      .info-grid {
+      .rs-info-grid {
         grid-template-columns: repeat(2, 1fr)
       }
 
-      .footer-grid {
+      .rs-footer-grid {
         grid-template-columns: 1fr 1fr
       }
     }
 
     @media(max-width:768px) {
-      .nav-links {
+      .rs-nav-links {
         display: none
       }
 
-      .hamburger {
+      .rs-hamburger {
         display: flex
       }
 
-      .info-grid {
+      .rs-info-grid {
         grid-template-columns: 1fr 1fr
       }
 
-      .pb-sizes {
+      .rs-pb-sizes {
         grid-template-columns: 1fr
       }
 
-      .footer-grid {
+      .rs-footer-grid {
         grid-template-columns: 1fr
       }
 
-      .about-grid {
+      .rs-about-grid {
         gap: 24px
       }
 
-      .hero-features {
+      .rs-hero-features {
         flex-direction: column;
         gap: 16px
       }
     }
 
     @media(max-width:480px) {
-      .top-bar {
+      .rs-top-bar {
         display: none
       }
 
-      .hero-ctas {
+      .rs-hero-ctas {
         flex-direction: column;
         align-items: stretch
       }
 
-      .hero-ctas .btn-primary,
-      .hero-ctas .btn-outline {
+      .rs-hero-ctas .rs-btn-primary,
+      .rs-hero-ctas .rs-btn-outline {
         justify-content: center
       }
 
-      .info-grid {
+      .rs-info-grid {
         grid-template-columns: 1fr
       }
 
-      .form-row {
+      .rs-form-row {
         grid-template-columns: 1fr
       }
 
-      .cart-btn span.cart-label {
+      .rs-cart-btn span.cart-label {
         display: none
       }
     }
@@ -1772,48 +1760,48 @@
 <body>
 
   <!-- TOP BAR -->
-  <div class="top-bar" id="top-bar">
-    <div class="container">
-      <div class="top-bar-left">
-        <span class="top-bar-item"><i class="fa-solid fa-phone" style="color:var(--P)"></i> <a href="#"
+  <div class="rs-top-bar" id="top-bar">
+    <div class="rs-container">
+      <div class="rs-top-bar-left">
+        <span class="rs-top-bar-item"><i class="fa-solid fa-phone" style="color:var(--P)"></i> <a href="#"
             id="tb-phone"></a></span>
-        <span class="top-bar-item"><i class="fa-solid fa-envelope" style="color:var(--P)"></i> <a href="#"
+        <span class="rs-top-bar-item"><i class="fa-solid fa-envelope" style="color:var(--P)"></i> <a href="#"
             id="tb-email"></a></span>
       </div>
-      <div class="top-bar-right">
-        <span class="top-bar-item" id="tb-hours"><i class="fa-regular fa-clock" style="color:var(--P)"></i></span>
-        <span class="top-bar-item" id="tb-social-links"></span>
+      <div class="rs-top-bar-right">
+        <span class="rs-top-bar-item" id="tb-hours"><i class="fa-regular fa-clock" style="color:var(--P)"></i></span>
+        <span class="rs-top-bar-item" id="tb-social-links"></span>
       </div>
     </div>
   </div>
 
   <!-- NAV -->
   <nav id="nav">
-    <div class="nav-inner container">
-      <a class="nav-logo" href="#" id="nav-logo">Restaurant</a>
-      <div class="nav-links" id="nav-links-desktop">
-        <a href="#hero" class="active">Home</a>
+    <div class="rs-nav-inner rs-container">
+      <a class="rs-nav-logo" href="#" id="nav-logo">Restaurant</a>
+      <div class="rs-nav-links" id="nav-links-desktop">
+        <a href="#hero" class="rs-active">Home</a>
         <a href="#about">About</a>
         <a href="#menu">Menu</a>
         <a href="#contact-section">Contact</a>
       </div>
-      <div class="nav-actions">
+      <div class="rs-nav-actions">
         <button id="theme-btn" onclick="toggleTheme()" title="Toggle theme"><i class="fa-solid fa-moon"
             id="theme-icon"></i></button>
-        <button class="cart-btn" onclick="openCart()"><i class="fa-solid fa-cart-shopping"></i> <span
-            class="cart-label">Cart</span> <span class="cart-count" id="cart-count">0</span></button>
-        <button class="hamburger" id="hamburger-btn"
+        <button class="rs-cart-btn" onclick="openCart()"><i class="fa-solid fa-cart-shopping"></i> <span
+            class="rs-cart-label">Cart</span> <span class="rs-cart-count" id="cart-count">0</span></button>
+        <button class="rs-hamburger" id="hamburger-btn"
           onclick="toggleSidebar()"><span></span><span></span><span></span></button>
       </div>
     </div>
   </nav>
 
   <!-- SIDEBAR -->
-  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
-  <aside class="sidebar" id="sidebar">
-    <button class="sidebar-close" onclick="toggleSidebar()"><i class="fa-solid fa-xmark"></i></button>
-    <a class="sidebar-logo" id="sidebar-logo">Restaurant</a>
-    <div class="sidebar-nav">
+  <div class="rs-sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+  <aside class="rs-sidebar" id="sidebar">
+    <button class="rs-sidebar-close" onclick="toggleSidebar()"><i class="fa-solid fa-xmark"></i></button>
+    <a class="rs-sidebar-logo" id="sidebar-logo">Restaurant</a>
+    <div class="rs-sidebar-nav">
       <a href="#hero" onclick="toggleSidebar()"><i class="fa-solid fa-house" style="width:20px;text-align:center"></i>
         Home</a>
       <a href="#about" onclick="toggleSidebar()"><i class="fa-solid fa-circle-info"
@@ -1823,73 +1811,73 @@
       <a href="#contact-section" onclick="toggleSidebar()"><i class="fa-solid fa-phone" style="color:var(--P)"></i>
         Contact</a>
     </div>
-    <div class="sidebar-contact" id="sidebar-contact"></div>
+    <div class="rs-sidebar-contact" id="sidebar-contact"></div>
   </aside>
 
   <!-- HERO -->
   <section id="hero">
     <div id="hero-bg"></div>
-    <div id="hero-content" class="container">
-      <div class="hero-tag">● NOW OPEN FOR ORDERS</div>
+    <div id="hero-content" class="rs-container">
+      <div class="rs-hero-tag">● NOW OPEN FOR ORDERS</div>
       <h1 id="hero-title">Welcome</h1>
       <p id="hero-subtitle">Fresh, delicious food made with love. Order online for delivery or pickup.</p>
-      <div class="hero-ctas">
-        <button class="btn-primary" onclick="document.getElementById('menu').scrollIntoView({behavior:'smooth'})"><i
+      <div class="rs-hero-ctas">
+        <button class="rs-btn-primary" onclick="document.getElementById('menu').scrollIntoView({behavior:'smooth'})"><i
             class="fa-solid fa-utensils"></i>
           View Menu</button>
-        <a class="btn-outline" href="#about"><i class="fa-solid fa-circle-info"></i> Learn More</a>
+        <a class="rs-btn-outline" href="#about"><i class="fa-solid fa-circle-info"></i> Learn More</a>
       </div>
-      <div class="hero-features" id="hero-features"></div>
+      <div class="rs-hero-features" id="hero-features"></div>
     </div>
   </section>
 
   <!-- INFO CARDS -->
-  <div class="container">
-    <div class="info-grid" id="info-cards">
-      <div class="info-card">
-        <div class="info-card-icon"><i class="fa-solid fa-truck" style="color:var(--P)"></i></div>
-        <div class="info-card-title">Fast Delivery</div>
-        <div class="info-card-desc" id="info-delivery">30 min delivery</div>
+  <div class="rs-container">
+    <div class="rs-info-grid" id="info-cards">
+      <div class="rs-info-card">
+        <div class="rs-info-card-icon"><i class="fa-solid fa-truck" style="color:var(--P)"></i></div>
+        <div class="rs-info-card-title">Fast Delivery</div>
+        <div class="rs-info-card-desc" id="info-delivery">30 min delivery</div>
       </div>
-      <div class="info-card">
-        <div class="info-card-icon"><i class="fa-solid fa-box-open" style="color:var(--P)"></i></div>
-        <div class="info-card-title">Pickup Ready</div>
-        <div class="info-card-desc">Order and collect</div>
+      <div class="rs-info-card">
+        <div class="rs-info-card-icon"><i class="fa-solid fa-box-open" style="color:var(--P)"></i></div>
+        <div class="rs-info-card-title">Pickup Ready</div>
+        <div class="rs-info-card-desc">Order and collect</div>
       </div>
-      <div class="info-card">
-        <div class="info-card-icon"><i class="fa-solid fa-credit-card" style="color:var(--P)"></i></div>
-        <div class="info-card-title">Pay Online</div>
-        <div class="info-card-desc">Card & cash accepted</div>
+      <div class="rs-info-card">
+        <div class="rs-info-card-icon"><i class="fa-solid fa-credit-card" style="color:var(--P)"></i></div>
+        <div class="rs-info-card-title">Pay Online</div>
+        <div class="rs-info-card-desc">Card & cash accepted</div>
       </div>
-      <div class="info-card">
-        <div class="info-card-icon"><i class="fa-solid fa-star" style="color:var(--P)"></i></div>
-        <div class="info-card-title">Top Rated</div>
-        <div class="info-card-desc">Loved by customers</div>
+      <div class="rs-info-card">
+        <div class="rs-info-card-icon"><i class="fa-solid fa-star" style="color:var(--P)"></i></div>
+        <div class="rs-info-card-title">Top Rated</div>
+        <div class="rs-info-card-desc">Loved by customers</div>
       </div>
     </div>
   </div>
 
   <!-- ABOUT -->
-  <section id="about" class="section">
-    <div class="container">
-      <div class="about-grid">
-        <div class="about-img" id="about-img-wrap"></div>
-        <div class="about-text">
-          <div class="section-tag">About Us</div>
+  <section id="about" class="rs-section">
+    <div class="rs-container">
+      <div class="rs-about-grid">
+        <div class="rs-about-img" id="about-img-wrap"></div>
+        <div class="rs-about-text">
+          <div class="rs-section-tag">About Us</div>
           <h3 id="about-title">Our Story</h3>
           <p id="about-text-content">We are passionate about serving the finest quality food to our community.</p>
-          <div class="about-stats">
-            <div class="about-stat">
-              <div class="about-stat-num" id="stat-items">0</div>
-              <div class="about-stat-lbl">Menu Items</div>
+          <div class="rs-about-stats">
+            <div class="rs-about-stat">
+              <div class="rs-about-stat-num" id="stat-items">0</div>
+              <div class="rs-about-stat-lbl">Menu Items</div>
             </div>
-            <div class="about-stat">
-              <div class="about-stat-num" id="stat-cats">0</div>
-              <div class="about-stat-lbl">Categories</div>
+            <div class="rs-about-stat">
+              <div class="rs-about-stat-num" id="stat-cats">0</div>
+              <div class="rs-about-stat-lbl">Categories</div>
             </div>
-            <div class="about-stat">
-              <div class="about-stat-num">100%</div>
-              <div class="about-stat-lbl">Fresh</div>
+            <div class="rs-about-stat">
+              <div class="rs-about-stat-num">100%</div>
+              <div class="rs-about-stat-lbl">Fresh</div>
             </div>
           </div>
         </div>
@@ -1898,18 +1886,18 @@
   </section>
 
   <!-- MENU -->
-  <section id="menu" class="section">
-    <div class="container">
-      <div class="section-header">
-        <div class="section-tag">Our Menu</div>
-        <div class="section-title">Explore Our Dishes</div>
-        <div class="section-desc">Handcrafted with the freshest ingredients</div>
+  <section id="menu" class="rs-section">
+    <div class="rs-container">
+      <div class="rs-section-header">
+        <div class="rs-section-tag">Our Menu</div>
+        <div class="rs-section-title">Explore Our Dishes</div>
+        <div class="rs-section-desc">Handcrafted with the freshest ingredients</div>
       </div>
-      <div class="menu-layout">
-        <div class="menu-sidebar">
-          <div class="cat-list" id="cat-tabs"></div>
+      <div class="rs-menu-layout">
+        <div class="rs-menu-sidebar">
+          <div class="rs-cat-list" id="cat-tabs"></div>
         </div>
-        <div class="menu-content">
+        <div class="rs-menu-content">
           <div id="product-grid"></div>
         </div>
       </div>
@@ -1917,15 +1905,15 @@
   </section>
 
   <!-- PIZZA MODAL -->
-  <div class="modal-overlay" id="pizza-modal">
-    <div class="modal" style="max-width: 680px">
-      <div class="modal-header">
+  <div class="rs-modal-overlay" id="pizza-modal">
+    <div class="rs-modal" style="max-width: 680px">
+      <div class="rs-modal-header">
         <h3><i class="fa-solid fa-pizza-slice" style="margin-right:8px;color:var(--P)"></i> Build Your Pizza</h3>
-        <button class="modal-close" onclick="closePizzaModal()"><i class="fa-solid fa-xmark"></i></button>
+        <button class="rs-modal-close" onclick="closePizzaModal()"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <div class="modal-body pb-modal-body" style="padding: 24px 28px;">
-        <div class="pizza-builder" id="pizza-builder" style="border:none;padding:0;margin:0;">
-          <div class="pb-header"
+      <div class="rs-modal-body pb-modal-body" style="padding: 24px 28px;">
+        <div class="rs-pizza-builder" id="pizza-builder" style="border:none;padding:0;margin:0;">
+          <div class="rs-pb-header"
             style="display: flex; gap: 20px; align-items: center; margin-bottom: 24px; text-align: left;">
             <div id="pb-pizza-img"
               style="width: 80px; height: 80px; border-radius: 12px; background: var(--s2); overflow: hidden; flex-shrink: 0;">
@@ -1938,38 +1926,38 @@
               <div id="pb-pizza-desc" style="font-size: 0.85rem; color: var(--mu);">Description</div>
             </div>
           </div>
-          <div class="pb-section">
-            <div class="pb-section-title">1. Pick Your Size</div>
-            <div class="pb-sizes" id="pb-sizes">
-              <div class="pb-size active" onclick="selectSize('small',this)" data-size="small">
-                <div class="pb-size-icon"><i class="fa-solid fa-pizza-slice"></i></div>
-                <div class="pb-size-name">Small</div>
-                <div class="pb-size-info">8" - 2 Persons</div>
-                <div class="pb-size-price" id="price-small">--</div>
+          <div class="rs-pb-section">
+            <div class="rs-pb-section-title">1. Pick Your Size</div>
+            <div class="rs-pb-sizes" id="pb-sizes">
+              <div class="rs-pb-size rs-active" onclick="selectSize('small',this)" data-size="small">
+                <div class="rs-pb-size-icon"><i class="fa-solid fa-pizza-slice"></i></div>
+                <div class="rs-pb-size-name">Small</div>
+                <div class="rs-pb-size-info">8" - 2 Persons</div>
+                <div class="rs-pb-size-price" id="price-small">--</div>
               </div>
-              <div class="pb-size" onclick="selectSize('medium',this)" data-size="medium">
-                <div class="pb-size-icon" style="font-size:24px"><i class="fa-solid fa-pizza-slice"></i><i
+              <div class="rs-pb-size" onclick="selectSize('medium',this)" data-size="medium">
+                <div class="rs-pb-size-icon" style="font-size:24px"><i class="fa-solid fa-pizza-slice"></i><i
                     class="fa-solid fa-pizza-slice"></i></div>
-                <div class="pb-size-name">Medium</div>
-                <div class="pb-size-info">12" - 4 Persons</div>
-                <div class="pb-size-price" id="price-medium">--</div>
+                <div class="rs-pb-size-name">Medium</div>
+                <div class="rs-pb-size-info">12" - 4 Persons</div>
+                <div class="rs-pb-size-price" id="price-medium">--</div>
               </div>
-              <div class="pb-size" onclick="selectSize('large',this)" data-size="large">
-                <div class="pb-size-icon" style="font-size:20px"><i class="fa-solid fa-pizza-slice"></i><i
+              <div class="rs-pb-size" onclick="selectSize('large',this)" data-size="large">
+                <div class="rs-pb-size-icon" style="font-size:20px"><i class="fa-solid fa-pizza-slice"></i><i
                     class="fa-solid fa-pizza-slice"></i><i class="fa-solid fa-pizza-slice"></i></div>
-                <div class="pb-size-name">Large</div>
-                <div class="pb-size-info">16" - 6 Persons</div>
-                <div class="pb-size-price" id="price-large">--</div>
+                <div class="rs-pb-size-name">Large</div>
+                <div class="rs-pb-size-info">16" - 6 Persons</div>
+                <div class="rs-pb-size-price" id="price-large">--</div>
               </div>
             </div>
           </div>
-          <div class="pb-section">
-            <div class="pb-section-title">2. Add Extra Toppings</div>
-            <div class="pb-addons" id="pb-addons"></div>
+          <div class="rs-pb-section">
+            <div class="rs-pb-section-title">2. Add Extra Toppings</div>
+            <div class="rs-pb-addons" id="pb-addons"></div>
           </div>
-          <div class="pb-total" style="margin-top:0"><span class="pb-total-label">Total Price</span><span
-              class="pb-total-price" id="pb-total">0.00</span></div>
-          <button class="pb-add-btn" onclick="addPizzaToCart()"><i class="fa-solid fa-cart-shopping"></i> Add to
+          <div class="rs-pb-total" style="margin-top:0"><span class="rs-pb-total-label">Total Price</span><span
+              class="rs-pb-total-price" id="pb-total">0.00</span></div>
+          <button class="rs-pb-add-btn" onclick="addPizzaToCart()"><i class="fa-solid fa-cart-shopping"></i> Add to
             Cart</button>
         </div>
       </div>
@@ -1977,13 +1965,13 @@
   </div>
 
   <!-- CONTACT -->
-  <section id="contact-section" class="section">
-    <div class="container">
-      <div class="section-header">
-        <div class="section-tag">Get In Touch</div>
-        <div class="section-title">Contact Us</div>
+  <section id="contact-section" class="rs-section">
+    <div class="rs-container">
+      <div class="rs-section-header">
+        <div class="rs-section-tag">Get In Touch</div>
+        <div class="rs-section-title">Contact Us</div>
       </div>
-      <div class="about-grid" id="contact-grid">
+      <div class="rs-about-grid" id="contact-grid">
         <div>
           <div id="contact-info" style="display:flex;flex-direction:column;gap:16px"></div>
         </div>
@@ -1995,24 +1983,24 @@
 
   <!-- FOOTER -->
   <footer>
-    <div class="container">
-      <div class="footer-grid">
+    <div class="rs-container">
+      <div class="rs-footer-grid">
         <div>
-          <div class="footer-brand" id="footer-brand" style="margin-bottom:16px;">Restaurant</div>
-          <div class="footer-desc" id="footer-desc">Delicious food, delivered fresh to your door.</div>
-          <div class="footer-social" id="footer-social"></div>
+          <div class="rs-footer-brand" id="footer-brand" style="margin-bottom:16px;">Restaurant</div>
+          <div class="rs-footer-desc" id="footer-desc">Delicious food, delivered fresh to your door.</div>
+          <div class="rs-footer-social" id="footer-social"></div>
         </div>
-        <div class="footer-col">
-          <div class="footer-col-title">Quick Links</div>
+        <div class="rs-footer-col">
+          <div class="rs-footer-col-title">Quick Links</div>
           <a href="#hero">Home</a><a href="#about">About</a><a href="#menu">Menu</a>
         </div>
-        <div class="footer-col footer-contact" id="footer-contact"></div>
-        <div class="footer-col">
-          <div class="footer-col-title">Hours</div>
+        <div class="rs-footer-col rs-footer-contact" id="footer-contact"></div>
+        <div class="rs-footer-col">
+          <div class="rs-footer-col-title">Hours</div>
           <span id="footer-hours" style="font-size:.83rem;color:var(--mu)"></span>
         </div>
       </div>
-      <div class="footer-bottom">
+      <div class="rs-footer-bottom">
         <span id="footer-copy">© 2026 Restaurant. All rights reserved.</span>
         <span>Powered by Barmagly POS</span>
       </div>
@@ -2020,69 +2008,69 @@
   </footer>
 
   <!-- CART PANEL -->
-  <div class="cart-overlay" id="cart-overlay" onclick="closeCart()"></div>
-  <div class="cart-panel" id="cart-panel">
-    <div class="cart-header"><span class="cart-title"><i class="fa-solid fa-cart-shopping"></i> Your Order</span><button
-        class="cart-close" onclick="closeCart()"><i class="fa-solid fa-xmark"></i></button></div>
-    <div class="cart-items" id="cart-items"></div>
-    <div class="cart-footer" id="cart-footer"></div>
+  <div class="rs-cart-overlay" id="cart-overlay" onclick="closeCart()"></div>
+  <div class="rs-cart-panel" id="cart-panel">
+    <div class="rs-cart-header"><span class="rs-cart-title"><i class="fa-solid fa-cart-shopping"></i> Your Order</span><button
+        class="rs-cart-close" onclick="closeCart()"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="rs-cart-items" id="cart-items"></div>
+    <div class="rs-cart-footer" id="cart-footer"></div>
   </div>
 
   <!-- CHECKOUT MODAL -->
-  <div class="modal-overlay" id="checkout-modal">
-    <div class="modal">
-      <div class="modal-header">
-        <h3>Complete Your Order</h3><button class="modal-close" onclick="closeCheckout()"><i
+  <div class="rs-modal-overlay" id="checkout-modal">
+    <div class="rs-modal">
+      <div class="rs-modal-header">
+        <h3>Complete Your Order</h3><button class="rs-modal-close" onclick="closeCheckout()"><i
             class="fa-solid fa-xmark"></i></button>
       </div>
-      <div class="modal-body" id="checkout-body">
-        <div id="checkout-error" class="order-error"></div>
+      <div class="rs-modal-body" id="checkout-body">
+        <div id="checkout-error" class="rs-order-error"></div>
         <div id="checkout-form">
-          <div class="form-group"><label class="form-label">Your Name *</label><input class="form-input" id="co-name"
+          <div class="rs-form-group"><label class="rs-form-label">Your Name *</label><input class="rs-form-input" id="co-name"
               required placeholder="Full name"></div>
-          <div class="form-row">
-            <div class="form-group"><label class="form-label">Phone *</label><input class="form-input" id="co-phone"
+          <div class="rs-form-row">
+            <div class="rs-form-group"><label class="rs-form-label">Phone *</label><input class="rs-form-input" id="co-phone"
                 required placeholder="+1 234 567 890"></div>
-            <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="co-email"
+            <div class="rs-form-group"><label class="rs-form-label">Email</label><input class="rs-form-input" id="co-email"
                 type="email" placeholder="you@email.com"></div>
           </div>
-          <div class="form-group"><label class="form-label">Order Type</label>
-            <select class="form-select" id="co-type">
+          <div class="rs-form-group"><label class="rs-form-label">Order Type</label>
+            <select class="rs-form-select" id="co-type">
               <option value="delivery">Delivery</option>
               <option value="pickup">Pickup</option>
             </select>
           </div>
-          <div class="form-group" id="co-address-group"><label class="form-label">Delivery Address *</label><input
-              class="form-input" id="co-address" placeholder="Street, City"></div>
-          <div class="form-group"><label class="form-label">Payment Method</label>
-            <select class="form-select" id="co-payment">
+          <div class="rs-form-group" id="co-address-group"><label class="rs-form-label">Delivery Address *</label><input
+              class="rs-form-input" id="co-address" placeholder="Street, City"></div>
+          <div class="rs-form-group"><label class="rs-form-label">Payment Method</label>
+            <select class="rs-form-select" id="co-payment">
               <option value="cash">Cash on Delivery</option>
               <option value="card">Card Payment</option>
             </select>
           </div>
-          <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="co-notes"
+          <div class="rs-form-group"><label class="rs-form-label">Notes</label><textarea class="rs-form-textarea" id="co-notes"
               placeholder="Special requests..."></textarea></div>
         </div>
-        <div id="checkout-success" class="order-success" style="display:none">
-          <div class="order-success-icon"><i class="fa-solid fa-circle-check" style="color:#22c55e"></i></div>
+        <div id="checkout-success" class="rs-order-success" style="display:none">
+          <div class="rs-order-success-icon"><i class="fa-solid fa-circle-check" style="color:#22c55e"></i></div>
           <h3>Order Placed!</h3>
           <p id="success-msg">Your order is being prepared. You will receive a confirmation shortly.</p>
         </div>
       </div>
-      <div class="modal-footer" id="checkout-footer">
-        <button class="cart-checkout-btn" id="checkout-submit" onclick="submitOrder()">Place Order</button>
+      <div class="rs-modal-footer" id="checkout-footer">
+        <button class="rs-cart-checkout-btn" id="checkout-submit" onclick="submitOrder()">Place Order</button>
       </div>
     </div>
   </div>
 
   <!-- FLOAT CART BUTTON -->
-  <div class="float-cart-btn" id="float-cart-btn" onclick="openCart()">
+  <div class="rs-float-cart-btn" id="float-cart-btn" onclick="openCart()">
     <i class="fa-solid fa-cart-shopping"></i>
-    <div class="float-cart-count" id="float-cart-count">0</div>
+    <div class="rs-float-cart-count" id="float-cart-count">0</div>
   </div>
 
   <!-- TOAST -->
-  <div class="toast" id="toast"></div>
+  <div class="rs-toast" id="toast"></div>
 
   <script>
     const SLUG = '{{SLUG}}', TENANT_ID = '{{TENANT_ID}}';
@@ -2105,10 +2093,10 @@
     const fmt = v => `${currency()} ${Number(v).toFixed(2)}`;
 
     // Theme
-    if (isDark) document.body.classList.add('dark');
+    if (isDark) document.body.classList.add('rs-dark');
     function toggleTheme() {
       isDark = !isDark;
-      document.body.classList.toggle('dark', isDark);
+      document.body.classList.toggle('rs-dark', isDark);
       const icon = document.getElementById('theme-icon');
       if (icon) {
         icon.className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
@@ -2119,12 +2107,12 @@
     }
 
     // Sidebar
-    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('open') }
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('rs-open'); document.getElementById('sidebar-overlay').classList.toggle('rs-open') }
 
     // Cart
-    function openCart() { document.getElementById('cart-panel').classList.add('open'); document.getElementById('cart-overlay').classList.add('open'); renderCart() }
-    function closeCart() { document.getElementById('cart-panel').classList.remove('open'); document.getElementById('cart-overlay').classList.remove('open') }
-    function updateCartCount() { const c = cart.reduce((s, i) => s + i.qty, 0); document.getElementById('cart-count').textContent = c; document.getElementById('float-cart-count').textContent = c; if (c > 0) document.getElementById('float-cart-btn').classList.add('visible'); else document.getElementById('float-cart-btn').classList.remove('visible'); }
+    function openCart() { document.getElementById('cart-panel').classList.add('rs-open'); document.getElementById('cart-overlay').classList.add('rs-open'); renderCart() }
+    function closeCart() { document.getElementById('cart-panel').classList.remove('rs-open'); document.getElementById('cart-overlay').classList.remove('rs-open') }
+    function updateCartCount() { const c = cart.reduce((s, i) => s + i.qty, 0); document.getElementById('cart-count').textContent = c; document.getElementById('float-cart-count').textContent = c; if (c > 0) document.getElementById('float-cart-btn').classList.add('rs-visible'); else document.getElementById('float-cart-btn').classList.remove('rs-visible'); }
     function addToCart(product, qty = 1, size = null, addons = []) {
       const key = `${product.id}-${size || 'default'}-${addons.sort().join(',')}`;
       const existing = cart.find(i => i.key === key);
@@ -2150,27 +2138,27 @@
     function renderCart() {
       const items = document.getElementById('cart-items');
       const footer = document.getElementById('cart-footer');
-      if (!cart.length) { items.innerHTML = '<div class="cart-empty"><div class="cart-empty-icon"><i class="fa-solid fa-cart-shopping"></i></div><p>Your cart is empty</p></div>'; footer.innerHTML = ''; return }
-      items.innerHTML = cart.map(i => `<div class="cart-item">
-    <div class="cart-item-img">${i.image ? `<img src="${i.image}" alt="">` : ''}</div>
-    <div class="cart-item-info"><div class="cart-item-name">${i.name}</div>
-    ${i.addons?.length ? `<div class="cart-item-meta">${i.addons.join(', ')}</div>` : ''}
-    <div class="cart-item-price">${fmt(i.price)}</div></div>
-    <div class="cart-item-qty"><button class="qty-btn" onclick="changeQty('${i.key}',-1)">−</button><span style="font-weight:700;min-width:20px;text-align:center">${i.qty}</span><button class="qty-btn" onclick="changeQty('${i.key}',1)">+</button></div></div>`).join('');
+      if (!cart.length) { items.innerHTML = '<div class="rs-cart-empty"><div class="rs-cart-empty-icon"><i class="fa-solid fa-cart-shopping"></i></div><p>Your cart is empty</p></div>'; footer.innerHTML = ''; return }
+      items.innerHTML = cart.map(i => `<div class="rs-cart-item">
+    <div class="rs-cart-item-img">${i.image ? `<img src="${i.image}" alt="">` : ''}</div>
+    <div class="rs-cart-item-info"><div class="rs-cart-item-name">${i.name}</div>
+    ${i.addons?.length ? `<div class="rs-cart-item-meta">${i.addons.join(', ')}</div>` : ''}
+    <div class="rs-cart-item-price">${fmt(i.price)}</div></div>
+    <div class="rs-cart-item-qty"><button class="rs-qty-btn" onclick="changeQty('${i.key}',-1)">−</button><span style="font-weight:700;min-width:20px;text-align:center">${i.qty}</span><button class="rs-qty-btn" onclick="changeQty('${i.key}',1)">+</button></div></div>`).join('');
       const t = getCartTotal();
-      footer.innerHTML = `<div class="cart-totals">
-    <div class="cart-total-row"><span>Subtotal</span><span>${fmt(t.subtotal)}</span></div>
-    <div class="cart-total-row"><span>Delivery</span><span>${fmt(t.delivery)}</span></div>
-    <div class="cart-total-row grand"><span>Total</span><span>${fmt(t.total)}</span></div></div>
-    <button class="cart-checkout-btn" onclick="openCheckout()">Proceed to Checkout</button>`;
+      footer.innerHTML = `<div class="rs-cart-totals">
+    <div class="rs-cart-total-row"><span>Subtotal</span><span>${fmt(t.subtotal)}</span></div>
+    <div class="rs-cart-total-row"><span>Delivery</span><span>${fmt(t.delivery)}</span></div>
+    <div class="rs-cart-total-row rs-grand"><span>Total</span><span>${fmt(t.total)}</span></div></div>
+    <button class="rs-cart-checkout-btn" onclick="openCheckout()">Proceed to Checkout</button>`;
     }
 
     // Toast
-    function showToast(msg) { const t = document.getElementById('toast'); t.innerHTML = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500) }
+    function showToast(msg) { const t = document.getElementById('toast'); t.innerHTML = msg; t.classList.add('rs-show'); setTimeout(() => t.classList.remove('rs-show'), 2500) }
 
     // Pizza Builder
-    function selectSize(size, el) { selectedSize = size; document.querySelectorAll('.pb-size').forEach(s => s.classList.remove('active')); el.classList.add('active'); updatePizzaTotal() }
-    function toggleAddon(id, el) { if (selectedAddons.has(id)) selectedAddons.delete(id); else selectedAddons.add(id); el.classList.toggle('selected'); updatePizzaTotal() }
+    function selectSize(size, el) { selectedSize = size; document.querySelectorAll('.rs-pb-size').forEach(s => s.classList.remove('rs-active')); el.classList.add('rs-active'); updatePizzaTotal() }
+    function toggleAddon(id, el) { if (selectedAddons.has(id)) selectedAddons.delete(id); else selectedAddons.add(id); el.classList.toggle('rs-selected'); updatePizzaTotal() }
     function updatePizzaTotal() {
       if (!selectedPizza) return;
       const base = Number(selectedPizza.price) * PIZZA_SIZES[selectedSize].multiplier;
@@ -2178,16 +2166,16 @@
       document.getElementById('pb-total').textContent = fmt(base + addons);
     }
     function selectPizzaProduct(p, el) {
-      selectedPizza = p; document.querySelectorAll('.pb-pizza-item').forEach(i => i.classList.remove('active')); el.classList.add('active');
+      selectedPizza = p; document.querySelectorAll('.pb-pizza-item').forEach(i => i.classList.remove('rs-active')); el.classList.add('rs-active');
       Object.keys(PIZZA_SIZES).forEach(s => { document.getElementById('price-' + s).textContent = fmt(Number(p.price) * PIZZA_SIZES[s].multiplier) });
-      selectedSize = 'small'; document.querySelectorAll('.pb-size').forEach(s => s.classList.remove('active')); document.querySelector('[data-size="small"]').classList.add('active');
-      selectedAddons.clear(); document.querySelectorAll('.pb-addon').forEach(a => a.classList.remove('selected')); updatePizzaTotal();
+      selectedSize = 'small'; document.querySelectorAll('.rs-pb-size').forEach(s => s.classList.remove('rs-active')); document.querySelector('[data-size="small"]').classList.add('rs-active');
+      selectedAddons.clear(); document.querySelectorAll('.rs-pb-addon').forEach(a => a.classList.remove('rs-selected')); updatePizzaTotal();
     }
     function addPizzaToCart() { if (!selectedPizza) { showToast('<i class="fa-solid fa-circle-exclamation"></i> Please select a pizza first'); return } addToCart(selectedPizza, 1, selectedSize, [...selectedAddons]) }
 
     // Checkout
-    function openCheckout() { if (!cart.length) { showToast('<i class="fa-solid fa-circle-exclamation"></i> Your cart is empty'); return } closeCart(); document.getElementById('checkout-modal').classList.add('open'); document.getElementById('checkout-form').style.display = ''; document.getElementById('checkout-success').style.display = 'none'; document.getElementById('checkout-footer').style.display = ''; document.getElementById('checkout-error').style.display = 'none' }
-    function closeCheckout() { document.getElementById('checkout-modal').classList.remove('open') }
+    function openCheckout() { if (!cart.length) { showToast('<i class="fa-solid fa-circle-exclamation"></i> Your cart is empty'); return } closeCart(); document.getElementById('checkout-modal').classList.add('rs-open'); document.getElementById('checkout-form').style.display = ''; document.getElementById('checkout-success').style.display = 'none'; document.getElementById('checkout-footer').style.display = ''; document.getElementById('checkout-error').style.display = 'none' }
+    function closeCheckout() { document.getElementById('checkout-modal').classList.remove('rs-open') }
     document.getElementById('co-type')?.addEventListener('change', function () { document.getElementById('co-address-group').style.display = this.value === 'pickup' ? 'none' : '' });
 
     async function submitOrder() {
@@ -2215,7 +2203,7 @@
     }
 
     // Scroll
-    window.addEventListener('scroll', () => { document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 10) });
+    window.addEventListener('scroll', () => { document.getElementById('nav').classList.toggle('rs-scrolled', window.scrollY > 10) });
 
     // Load Store Data
     async function loadStore() {
@@ -2244,7 +2232,7 @@
         if (c?.heroTitle) document.getElementById('hero-title').textContent = c.heroTitle;
         else document.getElementById('hero-title').textContent = `Welcome to ${storeName}`;
         if (c?.heroSubtitle) document.getElementById('hero-subtitle').textContent = c.heroSubtitle;
-        if (c?.heroImage) { const bg = document.getElementById('hero-bg'); bg.style.backgroundImage = `url(${c.heroImage})`; bg.classList.add('has-image') }
+        if (c?.heroImage) { const bg = document.getElementById('hero-bg'); bg.style.backgroundImage = `url(${c.heroImage})`; bg.classList.add('rs-has-image') }
         // About
         if (c?.aboutText) document.getElementById('about-text-content').textContent = c.aboutText;
         document.getElementById('about-title').textContent = `About ${storeName}`;
@@ -2265,9 +2253,9 @@
           contactHtml.push(`<div style="display:flex;align-items:center;gap:10px;padding:14px;background:var(--s2);border-radius:12px;border:1px solid var(--bd)"><span style="font-size:20px"><i class="fa-regular fa-clock" style="color:var(--P)"></i></span><span><strong>Hours</strong><br><span style="color:var(--mu);font-size:.85rem">${c.openingHours}</span></span></div>`);
         }
         document.getElementById('contact-info').innerHTML = contactHtml.join('');
-        document.getElementById('sidebar-contact').innerHTML = sidebarContactHtml.join('') + '<div class="sidebar-social" id="sb-social"></div>';
+        document.getElementById('sidebar-contact').innerHTML = sidebarContactHtml.join('') + '<div class="rs-sidebar-social" id="sb-social"></div>';
         // Social
-        const socialHtml = []; const footerContactHtml = ['<div class="footer-col-title">Contact</div>'];
+        const socialHtml = []; const footerContactHtml = ['<div class="rs-footer-col-title">Contact</div>'];
         if (c?.phone) footerContactHtml.push(`<a href="tel:${c.phone}"><i class="fa-solid fa-phone" style="color:var(--P)"></i> ${c.phone}</a>`);
         if (c?.email) footerContactHtml.push(`<a href="mailto:${c.email}"><i class="fa-solid fa-envelope" style="color:var(--P)"></i> ${c.email}</a>`);
         if (c?.address) footerContactHtml.push(`<span><i class="fa-solid fa-location-dot" style="color:var(--P)"></i> ${c.address}</span>`);
@@ -2282,9 +2270,9 @@
         if (c?.estimatedDeliveryTime) document.getElementById('info-delivery').textContent = `${c.estimatedDeliveryTime} min delivery`;
         // Hero features
         const feats = [];
-        if (c?.enableDelivery) feats.push('<div class="hero-feat"><span class="hero-feat-icon"><i class="fa-solid fa-truck" style="color:var(--P)"></i></span>Delivery</div>');
-        if (c?.enablePickup) feats.push('<div class="hero-feat"><span class="hero-feat-icon"><i class="fa-solid fa-box-open" style="color:var(--P)"></i></span>Pickup</div>');
-        if (c?.acceptCard) feats.push('<div class="hero-feat"><span class="hero-feat-icon"><i class="fa-solid fa-credit-card" style="color:var(--P)"></i></span>Card Payment</div>');
+        if (c?.enableDelivery) feats.push('<div class="rs-hero-feat"><span class="rs-hero-feat-icon"><i class="fa-solid fa-truck" style="color:var(--P)"></i></span>Delivery</div>');
+        if (c?.enablePickup) feats.push('<div class="rs-hero-feat"><span class="rs-hero-feat-icon"><i class="fa-solid fa-box-open" style="color:var(--P)"></i></span>Pickup</div>');
+        if (c?.acceptCard) feats.push('<div class="rs-hero-feat"><span class="rs-hero-feat-icon"><i class="fa-solid fa-credit-card" style="color:var(--P)"></i></span>Card Payment</div>');
         document.getElementById('hero-features').innerHTML = feats.join('');
         // Categories & Products
         renderCategories(cats, p); renderProducts(p, cats);
@@ -2294,22 +2282,22 @@
     function renderCategories(cats, products) {
       const tabs = document.getElementById('cat-tabs');
       const allCount = products.filter(p => p.isActive).length;
-      let html = `<div class="cat-item active" onclick="filterCat('all',this)">
-        <div class="cat-item-info"><span class="cat-item-icon"><i class="fa-solid fa-layer-group"></i></span><span class="cat-item-name">All Items</span></div>
-        <span class="cat-count">${allCount}</span>
+      let html = `<div class="rs-cat-item rs-active" onclick="filterCat('all',this)">
+        <div class="rs-cat-item-info"><span class="rs-cat-item-icon"><i class="fa-solid fa-layer-group"></i></span><span class="cat-item-name">All Items</span></div>
+        <span class="rs-cat-count">${allCount}</span>
       </div>`;
       cats.filter(c => c.isActive !== false).forEach(c => {
         const count = products.filter(p => p.categoryId === c.id && p.isActive).length;
-        if (count) html += `<div class="cat-item" onclick="filterCat(${c.id},this)">
-          <div class="cat-item-info"><span class="cat-item-icon"><i class="fa-solid fa-utensils"></i></span><span class="cat-item-name">${c.name}</span></div>
-          <span class="cat-count">${count}</span>
+        if (count) html += `<div class="rs-cat-item" onclick="filterCat(${c.id},this)">
+          <div class="rs-cat-item-info"><span class="rs-cat-item-icon"><i class="fa-solid fa-utensils"></i></span><span class="cat-item-name">${c.name}</span></div>
+          <span class="rs-cat-count">${count}</span>
         </div>`;
       });
       tabs.innerHTML = html;
     }
     function filterCat(catId, el) {
-      selectedCat = catId; document.querySelectorAll('.cat-item').forEach(t => t.classList.remove('active')); el.classList.add('active');
-      document.querySelectorAll('.product-card').forEach(c => { c.style.display = (catId === 'all' || Number(c.dataset.cat) === catId) ? '' : 'none' });
+      selectedCat = catId; document.querySelectorAll('.rs-cat-item').forEach(t => t.classList.remove('rs-active')); el.classList.add('rs-active');
+      document.querySelectorAll('.rs-product-card').forEach(c => { c.style.display = (catId === 'all' || Number(c.dataset.cat) === catId) ? '' : 'none' });
     }
     function renderProducts(products, cats) {
       const grid = document.getElementById('product-grid');
@@ -2318,10 +2306,10 @@
         const isPizza = cat && (cat.name.toLowerCase().includes('pizza') || (cat.icon && cat.icon.includes('pizza')));
         const action = isPizza ? `openPizzaModal(${JSON.stringify(p).replace(/"/g, '&quot;')})` : `addToCart(${JSON.stringify(p).replace(/"/g, '&quot;')})`;
         const btnIcon = isPizza ? 'fa-pizza-slice' : 'fa-plus';
-        return `<div class="product-card" data-cat="${p.categoryId}" onclick="${action}">
-      <div class="product-img">${p.image ? `<img src="${p.image}" alt="${p.name}" loading="lazy">` : `<div class="no-img"><i class="fa-solid fa-utensils" style="color:var(--mu)"></i></div>`}${cat ? `<div class="product-badge">${cat.name}</div>` : ''}</div>
-      <div class="product-info"><div class="product-name">${p.name}</div><div class="product-desc">${p.description || ''}</div>
-      <div class="product-bottom"><span class="product-price">${fmt(p.price)}</span><button class="product-add" onclick="event.stopPropagation();${action}"><i class="fa-solid ${btnIcon}"></i></button></div></div></div>`
+        return `<div class="rs-product-card" data-cat="${p.categoryId}" onclick="${action}">
+      <div class="rs-product-img">${p.image ? `<img src="${p.image}" alt="${p.name}" loading="lazy">` : `<div class="rs-no-img"><i class="fa-solid fa-utensils" style="color:var(--mu)"></i></div>`}${cat ? `<div class="rs-product-badge">${cat.name}</div>` : ''}</div>
+      <div class="rs-product-info"><div class="rs-product-name">${p.name}</div><div class="rs-product-desc">${p.description || ''}</div>
+      <div class="rs-product-bottom"><span class="rs-product-price">${fmt(p.price)}</span><button class="rs-product-add" onclick="event.stopPropagation();${action}"><i class="fa-solid ${btnIcon}"></i></button></div></div></div>`
       }).join('');
     }
 
@@ -2336,15 +2324,15 @@
       }
       Object.keys(PIZZA_SIZES).forEach(s => { document.getElementById('price-' + s).textContent = fmt(Number(product.price) * PIZZA_SIZES[s].multiplier) });
       selectedSize = 'small';
-      document.querySelectorAll('.pb-size').forEach(s => s.classList.remove('active'));
-      document.querySelector('[data-size="small"]').classList.add('active');
+      document.querySelectorAll('.rs-pb-size').forEach(s => s.classList.remove('rs-active'));
+      document.querySelector('[data-size="small"]').classList.add('rs-active');
       selectedAddons.clear();
-      document.getElementById('pb-addons').innerHTML = PIZZA_ADDONS.map(a => `<div class="pb-addon" onclick="toggleAddon('${a.id}',this)"><span class="pb-addon-icon" style="font-size:16px;">${a.icon}</span><div class="pb-addon-info"><div class="pb-addon-name">${a.name}</div><div class="pb-addon-price">+${fmt(a.price)}</div></div><div class="pb-addon-check"><i class="fa-solid fa-check"></i></div></div>`).join('');
+      document.getElementById('pb-addons').innerHTML = PIZZA_ADDONS.map(a => `<div class="rs-pb-addon" onclick="toggleAddon('${a.id}',this)"><span class="rs-pb-addon-icon" style="font-size:16px;">${a.icon}</span><div class="rs-pb-addon-info"><div class="rs-pb-addon-name">${a.name}</div><div class="rs-pb-addon-price">+${fmt(a.price)}</div></div><div class="rs-pb-addon-check"><i class="fa-solid fa-check"></i></div></div>`).join('');
       updatePizzaTotal();
-      document.getElementById('pizza-modal').classList.add('open');
+      document.getElementById('pizza-modal').classList.add('rs-open');
     }
 
-    function closePizzaModal() { document.getElementById('pizza-modal').classList.remove('open'); }
+    function closePizzaModal() { document.getElementById('pizza-modal').classList.remove('rs-open'); }
 
     function addPizzaToCart() {
       if (!selectedPizza) return;

@@ -2046,12 +2046,13 @@
         return data;
       } catch (e) { console.error(e); return null; }
     }
-    // regular (non-super-admin) routes
+    // regular (non-super-admin) routes — authenticated via super admin JWT
     async function rapi(method, path, body) {
       try {
-        const opts = { method, headers: { 'Content-Type': 'application/json' } };
+        const opts = { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } };
         if (body) opts.body = JSON.stringify(body);
         const res = await fetch(path, opts);
+        if (res.status === 401) { logout(); return null; }
         const data = await res.json();
         if (!res.ok) { console.warn('API error', path, data); return null; }
         return data;

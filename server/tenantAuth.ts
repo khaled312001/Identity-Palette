@@ -1,5 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 import { storage } from "./storage";
+
+const JWT_SECRET = process.env.JWT_SECRET || "barmagly-super-admin-secret-key-2024";
 
 export interface TenantAuthRequest extends Request {
   tenantId?: number;
@@ -60,6 +63,20 @@ export function tenantAuthMiddleware() {
     if (isSeedRoute(req.path)) {
       if (isDev) return next();
       return res.status(403).json({ error: "Seed endpoints are disabled in production" });
+    }
+
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        const token = authHeader.split(" ")[1];
+        const decoded = jwt.verify(token, JWT_SECRET) as { id: number; email: string; role: string };
+        const admin = await storage.getSuperAdmin(decoded.id);
+        if (admin && admin.isActive) {
+          const tenantId = req.query.tenantId ? Number(req.query.tenantId) : (req.body?.tenantId ? Number(req.body.tenantId) : undefined);
+          if (tenantId) req.tenantId = tenantId;
+          return next();
+        }
+      } catch (_) {}
     }
 
     const tenantId = req.query.tenantId ? Number(req.query.tenantId) : (req.body?.tenantId ? Number(req.body.tenantId) : undefined);

@@ -1126,9 +1126,36 @@ function setupPaymentGatewayRoutes(app: express.Application) {
   setupStripeRoutes(app);
   setupPaymentGatewayRoutes(app);
 
-  await initStripe();
+  configureExpoAndLanding(app);
 
-  // Ensure platform tables exist (idempotent)
+  registerSuperAdminRoutes(app);
+  const server = await registerRoutes(app);
+
+  setupErrorHandler(app);
+
+  const isProduction = process.env.NODE_ENV === 'production';
+  const port = parseInt(process.env.PORT || (isProduction ? "8081" : "5000"), 10);
+
+  await new Promise<void>((resolve, reject) => {
+    server.listen({ port, host: "0.0.0.0" }, () => {
+      log(`express server serving on port ${port}`);
+      resolve();
+    }).on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        log(`[ERROR] Port ${port} is already in use.`);
+        process.exit(1);
+      } else {
+        reject(err);
+      }
+    });
+  });
+
+  // --- Deferred initialization (after port is open) ---
+
+  await callerIdService.init(server);
+
+  initStripe().catch(err => log('Stripe init error (non-fatal):', err));
+
   try {
     const { pool } = await import("./db");
     await pool.query(`
@@ -1154,7 +1181,6 @@ function setupPaymentGatewayRoutes(app: express.Application) {
     log("Error ensuring platform tables:", err);
   }
 
-  // Ensure super admin exists (no demo tenants)
   try {
     const { storage } = await import("./storage");
     const adminEmail = "admin@barmagly.com";
@@ -1173,7 +1199,6 @@ function setupPaymentGatewayRoutes(app: express.Application) {
     log("Error creating super admin:", err);
   }
 
-  // Seed only Pizza Lemon store (no demo data auto-created)
   try {
     const { seedPizzaLemon } = await import("./seedPizzaLemon");
     await seedPizzaLemon();
@@ -1181,36 +1206,7 @@ function setupPaymentGatewayRoutes(app: express.Application) {
     log("Error seeding Pizza Lemon data:", err);
   }
 
-  configureExpoAndLanding(app);
-
-  registerSuperAdminRoutes(app);
-  const server = await registerRoutes(app);
-
-  // Initialize Caller ID Service with WebSocket Support
-  await callerIdService.init(server);
-
-  setupErrorHandler(app);
-
-  const port = parseInt(process.env.PORT || "5000", 10);
-  server.listen(
-    {
-      port,
-      host: "0.0.0.0",
-    },
-    () => {
-      log(`express server serving on port ${port}`);
-    },
-  ).on('error', (err: any) => {
-    if (err.code === 'EADDRINUSE') {
-      log(`[ERROR] Port ${port} is already in use.`);
-      log(`Try running: npx kill-port ${port}`);
-      process.exit(1);
-    } else {
-      throw err;
-    }
-  });
-
-  if (process.env.NODE_ENV !== 'production' && port !== 8081) {
+  if (!isProduction) {
     const http = await import('http');
     const expoPort = 8080;
     const proxy = http.createServer((req, res) => {

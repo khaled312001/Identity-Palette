@@ -134,7 +134,20 @@ export const storage = {
     }
     return db.select().from(products).where(eq(products.isActive, true)).orderBy(desc(products.createdAt));
   },
-  async getProductsByTenant(tenantId: number) {
+  async getProductsByTenant(tenantId: number, search?: string) {
+    if (search) {
+      return db.select().from(products).where(
+        and(
+          eq(products.tenantId, tenantId),
+          eq(products.isActive, true),
+          or(
+            ilike(products.name, `%${search}%`),
+            ilike(products.sku || "", `%${search}%`),
+            ilike(products.barcode || "", `%${search}%`)
+          )
+        )
+      ).orderBy(desc(products.createdAt));
+    }
     return db.select().from(products).where(and(eq(products.tenantId, tenantId), eq(products.isActive, true))).orderBy(desc(products.createdAt));
   },
   async getProduct(id: number) {

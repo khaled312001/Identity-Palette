@@ -48,8 +48,9 @@ export default function ProductsScreen() {
   const [imageUploading, setImageUploading] = useState(false);
 
   const { data: products = [] } = useQuery<any[]>({
-    queryKey: ["/api/products", tenantId ? `?tenantId=${tenantId}` : (search ? `?search=${search}` : "")],
+    queryKey: ["/api/products", `?tenantId=${tenantId}${search ? `&search=${search}` : ""}`],
     queryFn: getQueryFn({ on401: "throw" }),
+    enabled: !!tenantId,
   });
 
   const { data: categories = [] } = useQuery<any[]>({

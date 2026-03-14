@@ -403,7 +403,8 @@ export async function seedPizzaLemon() {
 
     // ── Phase 8: Ensure all categories exist ─────────────────────────────────
     const allCats = await db.select({ id: categories.id, name: categories.name })
-        .from(categories);
+        .from(categories)
+        .where(eq(categories.tenantId, tenant.id));
 
     const catMap: Record<string, number> = {};
     for (const c of allCats) catMap[c.name] = c.id;

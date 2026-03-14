@@ -110,15 +110,7 @@ export default function POSScreen() {
     enabled: true,
   });
 
-  // Only show categories that have products for this tenant
-  const activeCategoryIds = React.useMemo(() => {
-    return new Set(products.map((p: any) => p.categoryId).filter(Boolean));
-  }, [products]);
-
-  const tenantCategories = React.useMemo(() => {
-    if (activeCategoryIds.size === 0) return categories;
-    return (categories as any[]).filter((c: any) => activeCategoryIds.has(c.id));
-  }, [categories, activeCategoryIds]);
+  const tenantCategories = categories;
 
   const { data: allEmployees = [] } = useQuery<any[]>({
     queryKey: ["/api/employees", tenantId ? `?tenantId=${tenantId}` : ""],

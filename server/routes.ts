@@ -615,7 +615,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
       if (!tenantId) return res.status(400).json({ error: "tenantId is required" });
-      res.json(await storage.getCategories(tenantId));
+      const categories = await storage.getCategories(tenantId);
+      res.json(sortCategoriesByPriority(categories));
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.post("/api/categories", async (req, res) => {
@@ -645,8 +646,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/products", async (req, res) => {
     try {
       const tenantId = req.query.tenantId ? Number(req.query.tenantId) : undefined;
+      const search = req.query.search as string | undefined;
       if (!tenantId) return res.status(400).json({ error: "tenantId is required" });
-      res.json(await storage.getProductsByTenant(tenantId));
+      res.json(await storage.getProductsByTenant(tenantId, search));
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
@@ -1774,14 +1776,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   function sortCategoriesByPriority(cats: any[]) {
     const getPriority = (name: string) => {
       const n = name.toLowerCase();
-      if (/pizza|بيتزا/.test(n)) return 1;
-      if (/burger|burg|sandwich|wrap|grill|shawarma|شاورما/.test(n)) return 2;
-      if (/pasta|meal|main|plate|chicken|meat|fish|دجاج|لحم|سمك/.test(n)) return 3;
-      if (/appetizer|starter|مقبلات|فاتح/.test(n)) return 6;
-      if (/salad|سلطة/.test(n)) return 7;
-      if (/drink|beverage|juice|عصير|مشروب/.test(n)) return 8;
-      if (/dessert|sweet|حلوى|حلويات/.test(n)) return 9;
-      return 5; // default middle
+      // Level 1: Core Mains (Pizza, etc.)
+      if (/pizza|بيتزا|calzone|pide|lahmacun|burger|burg|sandwich|wrap|grill|shawarma|شاورما/.test(n)) return 1;
+      // Level 2: Other Mains
+      if (/pasta|meal|main|plate|chicken|meat|fish|teller|nuggets|schnitzel|kebab|دجاج|لحم|سمك/.test(n)) return 2;
+      // Level 3: Snacks/Starters
+      if (/appetizer|starter|finger|snack|مقبلات|فاتح/.test(n)) return 3;
+      // Level 5: Default (unlisted food etc.)
+      // Level 6: Salads
+      if (/salad|سلطة/.test(n)) return 6;
+      // Level 7: Desserts
+      if (/dessert|sweet|حلوى|حلويات|baklava|tiramisu/.test(n)) return 7;
+      // Level 8: Drinks
+      if (/drink|beverage|juice|water|coke|cola|bier|beer|wine|alcohol|عصير|مشروب/.test(n)) return 8;
+      // Level 9: Non-food
+      if (/tabak|tobacco|cigarette/.test(n)) return 9;
+      return 5;
     };
     return [...cats].sort((a, b) => {
       // Prioritize manual sortOrder first. If both are 0 or equal, fall back to keyword priority

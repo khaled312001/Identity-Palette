@@ -1945,7 +1945,7 @@ export default function SettingsScreen() {
               <Pressable onPress={pickStoreLogo} style={{ alignItems: "center", marginBottom: 16, padding: 20, borderRadius: 12, borderWidth: 1, borderStyle: "dashed", borderColor: Colors.cardBorder, backgroundColor: Colors.surfaceLight }}>
                 {storeLogo ? (
                   <View style={{ alignItems: "center" }}>
-                    <Image source={{ uri: storeLogo.startsWith("http") ? storeLogo : storeLogo.startsWith("/objects") ? `${getApiUrl()}${storeLogo}` : storeLogo }} style={{ width: 80, height: 80, borderRadius: 12 }} />
+                    <Image source={{ uri: storeLogo.startsWith("http") || storeLogo.startsWith("file://") || storeLogo.startsWith("data:") ? storeLogo : `${getApiUrl().replace(/\/$/, "")}${storeLogo}` }} style={{ width: 80, height: 80, borderRadius: 12 }} />
                     <Text style={{ color: Colors.accent, fontSize: 13, marginTop: 8 }}>{t("changeImage")}</Text>
                   </View>
                 ) : (

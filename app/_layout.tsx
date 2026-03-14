@@ -12,6 +12,7 @@ import { AuthProvider } from "@/lib/auth-context";
 import { CartProvider } from "@/lib/cart-context";
 import { LanguageProvider } from "@/lib/language-context";
 import { LicenseProvider, useLicense } from "@/lib/license-context";
+import { NotificationProvider } from "@/lib/notification-context";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
 
@@ -57,10 +58,12 @@ export default function RootLayout() {
             <LanguageProvider>
               <LicenseProvider>
                 <AuthProvider>
-                  <CartProvider>
-                    <StatusBar style="light" />
-                    <RootLayoutNav />
-                  </CartProvider>
+                  <NotificationProvider>
+                    <CartProvider>
+                      <StatusBar style="light" />
+                      <RootLayoutNav />
+                    </CartProvider>
+                  </NotificationProvider>
                 </AuthProvider>
               </LicenseProvider>
             </LanguageProvider>

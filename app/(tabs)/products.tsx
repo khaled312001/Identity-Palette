@@ -133,14 +133,19 @@ export default function ProductsScreen() {
 
   const uploadImage = async (uri: string): Promise<string | null> => {
     try {
+      console.log("Starting upload for URI:", uri);
       setImageUploading(true);
       const uploadRes = await apiRequest("POST", "/api/objects/upload");
       const { uploadURL } = await uploadRes.json();
+      console.log("Got upload URL:", uploadURL);
       const response = await fetch(uri);
       const blob = await response.blob();
+      console.log("Blob created, size:", blob.size);
       await fetch(uploadURL, { method: "PUT", body: blob, headers: { "Content-Type": "image/jpeg" } });
+      console.log("Upload to storage successful");
       const saveRes = await apiRequest("PUT", "/api/images/save", { imageURL: uploadURL });
       const { objectPath } = await saveRes.json();
+      console.log("Saved image path:", objectPath);
       return objectPath;
     } catch (e) {
       console.error("Upload failed:", e);
@@ -153,7 +158,7 @@ export default function ProductsScreen() {
   const handleSave = async () => {
     if (!form.name || !form.price) return Alert.alert(t("error"), t("productName") + " & " + t("price"));
     let imagePath = editProduct?.image || null;
-    if (productImage && !productImage.startsWith("/objects")) {
+    if (productImage && !productImage.startsWith("/objects") && !productImage.startsWith("http")) {
       imagePath = await uploadImage(productImage);
     }
     const productData: any = {
@@ -314,7 +319,7 @@ export default function ProductsScreen() {
             <Pressable style={[styles.productCard, isRTL && { flexDirection: "row-reverse" }]} onPress={() => canManage ? openEdit(item) : null}>
               <View style={[styles.productIconWrap, isRTL ? { marginLeft: 12, marginRight: 0 } : {}]}>
                 {item.image ? (
-                  <Image source={{ uri: item.image.startsWith("http") ? item.image : `${getApiUrl()}${item.image}` }} style={{ width: 40, height: 40, borderRadius: 10 }} resizeMode="cover" />
+                  <Image source={{ uri: item.image.startsWith("http") || item.image.startsWith("file://") || item.image.startsWith("data:") ? item.image : `${getApiUrl().replace(/\/$/, "")}${item.image}` }} style={{ width: 40, height: 40, borderRadius: 10 }} resizeMode="cover" />
                 ) : (
                   <Ionicons name="cube" size={24} color={Colors.accent} />
                 )}
@@ -374,7 +379,7 @@ export default function ProductsScreen() {
             }}>
               <View style={[styles.productIconWrap, isRTL ? { marginLeft: 12, marginRight: 0 } : {}, { backgroundColor: (item.color || "#7C3AED") + "20" }]}>
                 {item.image ? (
-                  <Image source={{ uri: item.image.startsWith("http") ? item.image : `${getApiUrl()}${item.image}` }} style={{ width: 40, height: 40, borderRadius: 10 }} resizeMode="cover" />
+                  <Image source={{ uri: item.image.startsWith("http") || item.image.startsWith("file://") || item.image.startsWith("data:") ? item.image : `${getApiUrl().replace(/\/$/, "")}${item.image}` }} style={{ width: 40, height: 40, borderRadius: 10 }} resizeMode="cover" />
                 ) : (
                   <Ionicons name={(item.icon || "grid") as any} size={24} color={item.color || "#7C3AED"} />
                 )}
@@ -418,7 +423,7 @@ export default function ProductsScreen() {
               <Pressable onPress={() => pickImage("product")} style={{ alignItems: "center", marginBottom: 12, padding: 16, borderRadius: 12, borderWidth: 1, borderStyle: "dashed", borderColor: Colors.cardBorder, backgroundColor: Colors.surfaceLight }}>
                 {productImage ? (
                   <View style={{ alignItems: "center" }}>
-                    <Image source={{ uri: productImage.startsWith("http") ? productImage : productImage.startsWith("/objects") ? `${getApiUrl()}${productImage}` : productImage }} style={{ width: 100, height: 100, borderRadius: 12 }} />
+                    <Image source={{ uri: productImage.startsWith("http") || productImage.startsWith("file://") || productImage.startsWith("data:") ? productImage : `${getApiUrl().replace(/\/$/, "")}${productImage}` }} style={{ width: 100, height: 100, borderRadius: 12 }} />
                     <Text style={{ color: Colors.accent, fontSize: 13, marginTop: 8 }}>{t("changeImage")}</Text>
                   </View>
                 ) : (
@@ -508,7 +513,7 @@ export default function ProductsScreen() {
               <Pressable onPress={() => pickImage("category")} style={{ alignItems: "center", marginBottom: 12, padding: 16, borderRadius: 12, borderWidth: 1, borderStyle: "dashed", borderColor: Colors.cardBorder, backgroundColor: Colors.surfaceLight }}>
                 {categoryImage ? (
                   <View style={{ alignItems: "center" }}>
-                    <Image source={{ uri: categoryImage.startsWith("http") ? categoryImage : categoryImage.startsWith("/objects") ? `${getApiUrl()}${categoryImage}` : categoryImage }} style={{ width: 80, height: 80, borderRadius: 12 }} />
+                    <Image source={{ uri: categoryImage.startsWith("http") || categoryImage.startsWith("file://") || categoryImage.startsWith("data:") ? categoryImage : `${getApiUrl().replace(/\/$/, "")}${categoryImage}` }} style={{ width: 80, height: 80, borderRadius: 12 }} />
                     <Text style={{ color: Colors.accent, fontSize: 13, marginTop: 8 }}>{t("changeImage")}</Text>
                   </View>
                 ) : (

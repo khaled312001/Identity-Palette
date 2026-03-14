@@ -7,8 +7,10 @@ import { BlurView } from "expo-blur";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { useLicense } from "@/lib/license-context";
-import { Text, View, Animated } from "react-native";
+import { useNotifications } from "@/lib/notification-context";
+import { Text, View, Animated, Pressable } from "react-native";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
 import { getQueryFn, getApiUrl } from "@/lib/query-client";
 
 export default function TabLayout() {
@@ -41,6 +43,9 @@ export default function TabLayout() {
       pulseAnim.setValue(1);
     }
   }, [onlineOrders]);
+
+  const { onlineOrderNotification, setOnlineOrderNotification } = useNotifications();
+  const router = useRouter();
 
   if (!isLoggedIn) {
     return <Redirect href="/login" />;
@@ -158,6 +163,45 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
+
+      {/* Global Online Order Notification Toast */}
+      {onlineOrderNotification && (
+        <Pressable
+          onPress={() => {
+            router.push("/online-orders" as any);
+            setOnlineOrderNotification(null);
+          }}
+          style={{
+            position: "absolute", bottom: 90, left: 16, right: 16,
+            backgroundColor: Colors.surface,
+            borderRadius: 16, padding: 16,
+            borderWidth: 2, borderColor: "#22c55e",
+            flexDirection: isRTL ? "row-reverse" : "row",
+            alignItems: "center", gap: 12,
+            elevation: 10,
+            ...(Platform.OS === "web" ? { boxShadow: "0px 4px 8px rgba(0,0,0,0.4)" } : { shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8 }),
+            zIndex: 9999,
+          }}
+        >
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(34,197,94,0.15)", justifyContent: "center", alignItems: "center" }}>
+            <Text style={{ fontSize: 24 }}>🛵</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: "#22c55e", fontWeight: "800", fontSize: 14 }}>
+              {t("newOnlineOrder" as any) || "🔔 New Online Order!"}
+            </Text>
+            <Text style={{ color: Colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+              #{onlineOrderNotification.orderNumber} · {onlineOrderNotification.customerName} · CHF {Number(onlineOrderNotification.totalAmount).toFixed(2)}
+            </Text>
+            <Text style={{ color: Colors.textMuted, fontSize: 11, marginTop: 1 }}>
+              {t("tapToViewDetails" as any) || "Tap to view details"}
+            </Text>
+          </View>
+          <Pressable onPress={(e) => { e.stopPropagation(); setOnlineOrderNotification(null); }}>
+            <Ionicons name="close" size={20} color={Colors.textMuted} />
+          </Pressable>
+        </Pressable>
+      )}
     </View>
   );
 }

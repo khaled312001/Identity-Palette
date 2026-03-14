@@ -15,6 +15,7 @@ import { apiRequest, getQueryFn, getApiUrl } from "@/lib/query-client";
 import * as Haptics from "expo-haptics";
 import BarcodeScanner from "@/components/BarcodeScanner";
 import { useLanguage } from "@/lib/language-context";
+import { useNotifications } from "@/lib/notification-context";
 
 export default function POSScreen() {
   const insets = useSafeAreaInsets();
@@ -49,7 +50,6 @@ export default function POSScreen() {
   const [cardError, setCardError] = useState("");
   const [nfcStatus, setNfcStatus] = useState<"waiting" | "reading" | "success" | "error">("waiting");
   const [nfcPulse, setNfcPulse] = useState(0);
-  const [incomingCalls, setIncomingCalls] = useState<any[]>([]); // queue of up to 4 simultaneous calls
   const [showInvoiceHistory, setShowInvoiceHistory] = useState(false);
   const [invoiceFilter24h, setInvoiceFilter24h] = useState(true); // default: last 24h
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -82,8 +82,9 @@ export default function POSScreen() {
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomerForm, setNewCustomerForm] = useState({ name: "", phone: "", address: "", email: "" });
   const [showOnlineOrders, setShowOnlineOrders] = useState(false);
-  const [onlineOrderNotification, setOnlineOrderNotification] = useState<any>(null);
   const [endOfDayLoading, setEndOfDayLoading] = useState(false);
+
+  const { onlineOrderNotification, setOnlineOrderNotification, incomingCalls, setIncomingCalls } = useNotifications();
 
   const tenantId = tenant?.id;
 
@@ -246,72 +247,7 @@ export default function POSScreen() {
     apiRequest("POST", "/api/seed").catch(() => { });
   }, []);
 
-  useEffect(() => {
-    const wsUrl = `${getApiUrl().replace("http", "ws")}/api/ws/caller-id`;
-    let ws: WebSocket;
-
-    try {
-      ws = new WebSocket(wsUrl);
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === "incoming_call") {
-            const customer = customers.find((c: any) => c.phone === data.phoneNumber);
-            const callEntry = { ...data, customer, id: `${data.slot || 1}-${data.timestamp}` };
-            setIncomingCalls((prev) => {
-              // Replace if same slot, else add (up to 4)
-              const filtered = prev.filter((c) => c.slot !== data.slot);
-              return [...filtered, callEntry].slice(0, 4);
-            });
-            // Auto-fill phone input only if no customer selected yet
-            if (!cart.customerId) setPhoneInput(data.phoneNumber);
-            if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          } else if (data.type === "active_calls") {
-            const calls = (data.calls || []).map((c: any) => ({
-              ...c,
-              customer: customers.find((cu: any) => cu.phone === c.phoneNumber),
-              id: `${c.slot}-${c.timestamp}`,
-            }));
-            setIncomingCalls(calls);
-          } else if (data.type === "calls_update") {
-            const calls = (data.allActiveCalls || []).map((c: any) => ({
-              ...c,
-              customer: customers.find((cu: any) => cu.phone === c.phoneNumber),
-              id: `${c.slot}-${c.timestamp}`,
-            }));
-            setIncomingCalls(calls);
-          } else if (data.type === "new_online_order") {
-            setOnlineOrderNotification(data.order);
-            qc.invalidateQueries({ queryKey: ["/api/online-orders"] });
-            if (Platform.OS !== "web") {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            } else {
-              // Play notification sound on web
-              try {
-                const ctx = new (window as any).AudioContext();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain); gain.connect(ctx.destination);
-                osc.frequency.setValueAtTime(880, ctx.currentTime);
-                osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
-                gain.gain.setValueAtTime(0.3, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-                osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5);
-              } catch { }
-            }
-          } else if (data.type === "menu_updated") {
-            qc.invalidateQueries({ queryKey: ["/api/products"] });
-            qc.invalidateQueries({ queryKey: ["/api/categories"] });
-          }
-        } catch (e) {
-          console.error("WS Message Error:", e);
-        }
-      };
-      return () => ws.close();
-    } catch (e) {
-      console.error("WS Connection Error:", e);
-    }
-  }, [customers]);
+  /* Removed local WebSocket logic in favor of global NotificationProvider */
 
   const filteredProducts = products.filter((p: any) => {
     const matchesCategory = selectedCategory ? p.categoryId === selectedCategory : true;
@@ -825,7 +761,7 @@ export default function POSScreen() {
           Alert.alert(t("success"), `Sent ${fullSales.length} invoices to printer queue.`);
         }
       } else {
-        Alert.alert(t("info"), t("noInvoicesToday"));
+        Alert.alert(t("info" as any), t("noInvoicesToday" as any));
       }
 
       // Close active shift for this employee
@@ -1088,7 +1024,7 @@ export default function POSScreen() {
                   <View style={[styles.productCardTopBorder, { backgroundColor: catColor }]} />
                   <View style={[styles.productIcon, { backgroundColor: `${catColor} 15` }]}>
                     {item.image ? (
-                      <Image source={{ uri: item.image.startsWith("http") ? item.image : `${getApiUrl()}${item.image} ` }} style={{ width: 44, height: 44, borderRadius: 12 }} resizeMode="cover" />
+                      <Image source={{ uri: item.image.startsWith("http") || item.image.startsWith("file://") || item.image.startsWith("data:") ? item.image : `${getApiUrl().replace(/\/$/, "")}${item.image}` }} style={{ width: 44, height: 44, borderRadius: 12 }} resizeMode="cover" />
                     ) : (
                       <Ionicons name={catIcon} size={26} color={catColor} />
                     )}
@@ -1627,7 +1563,7 @@ export default function POSScreen() {
 
                 {storeSettings?.logo && (
                   <View style={{ alignItems: "center", marginVertical: 8 }}>
-                    <Image source={{ uri: storeSettings.logo.startsWith("http") ? storeSettings.logo : `${getApiUrl()}${storeSettings.logo} ` }} style={{ width: 50, height: 50, borderRadius: 6 }} resizeMode="contain" />
+                    <Image source={{ uri: storeSettings.logo.startsWith("http") || storeSettings.logo.startsWith("file://") || storeSettings.logo.startsWith("data:") ? storeSettings.logo : `${getApiUrl().replace(/\/$/, "")}${storeSettings.logo}` }} style={{ width: 50, height: 50, borderRadius: 6 }} resizeMode="contain" />
                   </View>
                 )}
 
@@ -2045,7 +1981,7 @@ export default function POSScreen() {
 
                   {storeSettings?.logo && (
                     <View style={{ alignItems: "center", marginVertical: 8 }}>
-                      <Image source={{ uri: storeSettings.logo.startsWith("http") ? storeSettings.logo : `${getApiUrl()}${storeSettings.logo} ` }} style={{ width: 50, height: 50, borderRadius: 6 }} resizeMode="contain" />
+                      <Image source={{ uri: storeSettings.logo.startsWith("http") || storeSettings.logo.startsWith("file://") || storeSettings.logo.startsWith("data:") ? storeSettings.logo : `${getApiUrl().replace(/\/$/, "")}${storeSettings.logo}` }} style={{ width: 50, height: 50, borderRadius: 6 }} resizeMode="contain" />
                     </View>
                   )}
 
@@ -2519,41 +2455,7 @@ export default function POSScreen() {
         </View>
       </Modal>
 
-      {/* ── New Online Order Notification Popup ── */}
-      {onlineOrderNotification && (
-        <Pressable
-          onPress={() => { setShowOnlineOrders(true); setOnlineOrderNotification(null); }}
-          style={{
-            position: "absolute", bottom: 90, left: 16, right: 16,
-            backgroundColor: Colors.surface,
-            borderRadius: 16, padding: 16,
-            borderWidth: 2, borderColor: "#22c55e",
-            flexDirection: isRTL ? "row-reverse" : "row",
-            alignItems: "center", gap: 12,
-            elevation: 10,
-            ...(Platform.OS === "web" ? { boxShadow: "0px 4px 8px rgba(0,0,0,0.4)" } : { shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8 }),
-            zIndex: 9999,
-          }}
-        >
-          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(34,197,94,0.15)", justifyContent: "center", alignItems: "center" }}>
-            <Text style={{ fontSize: 24 }}>🛵</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: "#22c55e", fontWeight: "800", fontSize: 14 }}>
-              {language === "ar" ? "🔔 طلب جديد!" : language === "de" ? "🔔 Neue Bestellung!" : "🔔 New Online Order!"}
-            </Text>
-            <Text style={{ color: Colors.textSecondary, fontSize: 12, marginTop: 2 }}>
-              #{onlineOrderNotification.orderNumber} · {onlineOrderNotification.customerName} · CHF {Number(onlineOrderNotification.totalAmount).toFixed(2)}
-            </Text>
-            <Text style={{ color: Colors.textMuted, fontSize: 11, marginTop: 1 }}>
-              {language === "ar" ? "اضغط لعرض التفاصيل" : language === "de" ? "Tippen für Details" : "Tap to view details"}
-            </Text>
-          </View>
-          <Pressable onPress={(e) => { e.stopPropagation(); setOnlineOrderNotification(null); }}>
-            <Ionicons name="close" size={20} color={Colors.textMuted} />
-          </Pressable>
-        </Pressable>
-      )}
+      {/* Online Order Notification moved to _layout.tsx */}
 
       <View style={{ height: Platform.OS === "web" ? 84 : 60 }} />
     </View>

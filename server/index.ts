@@ -884,7 +884,7 @@ async function initStripe() {
 
   try {
     log('Initializing Stripe schema...');
-    await runMigrations({ databaseUrl, schema: 'stripe' });
+    await runMigrations({ databaseUrl });
     log('Stripe schema ready');
 
     let stripeSync, secretKey;
@@ -1019,7 +1019,7 @@ function setupStripeRoutes(app: express.Application) {
         payment_method_data: {
           type: 'card',
           card: { token },
-        },
+        } as any,
         confirm: true,
         automatic_payment_methods: {
           enabled: true,

@@ -35,9 +35,9 @@ async function createTenantBackup(tenantId: number): Promise<string> {
     try {
       const inv = await storage.getInventory(bid, tenantId);
       inventory.push(...inv);
-    } catch {}
+    } catch { }
   }
-  try { expenses = await storage.getExpenses(undefined, tenantId); } catch {}
+  try { expenses = await storage.getExpenses(tenantId); } catch { }
 
   const sales = await storage.getSales({ tenantId, limit: 50000 });
 
@@ -235,7 +235,7 @@ export function registerSuperAdminRoutes(app: Express) {
         grandCount += tenantSales.length;
 
         // Today's sales
-        const today = new Date(); today.setHours(0,0,0,0);
+        const today = new Date(); today.setHours(0, 0, 0, 0);
         const todaySales = tenantSales.filter((s: any) => new Date(s.createdAt) >= today);
         const todayTotal = todaySales.reduce((acc: number, s: any) => acc + parseFloat(s.totalAmount || "0"), 0);
 
@@ -318,7 +318,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.patch("/api/super-admin/tenant-notifications/:id/read", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       const notif = await storage.updateTenantNotification(id, { isRead: true });
       res.json(notif);
     } catch (e: any) {
@@ -338,7 +338,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.get("/api/super-admin/tenants/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       const tenant = await storage.getTenant(id);
       if (!tenant) return res.status(404).json({ error: "Tenant not found" });
       const branches = await storage.getBranchesByTenant(id);
@@ -374,7 +374,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.patch("/api/super-admin/tenants/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       const tenant = await storage.updateTenant(id, req.body);
       res.json(tenant);
     } catch (e: any) {
@@ -384,7 +384,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.delete("/api/super-admin/tenants/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       await storage.deleteTenant(id);
       res.json({ success: true });
     } catch (e: any) {
@@ -395,7 +395,7 @@ export function registerSuperAdminRoutes(app: Express) {
   // Reset tenant password
   app.post("/api/super-admin/tenants/:id/reset-password", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       const { newPassword } = req.body;
       const passwordHash = await bcrypt.hash(newPassword || "admin123", 10);
       await storage.updateTenant(id, { passwordHash } as any);
@@ -442,7 +442,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.patch("/api/super-admin/subscriptions/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       const sub = await storage.updateTenantSubscription(id, req.body);
       res.json(sub);
     } catch (e: any) {
@@ -452,7 +452,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.delete("/api/super-admin/subscriptions/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       await storage.deleteTenantSubscription(id);
       res.json({ success: true });
     } catch (e: any) {
@@ -463,7 +463,7 @@ export function registerSuperAdminRoutes(app: Express) {
   // Extend subscription
   app.post("/api/super-admin/subscriptions/:id/extend", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       const { days, months } = req.body;
       const sub = await storage.getTenantSubscription(id);
       if (!sub) return res.status(404).json({ error: "Subscription not found" });
@@ -513,7 +513,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.patch("/api/super-admin/licenses/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       const key = await storage.updateLicenseKey(id, req.body);
       res.json(key);
     } catch (e: any) {
@@ -523,7 +523,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.patch("/api/super-admin/licenses/:id/revoke", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       const key = await storage.updateLicenseKey(id, { status: "revoked" });
       res.json(key);
     } catch (e: any) {
@@ -533,7 +533,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.delete("/api/super-admin/licenses/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       const { licenseKeys } = await import("@shared/schema");
       await db.delete(licenseKeys).where(eq(licenseKeys.id, id));
       res.json({ success: true });
@@ -554,7 +554,7 @@ export function registerSuperAdminRoutes(app: Express) {
         const products = await storage.getProductsByTenant(t.id);
         const tenantSubs = allSubs.filter((s: any) => s.tenantId === t.id && s.status === "active");
         const todaySales = await storage.getSales({ tenantId: t.id, limit: 200 });
-        const today = new Date(); today.setHours(0,0,0,0);
+        const today = new Date(); today.setHours(0, 0, 0, 0);
         const todayFiltered = todaySales.filter((s: any) => new Date(s.createdAt) >= today);
         const todayRevenue = todayFiltered.reduce((acc: number, s: any) => acc + parseFloat(s.total || "0"), 0);
         result.push({
@@ -585,7 +585,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.get("/api/super-admin/stores/:id/branches", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const tenantId = parseInt(req.params.id);
+      const tenantId = parseInt(req.params.id as string);
       const branches = await storage.getBranchesByTenant(tenantId);
       res.json(branches);
     } catch (e: any) {
@@ -595,7 +595,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.post("/api/super-admin/stores/:id/branches", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const tenantId = parseInt(req.params.id);
+      const tenantId = parseInt(req.params.id as string);
       const branch = await storage.createBranch({ ...req.body, tenantId });
       res.json(branch);
     } catch (e: any) {
@@ -605,7 +605,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.get("/api/super-admin/stores/:id/employees", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const tenantId = parseInt(req.params.id);
+      const tenantId = parseInt(req.params.id as string);
       const employees = await storage.getEmployeesByTenant(tenantId);
       res.json(employees);
     } catch (e: any) {
@@ -615,7 +615,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.post("/api/super-admin/stores/:id/employees", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const tenantId = parseInt(req.params.id);
+      const tenantId = parseInt(req.params.id as string);
       const branches = await storage.getBranchesByTenant(tenantId);
       const branchId = req.body.branchId || (branches[0]?.id ?? null);
       const employee = await storage.createEmployee({ ...req.body, branchId, tenantId, isActive: true });
@@ -627,7 +627,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.get("/api/super-admin/stores/:id/products", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const tenantId = parseInt(req.params.id);
+      const tenantId = parseInt(req.params.id as string);
       const products = await storage.getProductsByTenant(tenantId);
       res.json(products);
     } catch (e: any) {
@@ -637,7 +637,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.post("/api/super-admin/stores/:id/products", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const tenantId = parseInt(req.params.id);
+      const tenantId = parseInt(req.params.id as string);
       const product = await storage.createProduct({ ...req.body, tenantId });
       res.json(product);
     } catch (e: any) {
@@ -647,7 +647,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.get("/api/super-admin/stores/:id/customers", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const tenantId = parseInt(req.params.id);
+      const tenantId = parseInt(req.params.id as string);
       const customers = await storage.getCustomers(undefined, tenantId);
       res.json(customers);
     } catch (e: any) {
@@ -657,7 +657,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.get("/api/super-admin/stores/:id/sales", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const tenantId = parseInt(req.params.id);
+      const tenantId = parseInt(req.params.id as string);
       const salesData = await storage.getSales({ tenantId, limit: 100 });
       res.json(salesData);
     } catch (e: any) {
@@ -667,7 +667,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.get("/api/super-admin/stores/:id/:type", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const tenantId = parseInt(req.params.id);
+      const tenantId = parseInt(req.params.id as string);
       const type = req.params.type;
       let data: any[] = [];
       if (type === "branches") data = await storage.getBranchesByTenant(tenantId);
@@ -684,7 +684,7 @@ export function registerSuperAdminRoutes(app: Express) {
   // ── BRANCH CRUD ───────────────────────────────────────────────────────
   app.put("/api/super-admin/branches/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       const branch = await storage.updateBranch(id, req.body);
       res.json(branch);
     } catch (e: any) {
@@ -694,7 +694,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.delete("/api/super-admin/branches/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       await storage.deleteBranch(id);
       res.json({ success: true });
     } catch (e: any) {
@@ -705,7 +705,7 @@ export function registerSuperAdminRoutes(app: Express) {
   // ── EMPLOYEE CRUD ─────────────────────────────────────────────────────
   app.put("/api/super-admin/employees/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       const emp = await storage.updateEmployee(id, req.body);
       res.json(emp);
     } catch (e: any) {
@@ -715,7 +715,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.delete("/api/super-admin/employees/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       await storage.deleteEmployee(id);
       res.json({ success: true });
     } catch (e: any) {
@@ -726,7 +726,7 @@ export function registerSuperAdminRoutes(app: Express) {
   // ── PRODUCT CRUD ──────────────────────────────────────────────────────
   app.put("/api/super-admin/products/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       const product = await storage.updateProduct(id, req.body);
       res.json(product);
     } catch (e: any) {
@@ -736,7 +736,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.delete("/api/super-admin/products/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       await storage.deleteProduct(id);
       res.json({ success: true });
     } catch (e: any) {
@@ -747,7 +747,7 @@ export function registerSuperAdminRoutes(app: Express) {
   // ── CUSTOMER SOFT-DELETE ─────────────────────────────────────────────
   app.patch("/api/super-admin/customers/:id/deactivate", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       const customer = await storage.updateCustomer(id, { isActive: false } as any);
       res.json(customer);
     } catch (e: any) {
@@ -813,7 +813,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.get("/api/super-admin/backup/download/:filename", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const filename = path.basename(req.params.filename); // prevent traversal
+      const filename = path.basename(req.params.filename as string); // prevent traversal
       const filepath = path.join(BACKUP_DIR, filename);
       if (!fs.existsSync(filepath)) return res.status(404).json({ error: "Backup not found" });
       res.setHeader("Content-Type", "application/json");
@@ -824,7 +824,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.post("/api/super-admin/backup/restore/:filename", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const filename = path.basename(req.params.filename);
+      const filename = path.basename(req.params.filename as string);
       const filepath = path.join(BACKUP_DIR, filename);
       if (!fs.existsSync(filepath)) return res.status(404).json({ error: "Backup file not found" });
       const raw = fs.readFileSync(filepath, "utf-8");
@@ -936,7 +936,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.delete("/api/super-admin/backup/:filename", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const filename = path.basename(req.params.filename);
+      const filename = path.basename(req.params.filename as string);
       const filepath = path.join(BACKUP_DIR, filename);
       if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
       res.json({ success: true });
@@ -1025,7 +1025,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.post("/api/super-admin/stores/:id/bulk-import/products", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const tenantId = parseInt(req.params.id);
+      const tenantId = parseInt(req.params.id as string);
       const { products: productsData } = req.body;
       if (!productsData || !Array.isArray(productsData)) {
         return res.status(400).json({ error: "products array required" });
@@ -1073,14 +1073,14 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.put("/api/super-admin/categories/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const category = await storage.updateCategory(parseInt(req.params.id), req.body);
+      const category = await storage.updateCategory(parseInt(req.params.id as string), req.body);
       res.json(category);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   app.delete("/api/super-admin/categories/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      await storage.deleteCategory(parseInt(req.params.id));
+      await storage.deleteCategory(parseInt(req.params.id as string));
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -1094,7 +1094,7 @@ export function registerSuperAdminRoutes(app: Express) {
 
   app.put("/api/super-admin/customers/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const customer = await storage.updateCustomer(parseInt(req.params.id), req.body);
+      const customer = await storage.updateCustomer(parseInt(req.params.id as string), req.body);
       res.json(customer);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });

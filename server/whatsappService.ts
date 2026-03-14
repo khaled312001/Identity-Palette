@@ -8,15 +8,15 @@
 let wppconnect: any = null;
 
 async function loadWppConnect() {
-  if (!wppconnect) {
-    try {
-      wppconnect = (await import("@wppconnect-team/wppconnect")).default;
-    } catch {
-      console.warn("[WhatsApp] @wppconnect-team/wppconnect not installed — WhatsApp features disabled");
-      return null;
+    if (!wppconnect) {
+        try {
+            wppconnect = (await import("@wppconnect-team/wppconnect")).default;
+        } catch {
+            console.warn("[WhatsApp] @wppconnect-team/wppconnect not installed — WhatsApp features disabled");
+            return null;
+        }
     }
-  }
-  return wppconnect;
+    return wppconnect;
 }
 
 const ADMIN_PHONE = "201204593124";
@@ -111,7 +111,7 @@ function scheduleAutoReconnect() {
             log("Auto-reconnecting…");
             try {
                 await whatsappService.connect();
-                if (status === "connected" && pendingMessages.length > 0) {
+                if (whatsappService.getStatus().status === "connected" && pendingMessages.length > 0) {
                     log(`Flushing ${pendingMessages.length} queued message(s)`);
                     const toSend = [...pendingMessages];
                     pendingMessages = [];

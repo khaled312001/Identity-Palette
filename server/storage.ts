@@ -106,6 +106,10 @@ export const storage = {
     const [cat] = await db.insert(categories).values(data).returning();
     return cat;
   },
+  async getCategory(id: number) {
+    const [category] = await db.select().from(categories).where(eq(categories.id, id));
+    return category;
+  },
   async updateCategory(id: number, data: Partial<InsertCategory>) {
     const [cat] = await db.update(categories).set(data).where(eq(categories.id, id)).returning();
     return cat;
@@ -610,21 +614,21 @@ export const storage = {
 
   // Dashboard Stats
   async getDashboardStats(tenantId?: number) {
-    let salesCountQuery = db.select({ count: sql<number>`count(*)` }).from(sales);
-    let totalRevenueQuery = db.select({ total: sql<string>`coalesce(sum(total_amount::numeric), 0)` }).from(sales);
-    let customerCountQuery = db.select({ count: sql<number>`count(*)` }).from(customers);
-    let productCountQuery = db.select({ count: sql<number>`count(*)` }).from(products).where(eq(products.isActive, true));
+    let salesCountQuery: any = db.select({ count: sql<number>`count(*)` }).from(sales);
+    let totalRevenueQuery: any = db.select({ total: sql<string>`coalesce(sum(total_amount::numeric), 0)` }).from(sales);
+    let customerCountQuery: any = db.select({ count: sql<number>`count(*)` }).from(customers);
+    let productCountQuery: any = db.select({ count: sql<number>`count(*)` }).from(products).where(eq(products.isActive, true));
 
-    let lowStockQuery;
-    let todaySalesQuery;
-    let weekSalesQuery;
-    let monthSalesQuery;
-    let totalExpensesQuery = db.select({ total: sql<string>`coalesce(sum(${expenses.amount}::numeric), 0)` }).from(expenses);
-    let todayExpensesQuery;
-    let topProductsQuery;
-    let salesByPaymentMethodQuery;
-    let recentSalesQuery;
-    let profitRowQuery;
+    let lowStockQuery: any;
+    let todaySalesQuery: any;
+    let weekSalesQuery: any;
+    let monthSalesQuery: any;
+    let totalExpensesQuery: any = db.select({ total: sql<string>`coalesce(sum(${expenses.amount}::numeric), 0)` }).from(expenses);
+    let todayExpensesQuery: any;
+    let topProductsQuery: any;
+    let salesByPaymentMethodQuery: any;
+    let recentSalesQuery: any;
+    let profitRowQuery: any;
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -767,10 +771,10 @@ export const storage = {
     const [todayExpensesRow] = await todayExpensesQuery;
 
     const topProductsResult = await topProductsQuery;
-    const topProducts = topProductsResult.map(r => ({ ...r, totalSold: Number(r.totalSold), revenue: Number(r.revenue) }));
+    const topProducts = topProductsResult.map((r: any) => ({ ...r, totalSold: Number(r.totalSold), revenue: Number(r.revenue) }));
 
     const salesByPaymentMethodResult = await salesByPaymentMethodQuery;
-    const salesByPaymentMethod = salesByPaymentMethodResult.map(r => ({ method: r.method, count: Number(r.count), total: Number(r.total) }));
+    const salesByPaymentMethod = salesByPaymentMethodResult.map((r: any) => ({ method: r.method, count: Number(r.count), total: Number(r.total) }));
 
     const recentSales = await recentSalesQuery;
 

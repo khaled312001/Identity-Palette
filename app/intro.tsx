@@ -146,10 +146,9 @@ export default function IntroScreen() {
                                         {selected && (
                                             <LinearGradient
                                                 colors={[Colors.primary, Colors.secondary]}
-                                                style={StyleSheet.absoluteFillObject}
+                                                style={[StyleSheet.absoluteFillObject, { borderRadius: 14 }]}
                                                 start={{ x: 0, y: 0 }}
                                                 end={{ x: 1, y: 1 }}
-                                                borderRadius={14}
                                             />
                                         )}
                                         <Text style={styles.languageFlag}>{lang.flag}</Text>

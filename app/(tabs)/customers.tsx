@@ -217,7 +217,7 @@ export default function CustomersScreen() {
                     </Pressable>
                     {canDeleteCustomers && (
                       <Pressable style={{ flex: 1, borderRadius: 12, overflow: "hidden" }} onPress={() => {
-                        Alert.alert(t("deleteCustomer") || "Delete Customer", `${t("delete")} "${selectedCustomer.name}"?`, [
+                        Alert.alert(t("deleteCustomer" as any) || "Delete Customer", `${t("delete")} "${selectedCustomer.name}"?`, [
                           { text: t("cancel"), style: "cancel" },
                           { text: t("delete"), style: "destructive", onPress: () => deleteMutation.mutate(selectedCustomer.id) },
                         ]);

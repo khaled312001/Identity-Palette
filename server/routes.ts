@@ -113,7 +113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               description: `Barmagly ${planName} ${planType} — ${businessName}`,
               metadata: { businessName, ownerEmail, planName, planType },
             });
-            if (pi.status === "requires_action" || pi.status === "requires_source_action") {
+            if (pi.status === "requires_action") {
               return res.json({ requiresAction: true, clientSecret: pi.client_secret, paymentIntentId: pi.id });
             }
             if (pi.status !== "succeeded") {
@@ -1667,11 +1667,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Object Storage - Save uploaded image path
-  app.put("/api/images/save", async (req, res) => {
-    if (!req.body.imageURL) return res.status(400).json({ error: "imageURL is required" });
+  app.put("/api/images/save", async (req: Request, res: Response) => {
+    const { imageURL } = req.body;
+    console.log("Saving image path for URL:", imageURL);
+
+    if (!imageURL) {
+      return res.status(400).json({ error: "imageURL is required" });
+    }
+
     try {
       const objectStorageService = new ObjectStorageService();
-      const objectPath = objectStorageService.normalizeObjectEntityPath(req.body.imageURL);
+      const objectPath = objectStorageService.normalizeObjectEntityPath(imageURL);
+      console.log("Normalized object path:", objectPath);
       res.status(200).json({ objectPath });
     } catch (error) {
       console.error("Error saving image:", error);
@@ -2159,7 +2166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const b of branches) {
         try { const inv = await storage.getInventory(b.id, tenantId); inventory.push(...inv); } catch { }
       }
-      try { expenses = await storage.getExpenses(undefined, tenantId); } catch { }
+      try { expenses = await storage.getExpenses(tenantId); } catch { }
       const sales = await storage.getSales({ tenantId, limit: 10000 });
 
       const snapshot = {

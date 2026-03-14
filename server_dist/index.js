@@ -7872,7 +7872,6 @@ function serveLandingPage({
   );
   const template = fs4.readFileSync(templatePath, "utf-8");
   let html = template.replace(/BASE_URL_PLACEHOLDER/g, baseUrl).replace(/EXPS_URL_PLACEHOLDER/g, expsUrl).replace(/APP_NAME_PLACEHOLDER/g, appName);
-  html = injectPWATags(html);
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.status(200).send(html);
 }
@@ -8492,7 +8491,7 @@ self.addEventListener('message', (event) => {
   app2.use("/app", express.static(path3.resolve(process.cwd(), "static-build")));
   app2.use(express.static(path3.resolve(process.cwd(), "static-build")));
   const staticIndexPath = path3.resolve(process.cwd(), "static-build", "index.html");
-  app2.get("/app/*", (req, res, next) => {
+  app2.get("/app/{*splat}", (req, res, next) => {
     if (req.path.includes(".")) {
       return next();
     }
@@ -8528,8 +8527,14 @@ async function initStripe() {
     log2("Initializing Stripe schema...");
     await runMigrations({ databaseUrl, schema: "stripe" });
     log2("Stripe schema ready");
-    const stripeSync2 = await getStripeSync();
-    const secretKey = await getStripeSecretKey();
+    let stripeSync2, secretKey;
+    try {
+      stripeSync2 = await getStripeSync();
+      secretKey = await getStripeSecretKey();
+    } catch (connErr) {
+      log2("Stripe connection not available, skipping:", connErr?.message || connErr);
+      return;
+    }
     if (!secretKey || secretKey.includes("dummy")) {
       log2("Stripe: Dummy or missing key detected. Skipping webhook setup and sync.");
       return;
@@ -8543,7 +8548,7 @@ async function initStripe() {
     log2("Syncing Stripe data...");
     stripeSync2.syncBackfill().then(() => log2("Stripe data synced")).catch((err) => log2("Error syncing Stripe data:", err));
   } catch (error) {
-    log2("Failed to initialize Stripe:", error);
+    log2("Stripe init skipped:", error?.message || error);
   }
 }
 function setupStripeWebhook(app2) {

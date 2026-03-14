@@ -171,8 +171,6 @@ function serveLandingPage({
     .replace(/EXPS_URL_PLACEHOLDER/g, expsUrl)
     .replace(/APP_NAME_PLACEHOLDER/g, appName);
 
-  // Inject PWA tags so the POS app is installable from the landing page
-  html = injectPWATags(html);
 
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.status(200).send(html);

@@ -571,6 +571,7 @@ export const landingPageConfig = pgTable("landing_page_config", {
   heroSubtitle: text("hero_subtitle"),
   heroImage: text("hero_image"),
   aboutText: text("about_text"),
+  aboutImage: text("about_image"),
   primaryColor: text("primary_color").default("#2FD3C6"),
   accentColor: text("accent_color").default("#6366F1"),
   enableOnlineOrdering: boolean("enable_online_ordering").default(true),

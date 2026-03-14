@@ -638,6 +638,7 @@ var init_schema = __esm({
       heroSubtitle: text("hero_subtitle"),
       heroImage: text("hero_image"),
       aboutText: text("about_text"),
+      aboutImage: text("about_image"),
       primaryColor: text("primary_color").default("#2FD3C6"),
       accentColor: text("accent_color").default("#6366F1"),
       enableOnlineOrdering: boolean("enable_online_ordering").default(true),
@@ -6077,7 +6078,12 @@ async function registerRoutes(app2) {
       if (/dessert|sweet|حلوى|حلويات/.test(n)) return 9;
       return 5;
     };
-    return [...cats].sort((a, b) => getPriority(a.name) - getPriority(b.name) || (a.sortOrder || 0) - (b.sortOrder || 0));
+    return [...cats].sort((a, b) => {
+      const aOrder = a.sortOrder || 0;
+      const bOrder = b.sortOrder || 0;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return getPriority(a.name) - getPriority(b.name);
+    });
   }
   app2.get("/api/store/:tenantId/menu", async (req, res) => {
     try {
@@ -6366,10 +6372,13 @@ async function registerRoutes(app2) {
       }
       const templatePath = path.resolve(process.cwd(), "server", "templates", "restaurant-store.html");
       let html = fs2.readFileSync(templatePath, "utf8");
+      const branches2 = await storage.getBranchesByTenant(config.tenantId);
+      const currency = branches2?.[0]?.currency || "CHF";
       html = html.replace(/\{\{SLUG\}\}/g, slug);
       html = html.replace(/\{\{TENANT_ID\}\}/g, String(config.tenantId));
       html = html.replace(/\{\{PRIMARY_COLOR\}\}/g, config.primaryColor || "#2FD3C6");
       html = html.replace(/\{\{ACCENT_COLOR\}\}/g, config.accentColor || "#6366F1");
+      html = html.replace(/\{\{CURRENCY\}\}/g, currency);
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.send(html);
     } catch (e) {

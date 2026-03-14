@@ -1776,7 +1776,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (/dessert|sweet|حلوى|حلويات/.test(n)) return 9;
       return 5; // default middle
     };
-    return [...cats].sort((a, b) => getPriority(a.name) - getPriority(b.name) || (a.sortOrder || 0) - (b.sortOrder || 0));
+    return [...cats].sort((a, b) => {
+      // Prioritize manual sortOrder first. If both are 0 or equal, fall back to keyword priority
+      const aOrder = a.sortOrder || 0;
+      const bOrder = b.sortOrder || 0;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return getPriority(a.name) - getPriority(b.name);
+    });
   }
 
   app.get("/api/store/:tenantId/menu", async (req, res) => {
@@ -2096,10 +2102,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const templatePath = path.resolve(process.cwd(), "server", "templates", "restaurant-store.html");
       let html = fs.readFileSync(templatePath, "utf8");
+
+      const branches = await storage.getBranchesByTenant(config.tenantId);
+      const currency = branches?.[0]?.currency || "CHF";
+
       html = html.replace(/\{\{SLUG\}\}/g, slug);
       html = html.replace(/\{\{TENANT_ID\}\}/g, String(config.tenantId));
       html = html.replace(/\{\{PRIMARY_COLOR\}\}/g, config.primaryColor || "#2FD3C6");
       html = html.replace(/\{\{ACCENT_COLOR\}\}/g, config.accentColor || "#6366F1");
+      html = html.replace(/\{\{CURRENCY\}\}/g, currency);
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.send(html);
     } catch (e: any) {

@@ -1667,7 +1667,8 @@
             <div class="ct">Test Message</div>
             <p style="font-size:13px;color:var(--mu);margin-bottom:12px">Send a test message to the admin phone to
               verify the connection is working.</p>
-            <button class="btn btn-p" id="waTestBtn" onclick="waTest()" disabled style="opacity:0.5;cursor:not-allowed">📱 Send Test Message</button>
+            <button class="btn btn-p" id="waTestBtn" onclick="waTest()" disabled
+              style="opacity:0.5;cursor:not-allowed">📱 Send Test Message</button>
           </div>
           <div class="card">
             <div class="ct">Connection Log</div>
@@ -2025,7 +2026,7 @@
        AUTH
     ══════════════════════════════════════════════════════ */
     const token = localStorage.getItem('super_admin_token');
-    if (!token) location.href = '/super_admin/login';
+    if (!token) location.href = '/super-admin/login';
     try {
       const u = JSON.parse(localStorage.getItem('super_admin_user') || '{}');
       if (u.name) { document.getElementById('adminName').textContent = u.name; document.getElementById('adminInit').textContent = u.name[0].toUpperCase(); }
@@ -3300,7 +3301,7 @@
     /*
        LOGOUT
     ══════════════════════════════════════════════════════ */
-    function logout() { localStorage.removeItem('super_admin_token'); localStorage.removeItem('super_admin_user'); location.href = '/super_admin/login'; }
+    function logout() { localStorage.removeItem('super_admin_token'); localStorage.removeItem('super_admin_user'); location.href = '/super-admin/login'; }
 
     /* ══════════════════════════════════════════════════════
        INIT

@@ -204,6 +204,7 @@ var init_schema = __esm({
       customerId: integer("customer_id").references(() => customers.id, { onDelete: "cascade" }),
       subtotal: decimal("subtotal", { precision: 12, scale: 2 }).notNull(),
       taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).default("0"),
+      serviceFeeAmount: decimal("service_fee_amount", { precision: 10, scale: 2 }).default("0"),
       discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default("0"),
       totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull(),
       paymentMethod: text("payment_method").notNull().default("cash"),
@@ -2276,29 +2277,18 @@ var seedPizzaLemon_exports = {};
 __export(seedPizzaLemon_exports, {
   seedPizzaLemon: () => seedPizzaLemon
 });
-import { eq as eq2, sql as sql2 } from "drizzle-orm";
+import { eq as eq2, sql as sql2, inArray } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { addYears } from "date-fns";
-function sizeModifier() {
+function pizzaModifier(price33, price45) {
+  const surcharge = (price45 - price33).toFixed(2);
   return [
     {
       name: "Gr\xF6sse",
       required: true,
       options: [
         { label: "33cm Normal", price: "0.00" },
-        { label: "45cm Gross", price: "5.00" }
-      ]
-    }
-  ];
-}
-function pizzaToppingModifier() {
-  return [
-    {
-      name: "Gr\xF6sse",
-      required: true,
-      options: [
-        { label: "33cm Normal", price: "0.00" },
-        { label: "45cm Gross", price: "5.00" }
+        { label: `45cm Gross (+${surcharge})`, price: surcharge }
       ]
     },
     {
@@ -2319,6 +2309,18 @@ function pizzaToppingModifier() {
     }
   ];
 }
+function drinkSizeModifier(largeExtra) {
+  return [
+    {
+      name: "Gr\xF6sse",
+      required: false,
+      options: [
+        { label: "0.5l Klein", price: "0.00" },
+        { label: `1.0l Gross (+${largeExtra.toFixed(2)})`, price: largeExtra.toFixed(2) }
+      ]
+    }
+  ];
+}
 function slugify(name) {
   return name.toLowerCase().replace(/[äÄ]/g, "ae").replace(/[öÖ]/g, "oe").replace(/[üÜ]/g, "ue").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
@@ -2327,7 +2329,7 @@ async function seedPizzaLemon() {
   const [existingKey] = await db.select().from(licenseKeys).where(eq2(licenseKeys.licenseKey, LICENSE_KEY));
   const isAlreadySeeded = !!existingKey;
   if (isAlreadySeeded) {
-    console.log("[PIZZA LEMON] License key already present \u2013 running incremental updates...");
+    console.log("[PIZZA LEMON] License key already present \u2013 running full catalog update...");
   }
   let tenant;
   const pizzaLemonTenants = await db.select().from(tenants).where(sql2`LOWER(${tenants.businessName}) = 'pizza lemon'`);
@@ -2400,7 +2402,7 @@ async function seedPizzaLemon() {
     const [branch] = await db.insert(branches).values({
       tenantId: tenant.id,
       name: "Pizza Lemon \u2013 Hauptfiliale",
-      address: "Z\xFCrich, Schweiz",
+      address: "Birchstrasse 120, CH-8050 Z\xFCrich-Oerlikon",
       phone: "+41443103814",
       email: STORE_EMAIL,
       isActive: true,
@@ -2425,132 +2427,85 @@ async function seedPizzaLemon() {
     await db.insert(employees).values({ name: "Cashier", email: "cashier@pizzalemon.ch", pin: "5678", role: "cashier", branchId, isActive: true });
   }
   const existingProds = await db.select().from(products).where(eq2(products.tenantId, tenant.id));
-  if (existingProds.length < 10) {
-    console.log("[PIZZA LEMON] Creating categories and products...");
-    const catMap = {};
-    for (const cat of PIZZA_LEMON_CATEGORIES) {
-      const [inserted] = await db.insert(categories).values({
+  if (existingProds.length > 0) {
+    console.log(`[PIZZA LEMON] Deleting ${existingProds.length} existing products and re-inserting updated catalog...`);
+    const prodIds = existingProds.map((p) => p.id);
+    await db.delete(inventory).where(inArray(inventory.productId, prodIds));
+    await db.delete(products).where(eq2(products.tenantId, tenant.id));
+  } else {
+    console.log("[PIZZA LEMON] Creating fresh product catalog...");
+  }
+  const allCats = await db.select({ id: categories.id, name: categories.name }).from(categories);
+  const catMap = {};
+  for (const c of allCats) catMap[c.name] = c.id;
+  if (catMap["Softgetr\xE4nke"] && !catMap["Getr\xE4nke"]) {
+    await db.update(categories).set({ name: "Getr\xE4nke" }).where(eq2(categories.id, catMap["Softgetr\xE4nke"]));
+    catMap["Getr\xE4nke"] = catMap["Softgetr\xE4nke"];
+    delete catMap["Softgetr\xE4nke"];
+    console.log("[PIZZA LEMON] Renamed category Softgetr\xE4nke \u2192 Getr\xE4nke");
+  }
+  for (const cat of PIZZA_LEMON_CATEGORIES) {
+    if (!catMap[cat.name]) {
+      const [ins] = await db.insert(categories).values({
+        tenantId: tenant.id,
         name: cat.name,
         color: cat.color,
         icon: cat.icon,
-        isActive: true
-      }).returning();
-      catMap[cat.name] = inserted.id;
-    }
-    let idx = 0;
-    async function insertItem(catKey, item, mods = []) {
-      const sku = `PL-${slugify(item.name).toUpperCase().slice(0, 10)}-${++idx}`;
-      const [prod] = await db.insert(products).values({
-        tenantId: tenant.id,
-        name: item.name,
-        description: item.description,
-        sku,
-        categoryId: catMap[catKey],
-        price: String(item.price.toFixed(2)),
-        costPrice: String((item.price * 0.35).toFixed(2)),
-        unit: "piece",
-        taxable: true,
-        trackInventory: false,
         isActive: true,
-        modifiers: mods,
-        ...item.image ? { image: item.image } : {}
+        sortOrder: cat.sortOrder
       }).returning();
-      await db.insert(inventory).values({ productId: prod.id, branchId, quantity: 999, lowStockThreshold: 0, reorderPoint: 0 });
+      catMap[cat.name] = ins.id;
+      console.log(`[PIZZA LEMON] Created category: ${cat.name}`);
+    } else {
+      await db.update(categories).set({
+        sortOrder: cat.sortOrder,
+        color: cat.color,
+        icon: cat.icon
+      }).where(eq2(categories.id, catMap[cat.name]));
     }
-    for (const p of PIZZAS) await insertItem("Pizza", p, pizzaToppingModifier());
-    for (const p of CALZONES) await insertItem("Calzone", p);
-    for (const p of PIDE) await insertItem("Pide", p, sizeModifier());
-    for (const p of LAHMACUN) await insertItem("Lahmacun", p);
-    for (const p of TELLERGERICHTE) await insertItem("Tellergerichte", p);
-    for (const p of FINGERFOOD) await insertItem("Fingerfood", p);
-    for (const p of SALATE) await insertItem("Salat", p);
-    for (const p of DESSERTS) await insertItem("Dessert", p);
-    for (const p of SOFT) await insertItem("Softgetr\xE4nke", p);
-    for (const p of BIER) await insertItem("Bier", p);
-    for (const p of ALKOHOL) await insertItem("Alkoholische Getr\xE4nke", p);
-    console.log(`[PIZZA LEMON] All 114 products seeded.`);
-  } else {
-    console.log(`[PIZZA LEMON] Products present (${existingProds.length}). Syncing images and adding missing items...`);
-    const allItems = [
-      ...PIZZAS,
-      ...CALZONES,
-      ...PIDE,
-      ...LAHMACUN,
-      ...TELLERGERICHTE,
-      ...FINGERFOOD,
-      ...SALATE,
-      ...DESSERTS,
-      ...SOFT,
-      ...BIER,
-      ...ALKOHOL
-    ];
-    for (const prod of existingProds) {
-      const item = allItems.find((i) => i.name === prod.name);
-      if (item?.image && prod.image !== item.image) {
-        await db.update(products).set({ image: item.image }).where(eq2(products.id, prod.id));
-      }
-    }
-    const existingCats = await db.select({ id: categories.id, name: categories.name }).from(categories);
-    const catMap = {};
-    for (const c of existingCats) catMap[c.name] = c.id;
-    for (const cat of PIZZA_LEMON_CATEGORIES) {
-      if (!catMap[cat.name]) {
-        const [ins] = await db.insert(categories).values({
-          name: cat.name,
-          color: cat.color,
-          icon: cat.icon,
-          isActive: true
-        }).returning();
-        catMap[cat.name] = ins.id;
-        console.log(`[PIZZA LEMON] Added missing category: ${cat.name}`);
-      }
-    }
-    const existingNames = new Set(existingProds.map((p) => p.name));
-    let addedCount = 0;
-    let idx = existingProds.length;
-    const catItems = [
-      ["Pizza", PIZZAS, pizzaToppingModifier()],
-      ["Calzone", CALZONES, []],
-      ["Pide", PIDE, sizeModifier()],
-      ["Lahmacun", LAHMACUN, []],
-      ["Tellergerichte", TELLERGERICHTE, []],
-      ["Fingerfood", FINGERFOOD, []],
-      ["Salat", SALATE, []],
-      ["Dessert", DESSERTS, []],
-      ["Softgetr\xE4nke", SOFT, []],
-      ["Bier", BIER, []],
-      ["Alkoholische Getr\xE4nke", ALKOHOL, []]
-    ];
-    for (const [catName, items, mods] of catItems) {
-      for (const item of items) {
-        if (!existingNames.has(item.name)) {
-          const sku = `PL-${slugify(item.name).toUpperCase().slice(0, 10)}-${++idx}`;
-          const catId = catMap[catName];
-          const [prod] = await db.insert(products).values({
-            tenantId: tenant.id,
-            name: item.name,
-            description: item.description,
-            sku,
-            categoryId: catId,
-            price: String(item.price.toFixed(2)),
-            costPrice: String((item.price * 0.35).toFixed(2)),
-            unit: "piece",
-            taxable: true,
-            trackInventory: false,
-            isActive: true,
-            modifiers: mods,
-            ...item.image ? { image: item.image } : {}
-          }).returning();
-          await db.insert(inventory).values({ productId: prod.id, branchId, quantity: 999, lowStockThreshold: 0, reorderPoint: 0 });
-          addedCount++;
-          console.log(`[PIZZA LEMON] Added new product: ${item.name}`);
-        }
-      }
-    }
-    console.log(`[PIZZA LEMON] Incremental update done. Images synced. ${addedCount} new products added.`);
   }
+  let idx = 0;
+  async function insertItem(catKey, item, mods = []) {
+    const sku = `PL${tenant.id}-${slugify(item.name).toUpperCase().slice(0, 10)}-${++idx}`;
+    const [prod] = await db.insert(products).values({
+      tenantId: tenant.id,
+      name: item.name,
+      description: item.description,
+      sku,
+      categoryId: catMap[catKey],
+      price: String(item.price.toFixed(2)),
+      costPrice: String((item.price * 0.35).toFixed(2)),
+      unit: "piece",
+      taxable: true,
+      trackInventory: false,
+      isActive: true,
+      modifiers: mods,
+      ...item.image ? { image: item.image } : {}
+    }).returning();
+    await db.insert(inventory).values({ productId: prod.id, branchId, quantity: 999, lowStockThreshold: 0, reorderPoint: 0 });
+  }
+  for (const p of PIZZAS) {
+    const price45 = p.price45 ?? p.price + 14;
+    await insertItem("Pizza", p, pizzaModifier(p.price, price45));
+  }
+  for (const p of CALZONES) await insertItem("Calzone", p);
+  for (const p of PIDE) await insertItem("Pide", p);
+  for (const p of LAHMACUN) await insertItem("Lahmacun", p);
+  for (const p of TELLERGERICHTE) await insertItem("Tellergerichte", p);
+  for (const p of FINGERFOOD) await insertItem("Fingerfood", p);
+  for (const p of SALATE) await insertItem("Salat", p);
+  for (const p of DESSERTS) await insertItem("Dessert", p);
+  for (const p of GETRAENKE) {
+    const sizeMod = ["Coca-Cola", "Fanta", "Eistee"].includes(p.name) ? drinkSizeModifier(2) : [];
+    await insertItem("Getr\xE4nke", p, sizeMod);
+  }
+  for (const p of BIER) await insertItem("Bier", p);
+  for (const p of ALKOHOL) await insertItem("Alkoholische Getr\xE4nke", p);
+  for (const p of TABAK) await insertItem("Tabakwaren", p);
+  const total = PIZZAS.length + CALZONES.length + PIDE.length + LAHMACUN.length + TELLERGERICHTE.length + FINGERFOOD.length + SALATE.length + DESSERTS.length + GETRAENKE.length + BIER.length + ALKOHOL.length + TABAK.length;
+  console.log(`[PIZZA LEMON] \u2713 ${total} products inserted with updated images (v3) and prices.`);
   const [existingConfig] = await db.select().from(landingPageConfig).where(eq2(landingPageConfig.tenantId, tenant.id));
-  const heroImage = IMG("pizzalemon_34_lemon_pizza.jpg");
+  const heroImage = IMG("pizzalemon_hero.png");
   if (!existingConfig) {
     await db.insert(landingPageConfig).values({
       tenantId: tenant.id,
@@ -2558,7 +2513,7 @@ async function seedPizzaLemon() {
       heroTitle: "Pizza Lemon",
       heroSubtitle: "Frische Pizza, D\xF6ner & mehr \u2013 direkt zu Ihnen geliefert",
       heroImage,
-      aboutText: "Pizza Lemon \u2013 Ihr Lieblingsrestaurant f\xFCr authentische italienische Pizza und t\xFCrkische Spezialit\xE4ten in Z\xFCrich. Wir verwenden t\xE4glich frische Zutaten und backen unsere Pizzen im Steinofen. Jetzt online bestellen oder besuchen Sie uns direkt!",
+      aboutText: "Pizza Lemon \u2013 Ihr Lieblingsrestaurant f\xFCr authentische italienische Pizza und t\xFCrkische Spezialit\xE4ten in Z\xFCrich-Oerlikon. Wir verwenden t\xE4glich frische Zutaten. 10% Rabatt bei Mobile App Bestellungen!",
       primaryColor: "#E53E3E",
       accentColor: "#D69E2E",
       enableOnlineOrdering: true,
@@ -2567,7 +2522,7 @@ async function seedPizzaLemon() {
       acceptCard: true,
       acceptMobile: true,
       acceptCash: true,
-      minOrderAmount: "15.00",
+      minOrderAmount: "20.00",
       estimatedDeliveryTime: 35,
       footerText: "\xA9 2025 Pizza Lemon \xB7 Alle Rechte vorbehalten",
       socialWhatsapp: "+41443103814",
@@ -2575,9 +2530,9 @@ async function seedPizzaLemon() {
       socialInstagram: "https://instagram.com/pizzalemon",
       phone: "+41 44 310 38 14",
       email: "info@pizzalemon.ch",
-      address: "Z\xFCrich, Schweiz",
-      openingHours: "Mo\u2013So: 11:00\u201322:00",
-      deliveryRadius: "Lieferung im Umkreis von 5km",
+      address: "Birchstrasse 120, CH-8050 Z\xFCrich-Oerlikon",
+      openingHours: "Mo\u2013So: 10:00\u201323:00 | Lieferzeiten: 11:00\u201323:00",
+      deliveryRadius: "Zone 1 (ab 20.-): Affoltern, Seebach, Oerlikon | Zone 2 (ab 30.-): Kloten, Wallisellen | Zone 3 (ab 40.-): Regensdorf",
       isPublished: true
     });
     console.log("[PIZZA LEMON] Landing page config created. URL: /store/pizza-lemon");
@@ -2586,30 +2541,28 @@ async function seedPizzaLemon() {
       heroImage,
       primaryColor: "#E53E3E",
       accentColor: "#D69E2E",
-      phone: existingConfig.phone || "+41 44 310 38 14",
-      email: existingConfig.email || "info@pizzalemon.ch",
-      address: existingConfig.address || "Z\xFCrich, Schweiz",
-      openingHours: existingConfig.openingHours || "Mo\u2013So: 11:00\u201322:00",
-      socialFacebook: existingConfig.socialFacebook || "https://facebook.com/pizzalemon",
-      socialInstagram: existingConfig.socialInstagram || "https://instagram.com/pizzalemon"
+      minOrderAmount: "20.00",
+      openingHours: "Mo\u2013So: 10:00\u201323:00 | Lieferzeiten: 11:00\u201323:00",
+      address: existingConfig.address || "Birchstrasse 120, CH-8050 Z\xFCrich-Oerlikon",
+      deliveryRadius: "Zone 1 (ab 20.-): Affoltern, Seebach, Oerlikon | Zone 2 (ab 30.-): Kloten, Wallisellen | Zone 3 (ab 40.-): Regensdorf"
     }).where(eq2(landingPageConfig.tenantId, tenant.id));
     console.log("[PIZZA LEMON] Landing page config updated.");
   }
   await db.insert(tenantNotifications).values({
     tenantId: tenant.id,
     type: "info",
-    title: "Willkommen bei Pizza Lemon!",
-    message: `Email: ${STORE_EMAIL} | Passwort: ${STORE_PASSWORD} | Lizenz: ${LICENSE_KEY} | Admin-PIN: 1234 | Cashier-PIN: 5678`,
+    title: "Pizza Lemon Katalog aktualisiert (v3)!",
+    message: `Neue Bilder + Preise geladen. Email: ${STORE_EMAIL} | PIN: 1234/5678 | Lizenz: ${LICENSE_KEY}`,
     priority: "high"
   }).onConflictDoNothing();
-  console.log(`[PIZZA LEMON] Setup complete!`);
+  console.log(`[PIZZA LEMON] \u2713 Setup complete!`);
   console.log(`[PIZZA LEMON]    Email:   ${STORE_EMAIL}`);
   console.log(`[PIZZA LEMON]    Pass:    ${STORE_PASSWORD}`);
   console.log(`[PIZZA LEMON]    License: ${LICENSE_KEY}`);
   console.log(`[PIZZA LEMON]    Admin PIN: 1234  |  Cashier PIN: 5678`);
-  console.log(`[PIZZA LEMON]    Menu: 34 Pizzas, 3 Calzones, 9 Pide, 2 Lahmacun, 13 Tellergerichte, 23 Fingerfood, 9 Salate, 5 Desserts, 8 Softgetr\xE4nke, 2 Bier, 6 Alkohol = 114 total`);
+  console.log(`[PIZZA LEMON]    Menu: 35 Pizza, 3 Calzone, 9 Pide, 2 Lahmacun, 13 Tellergerichte, 23 Fingerfood, 9 Salat, 5 Dessert, 8 Getr\xE4nke, 2 Bier, 6 Alkohol, 1 Tabak = ${total} total`);
 }
-var STORE_EMAIL, STORE_PASSWORD, LICENSE_KEY, BUSINESS_NAME, IMG, PIZZA_LEMON_CATEGORIES, PIZZAS, CALZONES, PIDE, LAHMACUN, TELLERGERICHTE, FINGERFOOD, SALATE, DESSERTS, SOFT, BIER, ALKOHOL;
+var STORE_EMAIL, STORE_PASSWORD, LICENSE_KEY, BUSINESS_NAME, IMG, PIZZA_LEMON_CATEGORIES, PIZZAS, CALZONES, PIDE, LAHMACUN, TELLERGERICHTE, FINGERFOOD, SALATE, DESSERTS, GETRAENKE, BIER, ALKOHOL, TABAK;
 var init_seedPizzaLemon = __esm({
   "server/seedPizzaLemon.ts"() {
     "use strict";
@@ -2621,153 +2574,158 @@ var init_seedPizzaLemon = __esm({
     BUSINESS_NAME = "Pizza Lemon";
     IMG = (filename) => `/uploads/products/${filename}`;
     PIZZA_LEMON_CATEGORIES = [
-      { name: "Pizza", color: "#E53E3E", icon: "pizza" },
-      { name: "Calzone", color: "#D69E2E", icon: "pizza" },
-      { name: "Pide", color: "#2B6CB0", icon: "restaurant" },
-      { name: "Lahmacun", color: "#C05621", icon: "pizza" },
-      { name: "Tellergerichte", color: "#276749", icon: "restaurant" },
-      { name: "Fingerfood", color: "#805AD5", icon: "fast-food" },
-      { name: "Salat", color: "#2F855A", icon: "leaf" },
-      { name: "Dessert", color: "#B7791F", icon: "ice-cream" },
-      { name: "Softgetr\xE4nke", color: "#2C7A7B", icon: "cafe" },
-      { name: "Bier", color: "#744210", icon: "beer" },
-      { name: "Alkoholische Getr\xE4nke", color: "#6B46C1", icon: "wine" }
+      { name: "Pizza", color: "#E53E3E", icon: "pizza", sortOrder: 1 },
+      { name: "Calzone", color: "#D69E2E", icon: "pizza", sortOrder: 2 },
+      { name: "Pide", color: "#2B6CB0", icon: "restaurant", sortOrder: 3 },
+      { name: "Lahmacun", color: "#C05621", icon: "pizza", sortOrder: 4 },
+      { name: "Tellergerichte", color: "#276749", icon: "restaurant", sortOrder: 5 },
+      { name: "Fingerfood", color: "#805AD5", icon: "fast-food", sortOrder: 6 },
+      { name: "Salat", color: "#2F855A", icon: "leaf", sortOrder: 7 },
+      { name: "Dessert", color: "#B7791F", icon: "ice-cream", sortOrder: 8 },
+      { name: "Getr\xE4nke", color: "#2C7A7B", icon: "cafe", sortOrder: 9 },
+      { name: "Bier", color: "#744210", icon: "beer", sortOrder: 10 },
+      { name: "Alkoholische Getr\xE4nke", color: "#6B46C1", icon: "wine", sortOrder: 11 },
+      { name: "Tabakwaren", color: "#4A5568", icon: "warning", sortOrder: 12 }
     ];
     PIZZAS = [
-      { name: "Margherita", description: "Tomatensauce, Mozzarella, Oregano", price: 14, image: IMG("pizzalemon_01_margherita.jpg") },
-      { name: "Profumata", description: "Tomaten, Mozzarella, Zwiebeln, Knoblauch, Oregano", price: 14, image: IMG("pizzalemon_02_profumata.jpg") },
-      { name: "Funghi", description: "Tomatensauce, Mozzarella, Pilze", price: 15, image: IMG("pizzalemon_03_funghi.jpg") },
-      { name: "Spinat", description: "Tomatensauce, Mozzarella, Spinat", price: 15, image: IMG("pizzalemon_04_spinat.jpg") },
-      { name: "Gorgonzola", description: "Tomatensauce, Mozzarella, Gorgonzola", price: 16, image: IMG("pizzalemon_05_gorgonzola.jpg") },
-      { name: "Prosciutto", description: "Tomatensauce, Mozzarella, Schinken", price: 16, image: IMG("pizzalemon_06_prosciutto.jpg") },
-      { name: "Salami", description: "Tomatensauce, Mozzarella, scharfe Salami", price: 16, image: IMG("pizzalemon_07_salami.jpg") },
-      { name: "Diavola", description: "Tomatensauce, Mozzarella, scharfe Salami, Oliven, Zwiebeln", price: 17, image: IMG("pizzalemon_08_diavola.jpg") },
-      { name: "Arrabbiata", description: "Tomatensauce, Mozzarella, Oliven, Pilze, scharf", price: 17, image: IMG("pizzalemon_09_arrabbiata.jpg") },
-      { name: "Siciliana", description: "Tomatensauce, Mozzarella, Schinken, Sardellen, Kapern", price: 17, image: IMG("pizzalemon_10_siciliana.jpg") },
-      { name: "Prosciutto e Funghi", description: "Tomatensauce, Mozzarella, Pilze, Schinken", price: 17, image: IMG("pizzalemon_11_prosciutto_e_funghi.jpg") },
-      { name: "Hawaii", description: "Tomatensauce, Mozzarella, Schinken, Ananas", price: 17, image: IMG("pizzalemon_12_hawaii.jpg") },
-      { name: "Tonno", description: "Tomatensauce, Mozzarella, Thon, Zwiebeln", price: 17, image: IMG("pizzalemon_13_tonno.jpg") },
-      { name: "Piccante", description: "Tomatensauce, Mozzarella, Peperoni, Peperoncini, Zwiebeln, Knoblauch, Oregano", price: 18, image: IMG("pizzalemon_14_piccante.jpg") },
-      { name: "Raclette", description: "Tomatensauce, Mozzarella, Raclettek\xE4se", price: 18, image: IMG("pizzalemon_15_raclette.jpg") },
-      { name: "Fiorentina", description: "Tomaten, Mozzarella, Spinat, Parmesan, Ei, Oregano", price: 18, image: IMG("pizzalemon_16_fiorentina.jpg") },
-      { name: "Kebab Pizza", description: "Tomatensauce, Mozzarella, Kebabfleisch", price: 19, image: IMG("pizzalemon_17_kebab_pizza.jpg") },
-      { name: "Poulet", description: "Tomatensauce, Mozzarella, Poulet", price: 19, image: IMG("pizzalemon_18_poulet.jpg") },
-      { name: "Carbonara", description: "Tomatensauce, Mozzarella, Speck, Ei, Zwiebeln", price: 19, image: IMG("pizzalemon_19_carbonara.jpg") },
-      { name: "Gamberetti", description: "Tomatensauce, Mozzarella, Crevetten, Knoblauch", price: 19, image: IMG("pizzalemon_20_gamberetti.jpg") },
-      { name: "Quattro Formaggi", description: "Tomatensauce, Mozzarella, 4 K\xE4sesorten, Mascarpone", price: 19, image: IMG("pizzalemon_21_quattro_formaggi.jpg") },
-      { name: "Quattro Stagioni", description: "Tomatensauce, Mozzarella, Schinken, Pilze, Artischocken, Peperoni", price: 19, image: IMG("pizzalemon_22_quattro_stagioni.jpg") },
-      { name: "Frutti di Mare", description: "Tomatensauce, Mozzarella, Meeresfr\xFCchte, Oregano", price: 19, image: IMG("pizzalemon_23_frutti_di_mare.jpg") },
-      { name: "Verdura", description: "Tomatensauce, Mozzarella, Gem\xFCse", price: 19, image: IMG("pizzalemon_24_verdura.jpg") },
-      { name: "Napoli", description: "Tomatensauce, Mozzarella, Sardellen, Oliven, Kapern", price: 18, image: IMG("pizzalemon_25_napoli.jpg") },
-      { name: "Pizzaiolo", description: "Tomatensauce, Mozzarella, Speck, Knoblauch, Pilze", price: 18, image: IMG("pizzalemon_26_pizzaiolo.jpg") },
-      { name: "A'Casa", description: "Tomatensauce, Mozzarella, Gefl\xFCgelgeschnetzeltes, Peperoni, Ei, Oregano", price: 19, image: IMG("pizzalemon_27_a_casa.jpg") },
-      { name: "Porcini", description: "Tomaten, Mozzarella, Steinpilze, Zwiebeln, Oregano", price: 19, image: IMG("pizzalemon_28_porcini.jpg") },
-      { name: "Spezial", description: "Tomatensauce, Mozzarella, Kalbfleisch, Knoblauch, Scharf, Kr\xE4uterbutter, Oregano", price: 19, image: IMG("pizzalemon_29_spezial.jpg") },
-      { name: "Padrone", description: "Tomatensauce, Mozzarella, Gorgonzola, Pilze", price: 20, image: IMG("pizzalemon_30_padrone.jpg") },
-      { name: "Schloss Pizza", description: "Tomatensauce, Mozzarella, Schinken, Speck, scharfe Salami", price: 20, image: IMG("pizzalemon_31_schloss_pizza.jpg") },
-      { name: "Italiano", description: "Tomatensauce, Mozzarella, Rohschinken, Mascarpone, Rucola", price: 20, image: IMG("pizzalemon_32_italiano.jpg") },
-      { name: "Americano", description: "Tomatensauce, Mozzarella, Speck, Mais, Zwiebeln", price: 21, image: IMG("pizzalemon_33_americano.jpg") },
-      { name: "Lemon Pizza", description: "Tomatensauce, Mozzarella, Lammfleisch, Knoblauch, Zwiebeln, Peperoncini, Scharf", price: 20, image: IMG("pizzalemon_34_lemon_pizza.jpg") }
+      { name: "Margherita", description: "Tomaten, Mozzarella, Oregano", price: 14, price45: 24, image: IMG("pizzalemon_01_margherita.jpg") },
+      { name: "Profumata", description: "Tomaten, Mozzarella, Knoblauch, Petersilie, Oregano", price: 16, price45: 27, image: IMG("pizzalemon_02_profumata.jpg") },
+      { name: "Funghi", description: "Tomaten, Mozzarella, Pilze", price: 16, price45: 28, image: IMG("pizzalemon_03_funghi.jpg") },
+      { name: "Spinat", description: "Tomaten, Mozzarella, Spinat", price: 16, price45: 28, image: IMG("pizzalemon_04_spinat.jpg") },
+      { name: "Gorgonzola", description: "Tomaten, Mozzarella, Gorgonzola", price: 16, price45: 28, image: IMG("pizzalemon_05_gorgonzola.jpg") },
+      { name: "Prosciutto", description: "Tomaten, Mozzarella, Schinken", price: 16, price45: 28, image: IMG("pizzalemon_06_prosciutto.jpg") },
+      { name: "Salami", description: "Tomaten, Mozzarella, Salami", price: 16, price45: 28, image: IMG("pizzalemon_07_salami.jpg") },
+      { name: "Diavola", description: "Tomaten, Mozzarella, scharfe Salami, Oliven, Peperoncini", price: 17, price45: 31, image: IMG("pizzalemon_08_diavola.jpg") },
+      { name: "Arrabbiata", description: "Tomaten, Mozzarella, Speck, Peperoncini, Knoblauch, Zwiebeln", price: 17, price45: 31, image: IMG("pizzalemon_09_arrabbiata.jpg") },
+      { name: "Siciliana", description: "Tomaten, Mozzarella, Schinken, Sardellen, Kapern", price: 17, price45: 31, image: IMG("pizzalemon_10_siciliana.jpg") },
+      { name: "Prosciutto e Funghi", description: "Tomaten, Mozzarella, Schinken, Pilze", price: 17, price45: 31, image: IMG("pizzalemon_11_prosciutto_e_funghi.jpg") },
+      { name: "Hawaii", description: "Tomaten, Mozzarella, Schinken, Ananas", price: 17, price45: 31, image: IMG("pizzalemon_12_hawaii.jpg") },
+      { name: "Tonno", description: "Tomaten, Mozzarella, Thunfisch, Zwiebeln", price: 17, price45: 31, image: IMG("pizzalemon_13_tonno.jpg") },
+      { name: "Piccante", description: "Tomaten, Mozzarella, Peperoni, Peperoncini, Zwiebeln, Knoblauch, Oregano", price: 18, price45: 32, image: IMG("pizzalemon_14_piccante.jpg") },
+      { name: "Raclette", description: "Tomaten, Mozzarella, Rohschinken", price: 18, price45: 32, image: IMG("pizzalemon_15_raclette.jpg") },
+      { name: "Fiorentina", description: "Tomaten, Mozzarella, Spinat, Gorgonzola, Knoblauch", price: 18, price45: 32, image: IMG("pizzalemon_16_fiorentina.jpg") },
+      { name: "Kebab Pizza", description: "Tomaten, Mozzarella, Kebabfleisch", price: 18, price45: 32, image: IMG("pizzalemon_17_kebab_pizza.jpg") },
+      { name: "Poulet", description: "Tomaten, Mozzarella, Poulet", price: 18, price45: 32, image: IMG("pizzalemon_18_poulet.jpg") },
+      { name: "Carbonara", description: "Tomaten, Mozzarella, Speck, Ei, Rahm", price: 18, price45: 33, image: IMG("pizzalemon_19_carbonara.jpg") },
+      { name: "Gamberetti", description: "Tomaten, Mozzarella, Crevetten, Knoblauch", price: 18, price45: 33, image: IMG("pizzalemon_20_gamberetti.jpg") },
+      { name: "Quattro Formaggi", description: "Tomaten, Mozzarella, 4 verschiedene K\xE4sesorten", price: 19, price45: 35, image: IMG("pizzalemon_21_quattro_formaggi.jpg") },
+      { name: "Quattro Stagioni", description: "Tomaten, Mozzarella, Schinken, Pilze, Peperoni, Artischocken", price: 19, price45: 35, image: IMG("pizzalemon_22_quattro_stagioni.jpg") },
+      { name: "Frutti di Mare", description: "Tomaten, Mozzarella, Meeresfr\xFCchte", price: 19, price45: 35, image: IMG("pizzalemon_23_frutti_di_mare.jpg") },
+      { name: "Verdura", description: "Tomaten, Mozzarella, verschiedenes Gem\xFCse", price: 18, price45: 33, image: IMG("pizzalemon_24_verdura.jpg") },
+      { name: "Napoli", description: "Tomaten, Mozzarella, Sardellen, Kapern, Oliven", price: 18, price45: 32, image: IMG("pizzalemon_25_napoli.jpg") },
+      { name: "Pizzaiolo", description: "Tomaten, Mozzarella, Speck, Knoblauch, Pilze", price: 18, price45: 32, image: IMG("pizzalemon_26_pizzaiolo.jpg") },
+      { name: "A'Casa", description: "Tomaten, Mozzarella, Gorgonzola, Peperoni, Pilze, Knoblauch, Zwiebeln", price: 19, price45: 34, image: IMG("pizzalemon_27_a_casa.jpg") },
+      { name: "Porcini", description: "Tomaten, Mozzarella, Steinpilze, Zwiebeln, Oregano", price: 19, price45: 34, image: IMG("pizzalemon_28_porcini.jpg") },
+      { name: "Spezial", description: "Tomaten, Mozzarella, Kalbfleisch, Knoblauch, Kr\xE4uterbutter, Zwiebeln, Oregano", price: 19, price45: 34, image: IMG("pizzalemon_29_spezial.jpg") },
+      { name: "Padrone", description: "Tomaten, Mozzarella, Gorgonzola, Pilze", price: 20, price45: 35, image: IMG("pizzalemon_30_padrone.jpg") },
+      { name: "Schloss Pizza", description: "Tomaten, Mozzarella, Kalbfleisch, Speck, scharfe Salami", price: 20, price45: 35, image: IMG("pizzalemon_31_schloss_pizza.jpg") },
+      { name: "Italiano", description: "Tomaten, Mozzarella, Rohschinken, Mascarpone, Rucola", price: 20, price45: 35, image: IMG("pizzalemon_32_italiano.jpg") },
+      { name: "Americano", description: "Tomaten, Mozzarella, Speck, Mais, Zwiebeln", price: 20, price45: 35, image: IMG("pizzalemon_33_americano.jpg") },
+      { name: "Lemon Pizza", description: "Tomaten, Mozzarella, Lammfleisch, Knoblauch, Peperoncini, Scharf", price: 21, price45: 36, image: IMG("pizzalemon_34_lemon_pizza.jpg") },
+      { name: "Extra K\xE4serand", description: "Knuspriger K\xE4serand f\xFCr Ihre Pizza (33cm: +3.- / 45cm: +6.-)", price: 3, price45: 6, image: IMG("pizzalemon_35_extra_kaeserand.jpg") }
     ];
     CALZONES = [
-      { name: "Calzone", description: "Tomatensauce, Mozzarella, Schinken, Pilze, Ei (nur 45cm)", price: 20, image: IMG("pizzalemon_112_calzone.jpg") },
-      { name: "Calzone Kebab", description: "Tomatensauce, Mozzarella, Kebabfleisch, Ei (nur 45cm)", price: 20, image: IMG("pizzalemon_113_calzone_kebab.jpg") },
-      { name: "Calzone Verdura", description: "Tomatensauce, Mozzarella, Saisongem\xFCse (nur 45cm)", price: 20, image: IMG("pizzalemon_114_calzone_verdura.jpg") }
+      { name: "Calzone", description: "Tomaten, Mozzarella, Schinken, Pilze, Ei", price: 20, image: IMG("pizzalemon_c1_calzone.jpg") },
+      { name: "Calzone Kebab", description: "Tomaten, Mozzarella, Kebabfleisch", price: 23, image: IMG("pizzalemon_c2_calzone_kebab.jpg") },
+      { name: "Calzone Verdura", description: "Tomaten, Mozzarella, Saisongem\xFCse", price: 20, image: IMG("pizzalemon_c3_calzone_verdura.jpg") }
     ];
     PIDE = [
-      { name: "Pide mit K\xE4se", description: "Pide mit Schafsk\xE4se", price: 14, image: IMG("pizzalemon_35_pide_mit_kaese.jpg") },
-      { name: "Pide mit Hackfleisch", description: "Pide mit Hackfleisch und Tomaten", price: 16, image: IMG("pizzalemon_36_pide_mit_hackfleisch.jpg") },
-      { name: "Pide K\xE4se Hackfleisch", description: "Pide mit Schafsk\xE4se und Hackfleisch", price: 17, image: IMG("pizzalemon_37_pide_kaese_hackfleisch.jpg") },
-      { name: "Pide K\xE4se Spinat", description: "Pide mit Schafsk\xE4se und Spinat", price: 15, image: IMG("pizzalemon_38_pide_kaese_spinat.jpg") },
-      { name: "Pide K\xE4se Ei", description: "Pide mit Schafsk\xE4se und Ei", price: 15, image: IMG("pizzalemon_39_pide_kaese_ei.jpg") },
-      { name: "Lemon Pide", description: "Hausgemachte Pide mit Lammfleisch und Gew\xFCrzen", price: 18, image: IMG("pizzalemon_40_lemon_pide.jpg") },
-      { name: "Lemon Pide Spezial", description: "Lemon Pide mit Extra-Zutaten nach Wahl", price: 20, image: IMG("pizzalemon_41_lemon_pide_spezial.jpg") },
-      { name: "Pide mit Sucuk", description: "Pide mit t\xFCrkischer Wurst (Sucuk)", price: 17, image: IMG("pizzalemon_42_pide_mit_sucuk.jpg") },
-      { name: "Pide mit Kebabfleisch", description: "Pide mit Kebabfleisch", price: 18, image: IMG("pizzalemon_43_pide_mit_kebabfleisch.jpg") }
+      { name: "Pide mit K\xE4se", description: "Pide mit Schafsk\xE4se", price: 15, image: IMG("pizzalemon_36_pide_mit_kaese.jpg") },
+      { name: "Pide mit Hackfleisch", description: "Pide mit Hackfleisch und Tomaten", price: 17, image: IMG("pizzalemon_37_pide_mit_hackfleisch.jpg") },
+      { name: "Pide mit K\xE4se und Hackfleisch", description: "Pide mit Schafsk\xE4se und Hackfleisch", price: 18, image: IMG("pizzalemon_38_pide_kaese_hackfleisch.jpg") },
+      { name: "Pide mit K\xE4se und Spinat", description: "Pide mit Schafsk\xE4se und Spinat", price: 18, image: IMG("pizzalemon_39_pide_kaese_spinat.jpg") },
+      { name: "Pide mit K\xE4se und Ei", description: "Pide mit Schafsk\xE4se und Ei", price: 18, image: IMG("pizzalemon_40_pide_kaese_ei.jpg") },
+      { name: "Lemon Pide", description: "Hausgemachte Pide mit gew\xFCrztem Hackfleisch und K\xE4se", price: 18, image: IMG("pizzalemon_41_lemon_pide.jpg") },
+      { name: "Lemon Pide Spezial", description: "Fein gehacktes Fleisch mit dem Messer gehackt", price: 20, image: IMG("pizzalemon_42_lemon_pide_spezial.jpg") },
+      { name: "Pide mit Sucuk", description: "Pide mit t\xFCrkischer Knoblauchwurst", price: 18, image: IMG("pizzalemon_43_pide_mit_sucuk.jpg") },
+      { name: "Pide mit Kebabfleisch", description: "Pide mit Kebabfleisch", price: 20, image: IMG("pizzalemon_44_pide_mit_kebabfleisch.jpg") }
     ];
     LAHMACUN = [
-      { name: "Lahmacun mit Salat", description: "T\xFCrkische Minipizza mit Hackfleisch und frischem Salat", price: 12, image: IMG("pizzalemon_44_lahmacun_mit_salat.jpg") },
-      { name: "Lahmacun+Salat+Kebab", description: "Lahmacun mit Salat und Kebabfleisch", price: 16, image: IMG("pizzalemon_45_lahmacun_salat_kebab.jpg") }
+      { name: "Lahmacun mit Salat", description: "T\xFCrkische Minipizza mit Hackfleisch und frischem Salat", price: 15, image: IMG("pizzalemon_45_lahmacun_mit_salat.jpg") },
+      { name: "Lahmacun mit Salat und Kebab", description: "Lahmacun mit frischem Salat und Kebabfleisch", price: 18, image: IMG("pizzalemon_46_lahmacun_salat_kebab.jpg") }
     ];
     TELLERGERICHTE = [
-      { name: "D\xF6ner Teller+Pommes", description: "D\xF6ner Kebab auf dem Teller mit Pommes frites", price: 18, image: IMG("pizzalemon_46_doener_teller_pommes.jpg") },
-      { name: "D\xF6ner Teller+Salat", description: "D\xF6ner Kebab auf dem Teller mit frischem Salat", price: 18, image: IMG("pizzalemon_47_doener_teller_salat.jpg") },
-      { name: "D\xF6ner Teller Komplett", description: "D\xF6ner Kebab auf dem Teller mit Salat und Pommes", price: 22, image: IMG("pizzalemon_48_doener_teller_komplett.jpg") },
-      { name: "Chicken Nuggets 8Stk", description: "8 knusprige Chicken Nuggets mit Dip", price: 12, image: IMG("pizzalemon_49_chicken_nuggets_8stk.jpg") },
-      { name: "Pouletschnitzel", description: "Zartes Pouletschnitzel mit Beilagen", price: 18, image: IMG("pizzalemon_50_pouletschnitzel.jpg") },
-      { name: "Pouletfl\xFCgeli 12Stk", description: "12 knusprige Pouletfl\xFCgeli", price: 16, image: IMG("pizzalemon_51_pouletfluegeli_12stk.jpg") },
-      { name: "Poulet Kebab Teller", description: "Poulet Kebab auf dem Teller mit Beilagen", price: 18, image: IMG("pizzalemon_52_poulet_kebab_teller.jpg") },
-      { name: "Lamm Kebab Teller", description: "Lamm Kebab auf dem Teller mit Beilagen", price: 20, image: IMG("pizzalemon_53_lamm_kebab_teller.jpg") },
-      { name: "K\xF6fte Teller", description: "T\xFCrkische Hackfleischb\xE4llchen auf dem Teller", price: 18, image: IMG("pizzalemon_54_koefte_teller.jpg") },
-      { name: "Cevapcici Teller", description: "Gegrillte Cevapcici mit Beilagen", price: 18, image: IMG("pizzalemon_55_cevapcici_teller.jpg") },
-      { name: "Falafel Teller", description: "Knusprige Falafel auf dem Teller mit Beilagen", price: 16, image: IMG("pizzalemon_56_falafel_teller.jpg") },
-      { name: "Pommes", description: "Pommes frites, knusprig frittiert", price: 6, image: IMG("pizzalemon_57_pommes.jpg") },
-      { name: "Cordon Bleu", description: "Klassisches Cordon Bleu mit Beilagen", price: 22, image: IMG("pizzalemon_58_cordon_bleu.jpg") }
+      { name: "D\xF6ner Teller+Pommes", description: "D\xF6ner Kebab auf dem Teller mit Pommes frites", price: 18, image: IMG("pizzalemon_47_doener_teller_pommes.jpg") },
+      { name: "D\xF6ner Teller+Salat", description: "D\xF6ner Kebab auf dem Teller mit frischem Salat", price: 18, image: IMG("pizzalemon_48_doener_teller_salat.jpg") },
+      { name: "D\xF6ner Teller Komplett", description: "D\xF6ner Kebab auf dem Teller mit Salat und Pommes", price: 20, image: IMG("pizzalemon_49_doener_teller_komplett.jpg") },
+      { name: "Chicken Nuggets 8Stk", description: "8 knusprige Chicken Nuggets mit Pommes oder Salat", price: 17, image: IMG("pizzalemon_50_chicken_nuggets_8stk.jpg") },
+      { name: "Pouletschnitzel", description: "Zartes Pouletschnitzel mit Pommes oder Salat und Brot", price: 17, image: IMG("pizzalemon_51_pouletschnitzel.jpg") },
+      { name: "Pouletfl\xFCgeli 12Stk", description: "12 knusprige Pouletfl\xFCgeli mit Pommes oder Salat", price: 18, image: IMG("pizzalemon_52_pouletfluegeli_12stk.jpg") },
+      { name: "Poulet Kebab Teller", description: "Poulet Kebab auf dem Teller mit Pommes oder Salat", price: 18, image: IMG("pizzalemon_53_poulet_kebab_teller.jpg") },
+      { name: "Lamm Kebab Teller", description: "Lamm Kebab (Sac Kavurma) mit Pommes oder Salat", price: 22, image: IMG("pizzalemon_54_lamm_kebab_teller.jpg") },
+      { name: "K\xF6fte Teller", description: "T\xFCrkische Hackfleischb\xE4llchen mit Pommes oder Salat", price: 18, image: IMG("pizzalemon_55_koefte_teller.jpg") },
+      { name: "Cevapcici Teller", description: "Gegrillte Cevapcici mit Pommes oder Salat und Brot", price: 18, image: IMG("pizzalemon_56_cevapcici_teller.jpg") },
+      { name: "Falafel Teller", description: "Knusprige Falafel mit Pommes oder Salat und Brot", price: 16, image: IMG("pizzalemon_57_falafel_teller.jpg") },
+      { name: "Pommes", description: "Pommes frites, knusprig frittiert", price: 10, image: IMG("pizzalemon_58_pommes.jpg") },
+      { name: "Original Schweins Cordon Bleu", description: "Original Schweins Cordon Bleu mit Gem\xFCse, Salat, Pommes", price: 23, image: IMG("pizzalemon_59_cordon_bleu.jpg") }
     ];
     FINGERFOOD = [
-      { name: "D\xF6ner Kebab Tasche", description: "D\xF6ner Kebab im Fladenbrot", price: 12, image: IMG("pizzalemon_59_doener_kebab_tasche.jpg") },
-      { name: "D\xFCr\xFCm Kebab", description: "D\xF6ner Kebab im D\xFCr\xFCm-Wrap", price: 13, image: IMG("pizzalemon_60_dueruem_kebab.jpg") },
-      { name: "D\xF6ner Box", description: "D\xF6ner Kebab in der Box mit Pommes", price: 13, image: IMG("pizzalemon_61_doener_box.jpg") },
-      { name: "Falafel Taschenbrot", description: "Knusprige Falafel im Taschenbrot", price: 10, image: IMG("pizzalemon_62_falafel_taschenbrot.jpg") },
-      { name: "Falafel D\xFCr\xFCm", description: "Falafel im D\xFCr\xFCm-Wrap", price: 11, image: IMG("pizzalemon_63_falafel_dueruem.jpg") },
-      { name: "Poulet Pepito", description: "Gegrilltes Poulet im Fladenbrot", price: 12, image: IMG("pizzalemon_64_poulet_pepito.jpg") },
-      { name: "Lamm Pepito", description: "Gegrilltes Lammfleisch im Fladenbrot", price: 14, image: IMG("pizzalemon_65_lamm_pepito.jpg") },
-      { name: "Hamburger", description: "Klassischer Hamburger mit Salat und Sauce", price: 12, image: IMG("pizzalemon_66_hamburger.jpg") },
-      { name: "Lemon Burger", description: "Hausgemachter Burger mit Lemon-Sauce", price: 14, image: IMG("pizzalemon_67_lemon_burger.jpg") },
-      { name: "Cheeseburger", description: "Hamburger mit Cheddar-K\xE4se", price: 13, image: IMG("pizzalemon_68_cheeseburger.jpg") },
-      { name: "Hamburger Rindfleisch", description: "Hamburger mit 100% Rindfleisch", price: 14, image: IMG("pizzalemon_69_hamburger_rindfleisch.jpg") },
-      { name: "Poulet Kebab Tasche", description: "Poulet Kebab im Taschenbrot", price: 13, image: IMG("pizzalemon_70_poulet_kebab_tasche.jpg") },
-      { name: "Poulet Kebab Fladen", description: "Poulet Kebab im Fladenbrot", price: 14, image: IMG("pizzalemon_71_poulet_kebab_fladen.jpg") },
-      { name: "Lamm Kebab Tasche", description: "Lamm Kebab im Taschenbrot", price: 14, image: IMG("pizzalemon_72_lamm_kebab_tasche.jpg") },
-      { name: "Lamm Kebab Fladen", description: "Lamm Kebab im Fladenbrot", price: 15, image: IMG("pizzalemon_73_lamm_kebab_fladen.jpg") },
-      { name: "K\xF6fte Taschenbrot", description: "T\xFCrkische Hackfleischb\xE4llchen im Taschenbrot", price: 12, image: IMG("pizzalemon_74_koefte_taschenbrot.jpg") },
-      { name: "Cevapcici Taschenbrot", description: "Gegrillte Cevapcici im Taschenbrot", price: 12, image: IMG("pizzalemon_75_cevapcici_taschenbrot.jpg") },
-      { name: "Falafel Box", description: "Knusprige Falafel in der Box", price: 11, image: IMG("pizzalemon_76_falafel_box.jpg") },
-      { name: "Chicken Nuggets Box", description: "Chicken Nuggets in der Box mit Dip", price: 12, image: IMG("pizzalemon_77_chicken_nuggets_box.jpg") },
-      { name: "Kebab Fladen+Raclette", description: "Kebab Fladen mit Raclettek\xE4se \xFCberbacken", price: 16, image: IMG("pizzalemon_78_kebab_fladen_raclette.jpg") },
-      { name: "Kebab Tasche+Raclette", description: "Kebab Tasche mit Raclettek\xE4se \xFCberbacken", price: 16, image: IMG("pizzalemon_79_kebab_tasche_raclette.jpg") },
-      { name: "Kebab Fladen+Speck", description: "Kebab Fladen mit Speck", price: 15, image: IMG("pizzalemon_80_kebab_fladen_speck.jpg") },
-      { name: "Kebab Tasche+Speck", description: "Kebab Tasche mit Speck", price: 15, image: IMG("pizzalemon_81_kebab_tasche_speck.jpg") }
+      { name: "D\xF6ner Kebab Tasche", description: "D\xF6ner Kebab im Taschenbrot", price: 13, image: IMG("pizzalemon_60_doener_kebab_tasche.jpg") },
+      { name: "D\xFCr\xFCm Kebab", description: "D\xF6ner Kebab im Fladenbrot", price: 13, image: IMG("pizzalemon_61_dueruem_kebab.jpg") },
+      { name: "D\xF6ner Box", description: "D\xF6ner Kebab in der Box mit Salat und Pommes", price: 13, image: IMG("pizzalemon_62_doener_box.jpg") },
+      { name: "Falafel Taschenbrot", description: "Knusprige Falafel im Taschenbrot", price: 12, image: IMG("pizzalemon_63_falafel_taschenbrot.jpg") },
+      { name: "Falafel D\xFCr\xFCm", description: "Falafel im Fladenbrot", price: 12, image: IMG("pizzalemon_64_falafel_dueruem.jpg") },
+      { name: "Poulet Pepito", description: "Gegrilltes Poulet im Fladenbrot", price: 12, image: IMG("pizzalemon_65_poulet_pepito.jpg") },
+      { name: "Lamm Pepito", description: "Gegrilltes Lammfleisch im Fladenbrot", price: 14, image: IMG("pizzalemon_66_lamm_pepito.jpg") },
+      { name: "Hamburger", description: "Klassischer Hamburger mit Salat und Sauce", price: 11, image: IMG("pizzalemon_67_hamburger.jpg") },
+      { name: "Lemon Burger", description: "Lemon Burger mit Rindfleisch, Raclettek\xE4se und Ei", price: 17, image: IMG("pizzalemon_68_lemon_burger.jpg") },
+      { name: "Cheeseburger", description: "Cheeseburger mit Rindfleisch und K\xE4se", price: 13, image: IMG("pizzalemon_69_cheeseburger.jpg") },
+      { name: "Hamburger Rindfleisch", description: "Hamburger mit 100% Rindfleisch", price: 12, image: IMG("pizzalemon_70_hamburger_rindfleisch.jpg") },
+      { name: "Poulet Kebab Tasche", description: "Poulet Kebab mit Gem\xFCse im Taschenbrot", price: 13, image: IMG("pizzalemon_71_poulet_kebab_tasche.jpg") },
+      { name: "Poulet Kebab Fladen", description: "Poulet Kebab mit Gem\xFCse im Fladenbrot", price: 13, image: IMG("pizzalemon_72_poulet_kebab_fladen.jpg") },
+      { name: "Lamm Kebab Tasche", description: "Lamm Kebab mit Gem\xFCse im Taschenbrot", price: 14, image: IMG("pizzalemon_73_lamm_kebab_tasche.jpg") },
+      { name: "Lamm Kebab Fladen", description: "Lamm Kebab mit Gem\xFCse im Fladenbrot", price: 14, image: IMG("pizzalemon_74_lamm_kebab_fladen.jpg") },
+      { name: "K\xF6fte Taschenbrot", description: "T\xFCrkische Hackfleischb\xE4llchen im Taschenbrot", price: 13, image: IMG("pizzalemon_75_koefte_taschenbrot.jpg") },
+      { name: "Cevapcici Taschenbrot", description: "Gegrillte Cevapcici im Taschenbrot", price: 13, image: IMG("pizzalemon_76_cevapcici_taschenbrot.jpg") },
+      { name: "Falafel Box", description: "Knusprige Falafel in der Box mit Salat und Pommes", price: 12, image: IMG("pizzalemon_77_falafel_box.jpg") },
+      { name: "Chicken Nuggets Box", description: "Chicken Nuggets in der Box mit Dip", price: 12, image: IMG("pizzalemon_78_chicken_nuggets_box.jpg") },
+      { name: "Kebab Fladen+Raclette", description: "Kebab im Fladenbrot mit Raclettek\xE4se \xFCberbacken", price: 15, image: IMG("pizzalemon_79_kebab_fladen_raclette.jpg") },
+      { name: "Kebab Tasche+Raclette", description: "Kebab im Taschenbrot mit Raclettek\xE4se \xFCberbacken", price: 15, image: IMG("pizzalemon_80_kebab_tasche_raclette.jpg") },
+      { name: "Kebab Fladen+Speck", description: "Kebab im Fladenbrot mit Speck", price: 15, image: IMG("pizzalemon_81_kebab_fladen_speck.jpg") },
+      { name: "Kebab Tasche+Speck", description: "Kebab im Taschenbrot mit Speck", price: 15, image: IMG("pizzalemon_82_kebab_tasche_speck.jpg") }
     ];
     SALATE = [
-      { name: "Gr\xFCner Salat", description: "Frischer Blattsalat mit Dressing", price: 7, image: IMG("pizzalemon_82_gruener_salat.jpg") },
-      { name: "Gemischter Salat", description: "Frischer gemischter Salat", price: 8, image: IMG("pizzalemon_83_gemischter_salat.jpg") },
-      { name: "Griechischer Salat", description: "Tomaten, Gurken, Oliven, Feta", price: 9.5, image: IMG("pizzalemon_84_griechischer_salat.jpg") },
-      { name: "Lemon Salat", description: "Hausgemachter Salat nach Art des Hauses", price: 12, image: IMG("pizzalemon_85_lemon_salat.jpg") },
-      { name: "Thon Salat", description: "Salat mit Thunfisch, Tomaten und Zwiebeln", price: 11, image: IMG("pizzalemon_86_thon_salat.jpg") },
-      { name: "Tomaten Salat", description: "Frischer Tomatensalat mit Oliven\xF6l", price: 7.5, image: IMG("pizzalemon_87_tomaten_salat.jpg") },
-      { name: "Tomaten Mozzarella", description: "Tomaten mit Mozzarella und Basilikum", price: 10, image: IMG("pizzalemon_88_tomaten_mozzarella.jpg") },
-      { name: "Knoblibrot", description: "Knuspriges Brot mit Knoblauchbutter", price: 5, image: IMG("pizzalemon_89_knoblibrot.jpg") },
-      { name: "Crevettencocktail", description: "Frischer Crevetten-Cocktail mit Dressing", price: 14, image: IMG("pizzalemon_90_crevettencocktail.jpg") }
+      { name: "Gr\xFCner Salat", description: "Frischer Blattsalat, Sauce: Italienisch oder Franz\xF6sisch", price: 8, image: IMG("pizzalemon_83_gruener_salat.jpg") },
+      { name: "Gemischter Salat", description: "Frischer gemischter Salat, Sauce: Italienisch oder Franz\xF6sisch", price: 9, image: IMG("pizzalemon_84_gemischter_salat.jpg") },
+      { name: "Griechischer Salat", description: "Tomaten, Gurken, Oliven, Feta", price: 12, image: IMG("pizzalemon_85_griechischer_salat.jpg") },
+      { name: "Lemon Salat", description: "Tomaten, Gurken, gegrilliertes Pouletfleisch", price: 13, image: IMG("pizzalemon_86_lemon_salat.jpg") },
+      { name: "Thon Salat", description: "Thunfisch, gemischter Salat", price: 10, image: IMG("pizzalemon_87_thon_salat.jpg") },
+      { name: "Tomaten Salat", description: "Tomaten, Zwiebeln", price: 9, image: IMG("pizzalemon_88_tomaten_salat.jpg") },
+      { name: "Tomaten Mozzarella", description: "Tomaten mit Mozzarella und Basilikum", price: 12, image: IMG("pizzalemon_89_tomaten_mozzarella.jpg") },
+      { name: "Knoblibrot", description: "Knuspriges Brot mit Knoblauchbutter", price: 5, image: IMG("pizzalemon_90_knoblibrot.jpg") },
+      { name: "Crevettencocktail", description: "Frischer Crevetten-Cocktailsalat", price: 15, image: IMG("pizzalemon_91_crevettencocktail.jpg") }
     ];
     DESSERTS = [
-      { name: "Tiramisu", description: "Klassisches italienisches Tiramisu", price: 6, image: IMG("pizzalemon_91_tiramisu.jpg") },
-      { name: "Baklava", description: "T\xFCrkisches Baklava mit Honig und N\xFCssen", price: 5, image: IMG("pizzalemon_92_baklava.jpg") },
-      { name: "Marlenke", description: "Tschechischer Honigkuchen (Marlenka)", price: 6, image: IMG("pizzalemon_93_marlenke.jpg") },
-      { name: "Choco-Mousse", description: "Cremige Schokoladenmousse", price: 6.5, image: IMG("pizzalemon_94_choco_mousse.jpg") },
-      { name: "M\xF6venpick Glace", description: "M\xF6venpick Premium-Glac\xE9", price: 6, image: IMG("pizzalemon_95_moevenpick_glace.jpg") }
+      { name: "Tiramisu", description: "Klassisches italienisches Tiramisu", price: 6, image: IMG("pizzalemon_92_tiramisu.jpg") },
+      { name: "Baklava", description: "T\xFCrkisches Baklava mit Honig und N\xFCssen \u2013 Portion 4 Stk.", price: 8, image: IMG("pizzalemon_93_baklava.jpg") },
+      { name: "Marlenke", description: "Tschechischer Honigkuchen (Marlenka) mit Honig oder Schokolade", price: 6, image: IMG("pizzalemon_94_marlenke.jpg") },
+      { name: "Choco-Mousse", description: "Cremige Schokoladenmousse", price: 7, image: IMG("pizzalemon_95_choco_mousse.jpg") },
+      { name: "M\xF6venpick Glace", description: "M\xF6venpick Premium-Glac\xE9 \u2013 Erdbeer, Schokolade, Vanille, Caramel (175ml)", price: 6, image: IMG("pizzalemon_96_moevenpick_glace.jpg") }
     ];
-    SOFT = [
-      { name: "Coca-Cola 0.5l", description: "Coca-Cola, 0.5l", price: 3.5, image: IMG("pizzalemon_96_coca_cola.jpg") },
-      { name: "Fanta 0.5l", description: "Fanta, 0.5l", price: 3.5, image: IMG("pizzalemon_97_fanta.jpg") },
-      { name: "Eistee 0.5l", description: "Nestea Eistee, 0.5l", price: 3.5, image: IMG("pizzalemon_98_eistee.jpg") },
-      { name: "Mineralwasser 0.5l", description: "Mineralwasser, 0.5l", price: 2.5, image: IMG("pizzalemon_99_mineralwasser.jpg") },
-      { name: "Uludag Gazoz 0.5l", description: "T\xFCrkische Limonade Uludag, 0.5l", price: 3.5, image: IMG("pizzalemon_100_uludag_gazoz.jpg") },
-      { name: "Rivella 0.5l", description: "Rivella, 0.5l", price: 3.5, image: IMG("pizzalemon_101_rivella.jpg") },
-      { name: "Ayran 0.25l", description: "T\xFCrkisches Joghurtgetr\xE4nk, 0.25l", price: 3, image: IMG("pizzalemon_102_ayran.jpg") },
-      { name: "Red Bull 0.25l", description: "Red Bull Energy Drink, 0.25l", price: 4.5, image: IMG("pizzalemon_103_red_bull.jpg") }
+    GETRAENKE = [
+      { name: "Coca-Cola", description: "Soft Drinks (Cola, Fanta, etc. 50cl)", price: 4, image: IMG("pizzalemon_97_coca_cola.jpg") },
+      { name: "Fanta", description: "Soft Drinks (Cola, Fanta, etc. 50cl)", price: 4, image: IMG("pizzalemon_98_fanta.jpg") },
+      { name: "Eistee", description: "Soft Drinks (Cola, Fanta, etc. 50cl)", price: 4, image: IMG("pizzalemon_99_eistee.jpg") },
+      { name: "Mineralwasser", description: "Mineralwasser", price: 4, image: IMG("pizzalemon_100_mineralwasser.jpg") },
+      { name: "Uludag Gazoz", description: "T\xFCrkische Limonade Uludag", price: 4, image: IMG("pizzalemon_101_uludag_gazoz.jpg") },
+      { name: "Rivella", description: "Rivella", price: 4, image: IMG("pizzalemon_102_rivella.jpg") },
+      { name: "Ayran", description: "T\xFCrkisches Joghurtgetr\xE4nk", price: 4, image: IMG("pizzalemon_103_ayran.jpg") },
+      { name: "Red Bull", description: "Red Bull Energy Drink", price: 6, image: IMG("pizzalemon_104_red_bull.jpg") }
     ];
     BIER = [
-      { name: "M\xFCllerbr\xE4u", description: "Schweizer Bier M\xFCllerbr\xE4u, 0.5l", price: 5, image: IMG("pizzalemon_104_muellerbraeu.jpg") },
-      { name: "Feldschl\xF6sschen", description: "Feldschl\xF6sschen Bier, 0.5l", price: 5, image: IMG("pizzalemon_105_feldschlosschen.jpg") }
+      { name: "M\xFCllerbr\xE4u", description: "Schweizer Bier M\xFCllerbr\xE4u, 0.5l", price: 5, image: IMG("pizzalemon_105_muellerbraeu.jpg") },
+      { name: "Feldschl\xF6sschen", description: "Feldschl\xF6sschen Bier, 0.5l", price: 5, image: IMG("pizzalemon_106_feldschlosschen.jpg") }
     ];
     ALKOHOL = [
-      { name: "Rotwein Merlot", description: "Merlot Rotwein, 2dl", price: 7, image: IMG("pizzalemon_106_rotwein_merlot.jpg") },
-      { name: "Weisswein", description: "Weisswein, 2dl", price: 7, image: IMG("pizzalemon_107_weisswein.jpg") },
-      { name: "Whisky", description: "Whisky, 4cl", price: 8, image: IMG("pizzalemon_108_whisky.jpg") },
-      { name: "Vodka", description: "Vodka, 4cl", price: 7, image: IMG("pizzalemon_109_vodka.jpg") },
-      { name: "Champagner", description: "Champagner, 1dl", price: 9, image: IMG("pizzalemon_110_champagner.jpg") },
-      { name: "Smirnoff Ice", description: "Smirnoff Ice, 0.275l", price: 5.5, image: IMG("pizzalemon_111_smirnoff_ice.jpg") }
+      { name: "Rotwein Merlot", description: "Merlot Rotwein, 50cl", price: 13, image: IMG("pizzalemon_107_rotwein_merlot.jpg") },
+      { name: "Weisswein", description: "Weisswein, 50cl", price: 15, image: IMG("pizzalemon_108_weisswein.jpg") },
+      { name: "Whisky", description: "Whisky 40%, 70cl Flasche", price: 50, image: IMG("pizzalemon_109_whisky.jpg") },
+      { name: "Vodka", description: "Vodka 40%, 70cl Flasche", price: 50, image: IMG("pizzalemon_110_vodka.jpg") },
+      { name: "Champagner", description: "Champagner, 70cl Flasche", price: 30, image: IMG("pizzalemon_111_champagner.jpg") },
+      { name: "Smirnoff Ice", description: "Smirnoff Ice, 275ml", price: 6, image: IMG("pizzalemon_112_smirnoff_ice.jpg") }
+    ];
+    TABAK = [
+      { name: "Zigaretten", description: "Zigaretten \u2013 aktueller Preis. Z\xE4hlen nicht zum Mindestbestellwert.", price: 0, image: IMG("pizzalemon_113_zigaretten.jpg") }
     ];
   }
 });
@@ -6071,9 +6029,11 @@ async function registerRoutes(app2) {
       const mainBranch = branches2.find((b) => b.isMain) || branches2[0];
       if (!mainBranch) return res.status(404).json({ error: "No branch found" });
       const tenant = mainBranch.tenantId ? await storage.getTenant(mainBranch.tenantId) : null;
+      const commissionRate = await storage.getCommissionRate();
       res.json({
         ...mainBranch,
-        storeType: tenant?.storeType || "supermarket"
+        storeType: tenant?.storeType || "supermarket",
+        commissionRate
       });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -6105,6 +6065,20 @@ async function registerRoutes(app2) {
     await callerIdService.handleIncomingCall(phoneNumber || "0551234567", void 0, tenantId ? Number(tenantId) : void 0);
     res.json({ success: true });
   });
+  function sortCategoriesByPriority(cats) {
+    const getPriority = (name) => {
+      const n = name.toLowerCase();
+      if (/pizza|بيتزا/.test(n)) return 1;
+      if (/burger|burg|sandwich|wrap|grill|shawarma|شاورما/.test(n)) return 2;
+      if (/pasta|meal|main|plate|chicken|meat|fish|دجاج|لحم|سمك/.test(n)) return 3;
+      if (/appetizer|starter|مقبلات|فاتح/.test(n)) return 6;
+      if (/salad|سلطة/.test(n)) return 7;
+      if (/drink|beverage|juice|عصير|مشروب/.test(n)) return 8;
+      if (/dessert|sweet|حلوى|حلويات/.test(n)) return 9;
+      return 5;
+    };
+    return [...cats].sort((a, b) => getPriority(a.name) - getPriority(b.name) || (a.sortOrder || 0) - (b.sortOrder || 0));
+  }
   app2.get("/api/store/:tenantId/menu", async (req, res) => {
     try {
       const tenantId = Number(req.params.tenantId);
@@ -6115,8 +6089,10 @@ async function registerRoutes(app2) {
       if (!tenant) {
         return res.status(404).json({ error: "Store not found" });
       }
+      const categories2 = sortCategoriesByPriority(await storage.getCategories(tenantId));
       const products2 = await storage.getProductsByTenant(tenantId);
-      const categories2 = await storage.getCategories(tenantId);
+      const categoryOrder = categories2.map((c) => c.id);
+      products2.sort((a, b) => categoryOrder.indexOf(a.categoryId) - categoryOrder.indexOf(b.categoryId));
       const config = await storage.getLandingPageConfig(tenantId);
       res.json({
         store: {
@@ -6149,7 +6125,9 @@ async function registerRoutes(app2) {
           price: (parseFloat(p.price) * factor).toFixed(2)
         }));
       }
-      const categories2 = await storage.getCategories(config.tenantId);
+      const categories2 = sortCategoriesByPriority(await storage.getCategories(config.tenantId));
+      const categoryOrder = categories2.map((c) => c.id);
+      products2.sort((a, b) => categoryOrder.indexOf(a.categoryId) - categoryOrder.indexOf(b.categoryId));
       res.json({ config, tenant, products: products2, categories: categories2 });
     } catch (e) {
       console.error(`[API] Public store error for ${req.params.slug}:`, e);
@@ -7509,7 +7487,7 @@ function registerSuperAdminRoutes(app2) {
       res.status(500).json({ error: e.message });
     }
   });
-  app2.get("/api/super-admin/bulk-import/template", async (_req, res) => {
+  app2.get("/api/super-admin/bulk-import/template", requireSuperAdmin, async (_req, res) => {
     res.setHeader("Content-Type", "text/csv");
     res.setHeader("Content-Disposition", "attachment; filename=products_template.csv");
     res.send("name,barcode,price,cost,category,description\nSample Product,123456,9.99,5.00,General,Sample description");
@@ -7541,6 +7519,68 @@ function registerSuperAdminRoutes(app2) {
         }
       }
       res.json({ success: true, imported });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+  app2.post("/api/super-admin/products", requireSuperAdmin, async (req, res) => {
+    try {
+      const product = await storage.createProduct(req.body);
+      res.json(product);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+  app2.post("/api/super-admin/categories", requireSuperAdmin, async (req, res) => {
+    try {
+      const category = await storage.createCategory(req.body);
+      res.json(category);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+  app2.put("/api/super-admin/categories/:id", requireSuperAdmin, async (req, res) => {
+    try {
+      const category = await storage.updateCategory(parseInt(req.params.id), req.body);
+      res.json(category);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+  app2.delete("/api/super-admin/categories/:id", requireSuperAdmin, async (req, res) => {
+    try {
+      await storage.deleteCategory(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+  app2.post("/api/super-admin/customers", requireSuperAdmin, async (req, res) => {
+    try {
+      const customer = await storage.createCustomer(req.body);
+      res.json(customer);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+  app2.put("/api/super-admin/customers/:id", requireSuperAdmin, async (req, res) => {
+    try {
+      const customer = await storage.updateCustomer(parseInt(req.params.id), req.body);
+      res.json(customer);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+  app2.post("/api/super-admin/inventory/adjust", requireSuperAdmin, async (req, res) => {
+    try {
+      const { productId, branchId, adjustment, absoluteQuantity } = req.body;
+      if (absoluteQuantity !== void 0 && absoluteQuantity !== null && absoluteQuantity !== "") {
+        const result = await storage.upsertInventory({ productId, branchId, quantity: Number(absoluteQuantity) });
+        res.json(result);
+      } else {
+        const result = await storage.adjustInventory(productId, branchId, Number(adjustment));
+        res.json(result);
+      }
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
@@ -7604,6 +7644,8 @@ function registerSuperAdminRoutes(app2) {
 
 // server/tenantAuth.ts
 init_storage();
+import jwt2 from "jsonwebtoken";
+var JWT_SECRET2 = process.env.JWT_SECRET || "barmagly-super-admin-secret-key-2024";
 var PUBLIC_ROUTES = [
   "/api/license/validate",
   "/api/landing/subscribe",
@@ -7649,6 +7691,20 @@ function tenantAuthMiddleware() {
     if (isSeedRoute(req.path)) {
       if (isDev) return next();
       return res.status(403).json({ error: "Seed endpoints are disabled in production" });
+    }
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        const token = authHeader.split(" ")[1];
+        const decoded = jwt2.verify(token, JWT_SECRET2);
+        const admin = await storage.getSuperAdmin(decoded.id);
+        if (admin && admin.isActive) {
+          const tenantId2 = req.query.tenantId ? Number(req.query.tenantId) : req.body?.tenantId ? Number(req.body.tenantId) : void 0;
+          if (tenantId2) req.tenantId = tenantId2;
+          return next();
+        }
+      } catch (_) {
+      }
     }
     const tenantId = req.query.tenantId ? Number(req.query.tenantId) : req.body?.tenantId ? Number(req.body.tenantId) : void 0;
     const licenseKey = req.headers["x-license-key"];
@@ -8118,7 +8174,7 @@ function configureExpoAndLanding(app2) {
       res.setHeader("Content-Type", "image/svg+xml");
       return res.status(200).send(svg);
     }
-    if (req.path === "/manifest.json") {
+    if (req.path === "/manifest.json" || req.path === "/app/manifest.json") {
       const forwardedProto = req.header("x-forwarded-proto");
       const protocol = forwardedProto || req.protocol || "https";
       const forwardedHost = req.header("x-forwarded-host");
@@ -8128,9 +8184,9 @@ function configureExpoAndLanding(app2) {
         name: "Barmagly POS",
         short_name: "Barmagly",
         description: "Cloud-powered Point of Sale system for modern restaurants, caf\xE9s, and retail stores. Multi-branch, multi-language, Stripe payments, inventory, CRM and more.",
-        start_url: "/",
-        scope: "/",
-        id: "/",
+        start_url: "/app",
+        scope: "/app",
+        id: "/app",
         display: "standalone",
         display_override: ["window-controls-overlay", "standalone", "minimal-ui"],
         background_color: "#0A0E17",
@@ -8159,7 +8215,7 @@ function configureExpoAndLanding(app2) {
           {
             name: "Admin Panel",
             short_name: "Admin",
-            url: "/super_admin/login",
+            url: "/super-admin/login",
             icons: [{ src: "/pwa-icon-192.svg", sizes: "192x192" }]
           }
         ],
@@ -8356,9 +8412,12 @@ self.addEventListener('message', (event) => {
       return res.status(200).send(sw);
     }
     if (req.path === "/pos") {
-      return res.redirect(301, "/");
+      return res.redirect(301, "/app");
     }
     if (req.path === "/" || req.path === "/index.html") {
+      return serveLandingPage({ req, res, appName });
+    }
+    if (req.path === "/app" || req.path === "/app/" || req.path === "/app/index.html") {
       const indexPath = path3.resolve(process.cwd(), "static-build", "index.html");
       if (fs4.existsSync(indexPath)) {
         let html = fs4.readFileSync(indexPath, "utf-8");
@@ -8366,14 +8425,13 @@ self.addEventListener('message', (event) => {
         res.setHeader("Content-Type", "text/html; charset=utf-8");
         return res.status(200).send(html);
       }
-      return serveLandingPage({ req, res, appName });
     }
-    if (req.path.startsWith("/super_admin")) {
+    if (req.path.startsWith("/super-admin")) {
       const superAdminTemplatePath = path3.resolve(
         process.cwd(),
         "server",
         "templates",
-        req.path === "/super_admin/login" ? "super-admin-login.html" : "super-admin-dashboard.html"
+        req.path === "/super-admin/login" ? "super-admin-login.html" : "super-admin-dashboard.html"
       );
       try {
         const superAdminTemplate = fs4.readFileSync(superAdminTemplatePath, "utf-8");
@@ -8431,10 +8489,11 @@ self.addEventListener('message', (event) => {
   app2.use("/assets", express.static(path3.resolve(process.cwd(), "assets")));
   app2.use("/uploads", express.static(path3.resolve(process.cwd(), "uploads")));
   app2.use("/objects", express.static(path3.resolve(process.cwd(), "uploads")));
+  app2.use("/app", express.static(path3.resolve(process.cwd(), "static-build")));
   app2.use(express.static(path3.resolve(process.cwd(), "static-build")));
   const staticIndexPath = path3.resolve(process.cwd(), "static-build", "index.html");
-  app2.get("/{*splat}", (req, res, next) => {
-    if (req.path.startsWith("/api/") || req.path.startsWith("/super_admin") || req.path.startsWith("/store/") || req.path.startsWith("/landing") || req.path.includes(".")) {
+  app2.get("/app/*", (req, res, next) => {
+    if (req.path.includes(".")) {
       return next();
     }
     if (fs4.existsSync(staticIndexPath)) {
@@ -8754,4 +8813,30 @@ function setupPaymentGatewayRoutes(app2) {
       throw err;
     }
   });
+  if (process.env.NODE_ENV !== "production" && port !== 8081) {
+    const http = await import("http");
+    const expoPort = 8080;
+    const proxy = http.createServer((req, res) => {
+      const targetPort = (req.url || "").startsWith("/api") ? port : expoPort;
+      const options = {
+        hostname: "127.0.0.1",
+        port: targetPort,
+        path: req.url,
+        method: req.method,
+        headers: req.headers
+      };
+      const proxyReq = http.request(options, (proxyRes) => {
+        res.writeHead(proxyRes.statusCode || 500, proxyRes.headers);
+        proxyRes.pipe(res, { end: true });
+      });
+      proxyReq.on("error", () => {
+        res.writeHead(502);
+        res.end("Backend not ready");
+      });
+      req.pipe(proxyReq, { end: true });
+    });
+    proxy.listen(8081, "0.0.0.0", () => {
+      log2(`proxy on port 8081 \u2192 Expo:${expoPort} (API\u2192${port}) (default preview)`);
+    });
+  }
 })();

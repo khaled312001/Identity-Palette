@@ -15,7 +15,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.barmagly.pos"
+      "bundleIdentifier": "com.barmagly.pos",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.barmagly.pos",
@@ -34,8 +37,8 @@
       "themeColor": "#2FD3C6",
       "backgroundColor": "#0A0E17",
       "lang": "en",
-      "scope": "/",
-      "startUrl": "/",
+      "scope": "/app",
+      "startUrl": "/app",
       "display": "standalone",
       "bundler": "metro"
     },
@@ -51,7 +54,17 @@
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true
-    }
+      "reactCompiler": true,
+      "baseUrl": "/app"
+    },
+    "extra": {
+      "router": {
+        "origin": "https://replit.com/"
+      },
+      "eas": {
+        "projectId": "70016573-6c3a-4410-bb4e-c32ba66ee6d5"
+      }
+    },
+    "owner": "khaled1012"
   }
 }

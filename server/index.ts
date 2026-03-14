@@ -489,7 +489,7 @@ function configureExpoAndLanding(app: express.Application) {
     }
 
     // PWA manifest – enables "Install App" prompt in browsers
-    if (req.path === "/manifest.json") {
+    if (req.path === "/manifest.json" || req.path === "/app/manifest.json") {
       const forwardedProto = req.header("x-forwarded-proto");
       const protocol = forwardedProto || req.protocol || "https";
       const forwardedHost = req.header("x-forwarded-host");
@@ -499,9 +499,9 @@ function configureExpoAndLanding(app: express.Application) {
         name: "Barmagly POS",
         short_name: "Barmagly",
         description: "Cloud-powered Point of Sale system for modern restaurants, cafés, and retail stores. Multi-branch, multi-language, Stripe payments, inventory, CRM and more.",
-        start_url: "/",
-        scope: "/",
-        id: "/",
+        start_url: "/app",
+        scope: "/app",
+        id: "/app",
         display: "standalone",
         display_override: ["window-controls-overlay", "standalone", "minimal-ui"],
         background_color: "#0A0E17",
@@ -530,7 +530,7 @@ function configureExpoAndLanding(app: express.Application) {
           {
             name: "Admin Panel",
             short_name: "Admin",
-            url: "/super_admin/login",
+            url: "/super-admin/login",
             icons: [{ src: "/pwa-icon-192.svg", sizes: "192x192" }]
           }
         ],
@@ -738,12 +738,16 @@ self.addEventListener('message', (event) => {
     }
 
     // Inject PWA tags into the main app index.html for installability
-    // /pos → redirect to the POS app at root
+    // /pos → redirect to the POS app at /app
     if (req.path === "/pos") {
-      return res.redirect(301, "/");
+      return res.redirect(301, "/app");
     }
 
     if (req.path === "/" || req.path === "/index.html") {
+      return serveLandingPage({ req, res, appName });
+    }
+
+    if (req.path === "/app" || req.path === "/app/" || req.path === "/app/index.html") {
       const indexPath = path.resolve(process.cwd(), "static-build", "index.html");
       if (fs.existsSync(indexPath)) {
         let html = fs.readFileSync(indexPath, "utf-8");
@@ -751,15 +755,14 @@ self.addEventListener('message', (event) => {
         res.setHeader("Content-Type", "text/html; charset=utf-8");
         return res.status(200).send(html);
       }
-      return serveLandingPage({ req, res, appName });
     }
 
-    if (req.path.startsWith("/super_admin")) {
+    if (req.path.startsWith("/super-admin")) {
       const superAdminTemplatePath = path.resolve(
         process.cwd(),
         "server",
         "templates",
-        req.path === "/super_admin/login" ? "super-admin-login.html" : "super-admin-dashboard.html"
+        req.path === "/super-admin/login" ? "super-admin-login.html" : "super-admin-dashboard.html"
       );
 
       try {
@@ -825,18 +828,14 @@ self.addEventListener('message', (event) => {
   app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
   app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
   app.use("/objects", express.static(path.resolve(process.cwd(), "uploads")));
+  app.use("/app", express.static(path.resolve(process.cwd(), "static-build")));
   app.use(express.static(path.resolve(process.cwd(), "static-build")));
 
-  // SPA catch-all: serve index.html with PWA tags for any unmatched route
-  // This ensures /intro, /login, /license-gate etc. all get the PWA install dialog
+  // SPA catch-all: serve index.html with PWA tags for any unmatched route under /app
+  // This ensures /app/intro, /app/login, /app/license-gate etc. all get the PWA install dialog
   const staticIndexPath = path.resolve(process.cwd(), "static-build", "index.html");
-  app.get("/{*splat}", (req: Request, res: Response, next: NextFunction) => {
-    // Skip API routes, super_admin, store routes, and asset files
+  app.get("/app/*", (req: Request, res: Response, next: NextFunction) => {
     if (
-      req.path.startsWith("/api/") ||
-      req.path.startsWith("/super_admin") ||
-      req.path.startsWith("/store/") ||
-      req.path.startsWith("/landing") ||
       req.path.includes(".") // static files with extensions
     ) {
       return next();

@@ -321,7 +321,7 @@
     <script>
         // Check if already logged in
         if (localStorage.getItem('super_admin_token')) {
-            window.location.href = '/super_admin';
+            window.location.href = '/super-admin/dashboard';
         }
 
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -354,7 +354,7 @@
                 localStorage.setItem('super_admin_user', JSON.stringify(data.admin || data.user));
 
                 // Keep button in loading state while redirecting
-                window.location.href = '/super_admin/dashboard';
+                window.location.href = '/super-admin/dashboard';
             } catch (err) {
                 document.getElementById('errorText').innerText = err.message;
                 errorBox.style.display = 'flex';

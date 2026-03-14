@@ -5,11 +5,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useLicense } from '@/lib/license-context';
+import { useLanguage } from '@/lib/language-context';
 import { router } from 'expo-router';
 import { apiRequest } from '@/lib/query-client';
 
 export default function OnboardingScreen() {
     const { tenant, validateLicense } = useLicense();
+    const { t } = useLanguage();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
 
@@ -33,7 +35,7 @@ export default function OnboardingScreen() {
 
     const handleComplete = async () => {
         if (!acceptedTerms) {
-            Alert.alert("Error", "You must agree to the terms and conditions.");
+            Alert.alert(t('error'), t('agreeTerms'));
             return;
         }
 
@@ -66,7 +68,7 @@ export default function OnboardingScreen() {
             const storedKey = await AsyncStorage.getItem("barmagly_license_key");
             if (storedKey) await validateLicense(storedKey);
 
-            Alert.alert("Success", "Onboarding completed! Welcome to Barmagly POS.");
+            Alert.alert(t('success'), t('onboardingSuccess'));
             router.replace("/(tabs)/products");
         } catch (err: any) {
             console.error("Onboarding error:", err);
@@ -83,14 +85,14 @@ export default function OnboardingScreen() {
                     <View style={[styles.progressBar, { width: `${(step / 3) * 100}%` }]} />
                 </View>
                 <Text style={styles.stepTitle}>
-                    {step === 1 ? "Store Information" : step === 2 ? "Inventory Setup" : "Final Steps"}
+                    {step === 1 ? t('onboardingTitle1') : step === 2 ? t('onboardingTitle2') : t('onboardingTitle3')}
                 </Text>
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
                 {step === 1 && (
                     <View style={styles.stepContent}>
-                        <Text style={styles.label}>Business Name</Text>
+                        <Text style={styles.label}>{t('businessName')}</Text>
                         <TextInput
                             style={styles.input}
                             value={businessName}
@@ -99,7 +101,7 @@ export default function OnboardingScreen() {
                             placeholderTextColor={Colors.textMuted}
                         />
 
-                        <Text style={styles.label}>Owner Phone</Text>
+                        <Text style={styles.label}>{t('ownerPhone')}</Text>
                         <TextInput
                             style={styles.input}
                             value={ownerPhone}
@@ -109,7 +111,7 @@ export default function OnboardingScreen() {
                             placeholderTextColor={Colors.textMuted}
                         />
 
-                        <Text style={styles.label}>Store Type</Text>
+                        <Text style={styles.label}>{t('storeType')}</Text>
                         <View style={styles.typeGrid}>
                             {['restaurant', 'supermarket', 'pharmacy', 'others'].map(type => (
                                 <TouchableOpacity
@@ -126,7 +128,7 @@ export default function OnboardingScreen() {
 
                 {step === 2 && (
                     <View style={styles.stepContent}>
-                        <Text style={styles.label}>First Category</Text>
+                        <Text style={styles.label}>{t('firstCategory')}</Text>
                         <TextInput
                             style={styles.input}
                             value={categoryName}
@@ -135,7 +137,7 @@ export default function OnboardingScreen() {
                             placeholderTextColor={Colors.textMuted}
                         />
 
-                        <Text style={styles.label}>First Product Name</Text>
+                        <Text style={styles.label}>{t('firstProduct')}</Text>
                         <TextInput
                             style={styles.input}
                             value={productName}
@@ -144,7 +146,7 @@ export default function OnboardingScreen() {
                             placeholderTextColor={Colors.textMuted}
                         />
 
-                        <Text style={styles.label}>Price</Text>
+                        <Text style={styles.label}>{t('productPrice')}</Text>
                         <TextInput
                             style={styles.input}
                             value={productPrice}
@@ -158,21 +160,21 @@ export default function OnboardingScreen() {
 
                 {step === 3 && (
                     <View style={styles.stepContent}>
-                        <Text style={styles.label}>Payment Methods</Text>
+                        <Text style={styles.label}>{t('paymentMethods')}</Text>
                         <TouchableOpacity style={styles.row} onPress={() => setAcceptedCash(!acceptedCash)}>
                             <Ionicons name={acceptedCash ? "checkbox" : "square-outline"} size={24} color={Colors.accent} />
-                            <Text style={styles.rowText}>Accept Cash</Text>
+                            <Text style={styles.rowText}>{t('acceptCash')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.row} onPress={() => setAcceptedCard(!acceptedCard)}>
                             <Ionicons name={acceptedCard ? "checkbox" : "square-outline"} size={24} color={Colors.accent} />
-                            <Text style={styles.rowText}>Accept Card (Online)</Text>
+                            <Text style={styles.rowText}>{t('acceptCard')}</Text>
                         </TouchableOpacity>
 
                         <View style={styles.divider} />
 
                         <TouchableOpacity style={styles.row} onPress={() => setAcceptedTerms(!acceptedTerms)}>
                             <Ionicons name={acceptedTerms ? "checkbox" : "square-outline"} size={24} color={Colors.accent} />
-                            <Text style={styles.rowText}>I agree to the Terms and Conditions</Text>
+                            <Text style={styles.rowText}>{t('agreeTerms')}</Text>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -181,7 +183,7 @@ export default function OnboardingScreen() {
             <View style={styles.footer}>
                 {step > 1 && (
                     <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
-                        <Text style={styles.backBtnText}>Back</Text>
+                        <Text style={styles.backBtnText}>{t('back')}</Text>
                     </TouchableOpacity>
                 )}
 
@@ -191,7 +193,7 @@ export default function OnboardingScreen() {
                     disabled={loading}
                 >
                     {loading ? <ActivityIndicator color="#000" /> : (
-                        <Text style={styles.nextBtnText}>{step === 3 ? "Launch Store" : "Continue"}</Text>
+                        <Text style={styles.nextBtnText}>{step === 3 ? t('launchStore') : t('continue')}</Text>
                     )}
                 </TouchableOpacity>
             </View>

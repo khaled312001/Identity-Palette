@@ -8,9 +8,12 @@ import { useRouter } from 'expo-router';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 
+import { useLanguage } from '@/lib/language-context';
+import { makeRedirectUri } from 'expo-auth-session';
+
 WebBrowser.maybeCompleteAuthSession();
 
-const WEBSITE_URL = 'https://www.barmagly.tech/';
+const WEBSITE_URL = 'https://pos.barmagly.tech/';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function LicenseGate() {
@@ -25,7 +28,10 @@ export default function LicenseGate() {
     const [request, response, promptAsync] = Google.useAuthRequest({
         androidClientId: "852311970344-8q8a01gm3jip4k9vooljk8ttjpd30802.apps.googleusercontent.com",
         webClientId: "852311970344-8q8a01gm3jip4k9vooljk8ttjpd30802.apps.googleusercontent.com",
+        redirectUri: Platform.OS === 'web' ? "https://pos.barmagly.tech/app" : makeRedirectUri({ scheme: 'exp' }),
     });
+
+    const { t } = useLanguage();
 
     useEffect(() => {
         if (response?.type === 'success') {
@@ -117,7 +123,7 @@ export default function LicenseGate() {
                     <View style={styles.successIconBg}>
                         <Ionicons name="shield-checkmark" size={64} color={Colors.success} />
                     </View>
-                    <Text style={styles.successText}>Store Activated!</Text>
+                    <Text style={styles.successText}>{t('success')}</Text>
                     <Text style={styles.successSubtext}>Redirecting to login...</Text>
                 </Animated.View>
             </View>
@@ -150,9 +156,11 @@ export default function LicenseGate() {
                     </Animated.View>
 
                     {/* Header */}
-                    <Text style={styles.title}>Activate Your Store</Text>
+                    <Text style={styles.title}>{t('activateStore')}</Text>
                     <Text style={styles.subtitle}>
-                        Enter your store email and license key to get started, or sign in with Google to start your <Text style={styles.trialHighlight}>14-day free trial</Text> instantly.
+                        {t('activateStoreSubtitle').split(t('fourteenDayTrial'))[0]}
+                        <Text style={styles.trialHighlight}>{t('fourteenDayTrial')}</Text>
+                        {t('activateStoreSubtitle').split(t('fourteenDayTrial'))[1]}
                     </Text>
 
                     {/* Google Login Button */}
@@ -163,23 +171,21 @@ export default function LicenseGate() {
                         activeOpacity={0.8}
                     >
                         <Ionicons name="logo-google" size={20} color="#fff" />
-                        <Text style={styles.googleButtonText}>Sign in with Google</Text>
+                        <Text style={styles.googleButtonText}>{t('signInWithGoogle')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
                         style={styles.subscribeButton}
-                        onPress={() => {
-                            Alert.alert("الإشتراك", "سيتم توجيهك لخطط الأسعار أو التواصل مع المبيعات.");
-                        }}
+                        onPress={() => Linking.openURL(WEBSITE_URL)}
                         activeOpacity={0.8}
                     >
                         <Ionicons name="star" size={20} color="#fff" />
-                        <Text style={styles.subscribeButtonText}>اشترك الآن (Subscribe Now)</Text>
+                        <Text style={styles.subscribeButtonText}>{t('subscribeNow')}</Text>
                     </TouchableOpacity>
 
                     <View style={styles.orDivider}>
                         <View style={styles.orLine} />
-                        <Text style={styles.orText}>OR USE LICENSE KEY</Text>
+                        <Text style={styles.orText}>{t('orUseLicenseKey')}</Text>
                         <View style={styles.orLine} />
                     </View>
 
@@ -196,7 +202,7 @@ export default function LicenseGate() {
                         {/* Email Input */}
                         <View style={styles.inputContainer}>
                             <Text style={styles.label}>
-                                <Ionicons name="mail-outline" size={13} color={Colors.accent} /> Store Email
+                                <Ionicons name="mail-outline" size={13} color={Colors.accent} /> {t('storeEmail')}
                             </Text>
                             <View style={[
                                 styles.inputWrapper,
@@ -220,7 +226,7 @@ export default function LicenseGate() {
                         {/* License Key Input */}
                         <View style={styles.inputContainer}>
                             <Text style={styles.label}>
-                                <Ionicons name="key-outline" size={13} color={Colors.accent} /> License Key
+                                <Ionicons name="key-outline" size={13} color={Colors.accent} /> {t('licenseKey')}
                             </Text>
                             <View style={[
                                 styles.inputWrapper,
@@ -255,7 +261,7 @@ export default function LicenseGate() {
                             ) : (
                                 <View style={styles.buttonContent}>
                                     <Ionicons name="rocket-outline" size={20} color="#fff" />
-                                    <Text style={styles.buttonText}>Activate Store</Text>
+                                    <Text style={styles.buttonText}>{t('activateButton') || 'Activate Store'}</Text>
                                 </View>
                             )}
                         </TouchableOpacity>
@@ -275,77 +281,25 @@ export default function LicenseGate() {
                         <Text style={styles.footerText}>Need help? Contact your store administrator.</Text>
                     </View>
 
-                    {/* ── Subscription Plans Section ── */}
+                    {/* ── Subscription Instructions Section ── */}
                     <View style={styles.plansSection}>
                         <View style={styles.plansDivider}>
                             <View style={styles.plansDividerLine} />
-                            <Text style={styles.plansDividerText}>OR</Text>
+                            <Text style={styles.plansDividerText}>{t('howToSubscribe')}</Text>
                             <View style={styles.plansDividerLine} />
                         </View>
 
-                        <Text style={styles.plansHeading}>Don't have a subscription yet?</Text>
                         <Text style={styles.plansSubheading}>
-                            Subscribe to get your email and activation key sent instantly.
+                            {t('howToSubscribeDesc')}
                         </Text>
 
-                        {/* Plan Cards */}
-                        <View style={styles.planCards}>
-                            {/* Basic Plan */}
-                            <View style={styles.planCard}>
-                                <View style={styles.planBadge}>
-                                    <Text style={styles.planBadgeText}>🟢 Basic</Text>
-                                </View>
-                                <Text style={styles.planName}>POS Starter</Text>
-                                <Text style={styles.planPrice}>
-                                    <Text style={styles.planPriceCurrency}>CHF </Text>
-                                    <Text style={styles.planPriceAmount}>199</Text>
-                                    <Text style={styles.planPricePeriod}>/mo</Text>
-                                </Text>
-                                <View style={styles.planFeatures}>
-                                    {['POS System', 'Inventory', 'Invoicing', 'Reports', 'Hosting & Support'].map(f => (
-                                        <View key={f} style={styles.planFeatureRow}>
-                                            <Ionicons name="checkmark-circle" size={14} color={Colors.success} />
-                                            <Text style={styles.planFeatureText}>{f}</Text>
-                                        </View>
-                                    ))}
-                                </View>
-                            </View>
-
-                            {/* Advanced Plan */}
-                            <View style={[styles.planCard, styles.planCardAdvanced]}>
-                                <View style={[styles.planBadge, styles.planBadgeAdvanced]}>
-                                    <Text style={styles.planBadgeText}>🔵 Advanced</Text>
-                                </View>
-                                <Text style={styles.planName}>Smart Business Growth</Text>
-                                <Text style={styles.planPrice}>
-                                    <Text style={styles.planPriceCurrency}>CHF </Text>
-                                    <Text style={styles.planPriceAmount}>499</Text>
-                                    <Text style={styles.planPricePeriod}>/mo</Text>
-                                </Text>
-                                <View style={styles.planFeatures}>
-                                    {['Everything in Basic', 'Online Store', 'CRM', 'Multi-device POS', 'Advanced Reports', 'Marketing Services'].map(f => (
-                                        <View key={f} style={styles.planFeatureRow}>
-                                            <Ionicons name="checkmark-circle" size={14} color={Colors.primary} />
-                                            <Text style={styles.planFeatureText}>{f}</Text>
-                                        </View>
-                                    ))}
-                                </View>
-                            </View>
-                        </View>
-
-                        {/* CTA Button */}
                         <TouchableOpacity
-                            style={styles.subscribeButton}
+                            style={styles.subscribeLink}
                             onPress={() => Linking.openURL(WEBSITE_URL)}
-                            activeOpacity={0.85}
                         >
-                            <Ionicons name="globe-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
-                            <Text style={styles.subscribeButtonText}>Subscribe & Get Your Key →</Text>
+                            <Text style={styles.subscribeLinkText}>{WEBSITE_URL}</Text>
+                            <Ionicons name="open-outline" size={16} color={Colors.accent} />
                         </TouchableOpacity>
-
-                        <Text style={styles.plansNote}>
-                            After subscribing, check your email for your login credentials and license key.
-                        </Text>
                     </View>
                 </Animated.View>
             </ScrollView>
@@ -793,5 +747,23 @@ const styles = StyleSheet.create({
         color: Colors.textMuted,
         textAlign: 'center',
         lineHeight: 18,
+    },
+    subscribeLink: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        marginTop: 12,
+        padding: 12,
+        backgroundColor: `${Colors.accent}15`,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: `${Colors.accent}30`,
+    },
+    subscribeLinkText: {
+        color: Colors.accent,
+        fontSize: 14,
+        fontWeight: '700',
+        textDecorationLine: 'underline',
     },
 });

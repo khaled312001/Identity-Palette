@@ -68,6 +68,7 @@ export default function LoginScreen() {
   const [request, googleResponse, promptAsync] = Google.useAuthRequest({
     androidClientId: "852311970344-8q8a01gm3jip4k9vooljk8ttjpd30802.apps.googleusercontent.com",
     webClientId: "852311970344-8q8a01gm3jip4k9vooljk8ttjpd30802.apps.googleusercontent.com",
+    redirectUri: Platform.OS === 'web' ? "https://pos.barmagly.tech/app" : undefined,
   });
 
   useEffect(() => {
@@ -93,11 +94,11 @@ export default function LoginScreen() {
         login(data.employee);
         router.replace("/(tabs)/products");
       } else {
-        Alert.alert("Login Failed", data.error || "No associated employee found.");
+        Alert.alert(t("loginFailed"), data.error || "No associated employee found.");
       }
     } catch (err) {
       console.error("Google login error:", err);
-      Alert.alert("Error", "Failed to sign in with Google");
+      Alert.alert(t("error"), "Failed to sign in with Google");
     } finally {
       setLoading(false);
     }
@@ -284,12 +285,12 @@ export default function LoginScreen() {
                         disabled={!request || loading}
                       >
                         <Ionicons name="logo-google" size={18} color="#fff" />
-                        <Text style={styles.googleLoginText}>Sign in with Google (Admin)</Text>
+                        <Text style={styles.googleLoginText}>{t("signInWithGoogle")} (Admin)</Text>
                       </Pressable>
 
                       <Pressable style={styles.logoutLicenseBtn} onPress={logoutLicense}>
                         <Ionicons name="log-out-outline" size={16} color={Colors.textMuted} />
-                        <Text style={styles.logoutLicenseText}>Switch Store License</Text>
+                        <Text style={styles.logoutLicenseText}>{t("logout") + " Store License"}</Text>
                       </Pressable>
                     </View>
                   )}

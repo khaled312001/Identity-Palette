@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   StyleSheet, Text, View, FlatList, Pressable, TextInput,
-  Modal, Alert, ScrollView, Platform, Dimensions, Image,
+  Modal, Alert, ScrollView, Platform, Dimensions, Image, Animated,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
@@ -15,6 +15,31 @@ import BarcodeScanner from "@/components/BarcodeScanner";
 import { useAuth } from "@/lib/auth-context";
 import { useLicense } from "@/lib/license-context";
 import { useLanguage } from "@/lib/language-context";
+
+const AnimatedProductImage = ({ uri }: { uri: string }) => {
+  const anim = React.useRef(new Animated.Value(0)).current;
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0, duration: 2000, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  const scale = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.95] });
+  const opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 0.5] });
+
+  return (
+    <Animated.View style={{ transform: [{ scale }], opacity }}>
+      <Image
+        source={{ uri }}
+        style={{ width: 34, height: 34, borderRadius: 8 }}
+        resizeMode="cover"
+        blurRadius={3}
+      />
+    </Animated.View>
+  );
+};
 
 export default function ProductsScreen() {
   const insets = useSafeAreaInsets();
@@ -320,7 +345,7 @@ export default function ProductsScreen() {
             <Pressable style={[styles.productCard, isRTL && { flexDirection: "row-reverse" }]} onPress={() => canManage ? openEdit(item) : null}>
               <View style={[styles.productIconWrap, isRTL ? { marginLeft: 12, marginRight: 0 } : {}]}>
                 {item.image ? (
-                  <Image source={{ uri: item.image.startsWith("http") || item.image.startsWith("file://") || item.image.startsWith("data:") ? item.image : `${getApiUrl().replace(/\/$/, "")}${item.image}` }} style={{ width: 40, height: 40, borderRadius: 10 }} resizeMode="cover" />
+                  <AnimatedProductImage uri={item.image.startsWith("http") || item.image.startsWith("file://") || item.image.startsWith("data:") ? item.image : `${getApiUrl().replace(/\/$/, "")}${item.image}`} />
                 ) : (
                   <Ionicons name="cube" size={24} color={Colors.accent} />
                 )}
@@ -380,7 +405,7 @@ export default function ProductsScreen() {
             }}>
               <View style={[styles.productIconWrap, isRTL ? { marginLeft: 12, marginRight: 0 } : {}, { backgroundColor: (item.color || "#7C3AED") + "20" }]}>
                 {item.image ? (
-                  <Image source={{ uri: item.image.startsWith("http") || item.image.startsWith("file://") || item.image.startsWith("data:") ? item.image : `${getApiUrl().replace(/\/$/, "")}${item.image}` }} style={{ width: 40, height: 40, borderRadius: 10 }} resizeMode="cover" />
+                  <AnimatedProductImage uri={item.image.startsWith("http") || item.image.startsWith("file://") || item.image.startsWith("data:") ? item.image : `${getApiUrl().replace(/\/$/, "")}${item.image}`} />
                 ) : (
                   <Ionicons name={(item.icon || "grid") as any} size={24} color={item.color || "#7C3AED"} />
                 )}

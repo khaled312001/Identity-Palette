@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet, Text, View, FlatList, Pressable, TextInput,
-  ScrollView, Modal, Alert, Platform, Dimensions, Image,
+  ScrollView, Modal, Alert, Platform, Dimensions, Image, Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -16,6 +16,31 @@ import * as Haptics from "expo-haptics";
 import BarcodeScanner from "@/components/BarcodeScanner";
 import { useLanguage } from "@/lib/language-context";
 import { useNotifications } from "@/lib/notification-context";
+
+const AnimatedProductImage = ({ uri }: { uri: string }) => {
+  const anim = React.useRef(new Animated.Value(0)).current;
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0, duration: 2000, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  const scale = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.95] });
+  const opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 0.5] });
+
+  return (
+    <Animated.View style={{ transform: [{ scale }], opacity }}>
+      <Image
+        source={{ uri }}
+        style={{ width: 34, height: 34, borderRadius: 8 }}
+        resizeMode="cover"
+        blurRadius={3}
+      />
+    </Animated.View>
+  );
+};
 
 export default function POSScreen() {
   const insets = useSafeAreaInsets();
@@ -1021,7 +1046,7 @@ export default function POSScreen() {
                   <View style={[styles.productCardTopBorder, { backgroundColor: catColor }]} />
                   <View style={[styles.productIcon, { backgroundColor: `${catColor} 15` }]}>
                     {item.image ? (
-                      <Image source={{ uri: item.image.startsWith("http") || item.image.startsWith("file://") || item.image.startsWith("data:") ? item.image : `${getApiUrl().replace(/\/$/, "")}${item.image}` }} style={{ width: 44, height: 44, borderRadius: 12 }} resizeMode="cover" />
+                      <AnimatedProductImage uri={item.image.startsWith("http") || item.image.startsWith("file://") || item.image.startsWith("data:") ? item.image : `${getApiUrl().replace(/\/$/, "")}${item.image}`} />
                     ) : (
                       <Ionicons name={catIcon} size={26} color={catColor} />
                     )}

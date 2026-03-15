@@ -1,1 +1,15 @@
-import { db, pool } from './server/db.js'; import { tenants, licenseKeys } from './shared/schema.js'; import { eq } from 'drizzle-orm'; async function run() { const tenantKey = await db.query.licenseKeys.findFirst({ where: eq(licenseKeys.tenantId, 1)}); console.log('KEY:', tenantKey?.licenseKey); process.exit(0); } run();
+import { db } from "./server/db";
+import { products, categories } from "./shared/schema";
+import { eq, ilike } from "drizzle-orm";
+
+async function run() {
+    const allProducts = await db.select().from(products);
+    const pizzaProducts = allProducts.filter(p => p.name.toLowerCase().includes('pizza'));
+    console.log("Found pizza products:", pizzaProducts.length);
+    if (pizzaProducts.length > 0) {
+        console.log("Sample pizza:");
+        console.log(pizzaProducts[0].name, pizzaProducts[0].variants, pizzaProducts[0].price);
+    }
+}
+
+run().catch(console.error).finally(() => process.exit(0));
